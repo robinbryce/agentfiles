@@ -13,6 +13,7 @@ into isolated **scopes** — see below. If you're an agent, start at
 | Path | Purpose |
 |------|---------|
 | [AGENTS.md](./AGENTS.md) | Agent bootstrap router — read first |
+| [USER-CLAUDE.md](./USER-CLAUDE.md) | Machine-wide Claude Code hook — symlinked from `~/.claude/CLAUDE.md` |
 | [scopes/](./scopes/) | Isolated workstreams: forestrie, justgames, personal |
 | [workflow/](./workflow/) | Cross-scope commands, rules, skills |
 | [vendored/](./vendored/) | Pinned third-party agent content |
@@ -56,17 +57,31 @@ shared forestrie-agents repo rather than this one). To promote:
 
 ## Clone layout
 
-Recommended as a sibling of other personal checkouts:
+Clone directly under home, as a sibling of `~/dotfiles`, so shell rc files,
+symlink targets, and `@import` paths can all reference it via a short,
+stable path:
 
 ```text
-~/Dev/personal/
-├── agentfiles/              # this repo
-└── forestrie/
-    └── forestrie-agents/    # canonical shared Forestrie team repo
+~/
+├── agentfiles/     # this repo
+└── dotfiles/
 ```
 
 ## Install
 
+1. Symlink the machine-wide Claude Code hook once:
+
+   ```bash
+   ln -s ~/agentfiles/USER-CLAUDE.md ~/.claude/CLAUDE.md
+   ```
+
+2. For any repo you want `cursor-agent` to understand, or to lock Claude
+   Code to a scope explicitly rather than inferring it from cwd:
+
+   ```bash
+   ln -s ~/agentfiles/scopes/<scope>/AGENTS.md AGENTS.md
+   ln -s AGENTS.md CLAUDE.md
+   ```
+
 See [harness/claude-code.md](./harness/claude-code.md) or
-[harness/cursor.md](./harness/cursor.md) for wiring this repo (and a scope)
-into a specific agent harness.
+[harness/cursor.md](./harness/cursor.md) for the full detail and rationale.

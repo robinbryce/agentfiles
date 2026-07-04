@@ -5,17 +5,37 @@
 `CLAUDE.md` at the root of agentfiles is a one-line pointer to `AGENTS.md` —
 read that first.
 
-## Wiring a project repo to agentfiles
+## Global hook (machine-wide, zero per-repo setup)
 
-Add a thin pointer at the project repo's root `CLAUDE.md`:
+Claude Code loads `~/.claude/CLAUDE.md` in every session regardless of
+working directory. [USER-CLAUDE.md](../USER-CLAUDE.md) is the maintained,
+version-controlled source for that file — symlink it into place once per
+machine:
 
-```markdown
-# Claude Code
-
-Read [AGENTS.md](./AGENTS.md) before making changes.
-Common process: [agentfiles](https://github.com/robinbryce/agentfiles),
-scope: <forestrie|justgames|personal>.
+```bash
+ln -s ~/agentfiles/USER-CLAUDE.md ~/.claude/CLAUDE.md
 ```
+
+This makes scope routing available in every Claude Code session, in every
+project, regardless of nesting (tmux/nvim/cmux don't matter — it isn't
+cwd-driven), with no changes to any downstream repo. The first time Claude
+Code encounters the `@import` inside it, it shows a one-time approval
+dialog — accept it.
+
+## Per-repo scope lock (optional, explicit)
+
+The global hook makes Claude infer scope from cwd against the table in
+[AGENTS.md](../AGENTS.md). To skip that inference entirely for a specific
+project repo — or to give `cursor-agent` the same content, since it has no
+global hook — symlink the repo root to the scope directly:
+
+```bash
+ln -s ~/agentfiles/scopes/<scope>/AGENTS.md AGENTS.md
+ln -s AGENTS.md CLAUDE.md
+```
+
+Both tools then read the correct scope unambiguously, without depending on
+path-matching heuristics.
 
 ## Skills
 
