@@ -19,6 +19,18 @@
 - [Rules](./workflow/rules/README.md)
 - [Skills](./workflow/skills/README.md)
 
+## Planning params (overrides [workflow/rules/planning.md](../../workflow/rules/planning.md))
+
+| Param | Value |
+|-------|-------|
+| `plans_root` | in-repo `docs/plans/` (or `plans/` for small projects) |
+| `decisions_home` | in-repo `docs/adr/` — ADR only, ARC optional; many personal projects need neither |
+| `id_scheme.plans` | date-cohort `plan-YYMM-NN-<slug>` (default) |
+| `id_scheme.decisions` | absolute `adr-NNNN` |
+| `issue_refs` | none |
+
+Everything is repo-local; there is no central docs hub for personal work.
+
 ## Notes
 
 Do not reference Forestrie or JustGames details here — see the isolation

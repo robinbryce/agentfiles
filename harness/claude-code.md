@@ -37,6 +37,36 @@ ln -s AGENTS.md CLAUDE.md
 Both tools then read the correct scope unambiguously, without depending on
 path-matching heuristics.
 
+## Hooks
+
+### Plan-doc guardrail (`PreToolUse`)
+
+[hooks/validate-plan.sh](./hooks/validate-plan.sh) enforces the plan naming
+scheme from [workflow/rules/planning.md](../workflow/rules/planning.md). On any
+`Write`/`Edit` whose path is inside a `plans/` directory, it blocks (exit 2) a
+filename that matches neither the date-cohort scheme (`plan-YYYY-NN-<slug>.md`),
+the frozen legacy scheme (`plan-NNNN-<slug>.md`), a directory sub-doc
+(`NN-<slug>.md`), nor `README.md`/`handoff.md`/`decisions.md`. Missing
+frontmatter on a new-scheme file is a soft, non-blocking nudge. Non-plan paths
+pass straight through.
+
+Wire it once in `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Write|Edit",
+        "hooks": [ { "type": "command",
+                     "command": "bash ~/agentfiles/harness/hooks/validate-plan.sh" } ] }
+    ]
+  }
+}
+```
+
+The primary path is still `/plan-new` (allocates the id + scaffolds
+frontmatter); the hook is the backstop for direct writes that skip it.
+
 ## Skills
 
 Install skills by copying or symlinking from:

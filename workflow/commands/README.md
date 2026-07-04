@@ -5,7 +5,7 @@ matter which scope you're in. Load only when invoked.
 
 | Command | Purpose |
 |---------|---------|
-| (none yet) | Add commands here as they prove useful across more than one scope |
+| [/plan-new](./plan-new.md) | Allocate the next date-cohort plan id and scaffold the doc (helper: [new-plan.sh](./new-plan.sh)). See [rules/planning.md](../rules/planning.md). |
 
 Scope-specific commands live in `scopes/<scope>/workflow/commands/` instead.
 

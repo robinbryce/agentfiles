@@ -19,6 +19,12 @@
 - [Rules](./workflow/rules/README.md)
 - [Skills](./workflow/skills/README.md)
 
+## Planning params (overrides [workflow/rules/planning.md](../../workflow/rules/planning.md))
+
+Uses the defaults: `plans_root` = repo `docs/plans/`, `decisions_home` =
+repo `docs/{adr,arc}/`, date-cohort plan ids, absolute ADR/ARC. Set
+`issue_refs` here if/when JustGames adopts a tracker prefix.
+
 ## Notes
 
 Do not reference Forestrie or personal-project details here — see the

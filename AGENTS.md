@@ -50,6 +50,11 @@ See [workflow/skills/README.md](./workflow/skills/README.md).
 
 See [workflow/rules/README.md](./workflow/rules/README.md).
 
+**Creating a plan / ADR / ARC?** Load
+[workflow/rules/planning.md](./workflow/rules/planning.md) and use
+[`/plan-new`](./workflow/commands/plan-new.md) — do not hand-number plan files.
+Scopes override the `plans_root` / `decisions_home` params below.
+
 ---
 
 ## Context efficiency rules
