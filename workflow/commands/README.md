@@ -6,6 +6,7 @@ matter which scope you're in. Load only when invoked.
 | Command | Purpose |
 |---------|---------|
 | [/plan-new](./plan-new.md) | Allocate the next date-cohort plan id and scaffold the doc (helper: [new-plan.sh](./new-plan.sh)). See [rules/planning.md](../rules/planning.md). |
+| [/save-status](./save-status.md) | Condense the session into a `status-YYMM-NN-*` doc (updated in place per workstream) that a fresh agent can resume from. |
 
 Scope-specific commands live in `scopes/<scope>/workflow/commands/` instead.
 
