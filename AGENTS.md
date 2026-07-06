@@ -50,6 +50,11 @@ See [workflow/skills/README.md](./workflow/skills/README.md).
 
 See [workflow/rules/README.md](./workflow/rules/README.md).
 
+**Always-on (load in every task, all scopes):**
+[workflow/rules/clickable-references.md](./workflow/rules/clickable-references.md)
+— render every file / line / PR / issue / commit reference as a clickable link
+(gitweb permalink for git content, absolute `path:line` for local-only).
+
 **Creating a plan / ADR / ARC?** Load
 [workflow/rules/planning.md](./workflow/rules/planning.md) and use
 [`/plan-new`](./workflow/commands/plan-new.md) — do not hand-number plan files.
