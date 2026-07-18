@@ -58,6 +58,19 @@ one-scope rule as [claude-code.md](./claude-code.md#skills):
 - `workflow/skills/` (cross-scope overlays)
 - `vendored/<source>/skills/` (pinned third-party)
 
+## cmux
+
+cmux supports pi natively: `cmux hooks pi install` generates
+`~/.pi/agent/extensions/cmux-session.ts` (a pi extension, not the legacy
+hooks API) giving Feed tool telemetry (non-blocking — pi has no permission
+prompts), session restore (`pi --session <id>`), and workspace auto-naming.
+`agents-bootstrap.sh` runs the install and then links the extension into
+`~/.pi-personal/extensions/` and `~/.pi-justgames/extensions/`, because pi
+discovers extensions from `$PI_CODING_AGENT_DIR/extensions/` — without the
+links the profile wrappers would silently lose the cmux integration.
+`CMUX_PI_HOOKS_DISABLED=1` opts a shell out. A `pi` tab-bar button/action
+lives in dotfiles `config/cmux/cmux.json` (`cmd+shift+i`).
+
 ## Trust
 
 `defaultProjectTrust` in `~/.pi/agent/settings.json` gates loading of
