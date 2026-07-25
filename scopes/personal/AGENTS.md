@@ -5,7 +5,7 @@
 1. **This file** — routing only
 2. **One** [arc-context](./arc-context/) file — only if a project needs its own glossary
 3. **Repo overlay** — the working project's own `AGENTS.md`, if any
-4. **Workflow** — only the invoked [command](./workflow/commands/) or [skill](./workflow/skills/)
+4. **Workflow** — only the invoked [skill](./workflow/skills/)
 
 ## arc-context index
 
@@ -15,7 +15,6 @@
 
 ## Workflow index
 
-- [Commands](./workflow/commands/README.md)
 - [Rules](./workflow/rules/README.md)
 - [Skills](./workflow/skills/README.md)
 

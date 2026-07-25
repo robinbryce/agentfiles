@@ -1,0 +1,8 @@
+{
+  "name": "agentfiles-forestrie",
+  "description": "agentfiles 'forestrie' scope skills. Install per-project so scope isolation holds.",
+  "author": { "name": "Robin Bryce", "url": "https://github.com/robinbryce" },
+  "homepage": "https://github.com/robinbryce/agentfiles",
+  "license": "MIT",
+  "skills": ["./workflow/skills/"]
+}

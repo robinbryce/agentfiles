@@ -1,16 +1,22 @@
+---
+name: save-status
+description: Condense the current session into a status-YYMM-NN document that a fresh agent session can resume from. Use when checkpointing work in flight, wrapping up a session, or handing a workstream to another agent.
+when_to_use: The user says "save status", "checkpoint this", "write a handoff", or is ending a working session that another session will pick up.
+argument-hint: "[issue-id | plan ref | free-text hints]"
+allowed-tools: Read, Edit, Write, Glob, Grep, Bash
+---
+
 # /save-status — checkpoint work in flight
 
 Condense the current session into a `status-*.md` document that is the ideal
 starting point for a **fresh agent session**: combined with the prevailing
 context hooks, reading the status doc should be sufficient context to continue
 the work it describes. Naming follows
-[workflow/rules/planning.md](../rules/planning.md) (date-cohort scheme).
+[workflow/rules/planning.md](../../rules/planning.md) (date-cohort scheme).
 
-## Usage
+## Context hints
 
-```
-/save-status [context hints...]
-```
+Hints given on invocation: `$ARGUMENTS`
 
 - `context hints` — optional; any of:
   - a Linear issue id (e.g. `FOR-314`)
@@ -22,7 +28,7 @@ the work it describes. Naming follows
   recently changed or added plan docs in the shared and repo-specific plans
   roots (`docs/plans/`, `plans/`, `devdocs/plans/`).
 
-## What the agent does
+## Steps
 
 1. **Establish the workstream** from the hints (or the session, as above).
 2. **Prefer update-in-place.** Scan the status root for an existing doc
@@ -42,7 +48,7 @@ the work it describes. Naming follows
    never hand-pick against all history):
 
    ```bash
-   bash ~/agentfiles/workflow/commands/new-plan.sh <short-desc> --prefix status [--root <status-dir>]
+   bash "${CLAUDE_SKILL_DIR}/scripts/new-plan.sh" <short-desc> --prefix status [--root <status-dir>]
    ```
 
    Infer `<short-desc>` from the context; if the workstream is a specific
@@ -62,7 +68,7 @@ significance. Then:
 - **Blockers** — anything blocking, such as dependencies on other tasks
 
 Use plan-style frontmatter (`id`, `status`, `created`, `refs` — see
-[rules/planning.md](../rules/planning.md#frontmatter-all-plan-docs)), with
+[rules/planning.md](../../rules/planning.md#frontmatter-all-plan-docs)), with
 `refs:` carrying the Linear issues and plan/ADR/ARC ids the workstream serves.
 On update, refresh the sections in place and keep `refs:` current rather than
 appending a log.
