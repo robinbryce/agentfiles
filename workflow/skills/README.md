@@ -6,7 +6,7 @@ in. Each skill is a directory containing `SKILL.md`, following the
 
 | Skill | Purpose |
 |-------|---------|
-| [/plan-new](./plan-new/SKILL.md) | Allocate the next date-cohort plan id and scaffold the doc (helper: [new-plan.sh](./plan-new/scripts/new-plan.sh)). See [rules/planning.md](../rules/planning.md). |
+| [/plan-new](./plan-new/SKILL.md) | Allocate the next date-cohort plan id and scaffold the doc (helper: [new-plan.sh](./plan-new/scripts/new-plan.sh)). See [rules/planning](../rules/planning/SKILL.md). |
 | [/save-status](./save-status/SKILL.md) | Condense the session into a `status-YYMM-NN-*` doc (updated in place per workstream) that a fresh agent can resume from. |
 
 Scope-specific skills live in `scopes/<scope>/workflow/skills/` instead, and

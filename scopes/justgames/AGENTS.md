@@ -21,12 +21,12 @@
 ## Linear
 
 Any Linear work → follow
-[workflow/rules/linear-direct-api.md](../../workflow/rules/linear-direct-api.md):
+[workflow/rules/linear-direct-api](../../workflow/rules/linear-direct-api/SKILL.md):
 direct GraphQL keyed by `LINEAR_API_KEY` from `~/Dev/justgames`'s `.envrc`, not
 MCP / interactive login. If this scope defines no `LINEAR_API_KEY`, stop and say
 so — never reuse the forestrie key here.
 
-## Planning params (overrides [workflow/rules/planning.md](../../workflow/rules/planning.md))
+## Planning params (overrides [workflow/rules/planning](../../workflow/rules/planning/SKILL.md))
 
 Uses the defaults: `plans_root` = repo `docs/plans/`, `decisions_home` =
 repo `docs/{adr,arc}/`, date-cohort plan ids, absolute ADR/ARC. Set

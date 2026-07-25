@@ -60,9 +60,24 @@ If scope routing doesn't seem to be picked up from a nested subdirectory,
 launch from the repo root or pass
 `--workspace $(git rev-parse --show-toplevel)` explicitly.
 
-For rules, Cursor expects `.mdc` with YAML frontmatter. Maintain a thin `.mdc`
-that links to the agentfiles markdown rather than duplicating content — see
-[Known drift](#known-drift) below.
+### Rules
+
+Rules are skills too — `workflow/rules/<name>/SKILL.md`, annotated with
+`user-invocable: false` and, where file-type scoped, `paths:`. They install
+with everything else, and Cursor reads them from `.claude/skills/` /
+`.cursor/skills/` like any other skill.
+
+For Cursor's **native** glob scoping, generate `.mdc` shims:
+
+```bash
+~/agentfiles/bin/agentfiles-sync <scope> --cursor-rules
+```
+
+`paths:` maps onto Cursor's `globs:`, `cursor-always-apply: true` onto
+`alwaysApply: true`, and the shim body is a one-line pointer at the same
+`SKILL.md` — nothing is duplicated, so nothing can drift. The generator never
+overwrites a `.mdc` it did not write, and excludes the ones it does write
+individually, so a repo tracking `.cursor/rules/` stays clean.
 
 ## Recommended layout (per project repo)
 
@@ -73,7 +88,7 @@ CLAUDE.md             # symlink to ./AGENTS.md            (agentfiles-link)
 .cursor/
   skills/             # symlinks to canonical skills      (agentfiles-sync)
   commands/           # symlinks to each SKILL.md         (agentfiles-sync)
-  rules/              # repo-specific overlay rules only
+  rules/              # generated .mdc shims (opt-in) + repo-specific overlays
 .agents/skills/       # symlinks to canonical skills      (agentfiles-sync)
 ```
 
@@ -86,10 +101,11 @@ agentfiles-sync <scope>    # skills   (agentfiles/bin)
 
 ## Known drift
 
-Several Forestrie repos carry hand-copied `.cursor/rules/*.mdc` duplicating
+canopy, univocity, mandate, and curator each track hand-written
+`.cursor/rules/*.mdc` duplicating
 [forestrie-agents/workflow/rules/](https://github.com/forestrie/forestrie-agents/tree/main/workflow/rules).
-Those copies are the canonical source's shadow, not its equal. Prefer syncing
-or linking; if you must copy, record where from.
+`--cursor-rules` skips those files rather than clobbering them, so it is safe
+to adopt before they are retired. Retiring one is then a delete plus a re-run.
 
 Never symlink more than one scope's rules or skills into the same project.
 

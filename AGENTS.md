@@ -45,17 +45,21 @@ skills are the same mechanism now — one `<name>/SKILL.md` directory per skill,
 installed into every harness by
 [`bin/agentfiles-sync`](./bin/agentfiles-sync).
 
-### Rules (requestable — not auto-loaded unless repo configures alwaysApply)
+### Rules (auto-applied by `paths:` glob, or by description)
 
 See [workflow/rules/README.md](./workflow/rules/README.md).
 
+Rules are skills with `user-invocable: false` — hidden from the `/` menu, and
+loaded only when the session touches a file their `paths:` glob matches. They
+install the same way skills do.
+
 **Always-on (load in every task, all scopes):**
-[workflow/rules/clickable-references.md](./workflow/rules/clickable-references.md)
+[workflow/rules/clickable-references](./workflow/rules/clickable-references/SKILL.md)
 — render every file / line / PR / issue / commit reference as a clickable link
 (gitweb permalink for git content, absolute `path:line` for local-only).
 
 **Creating a plan / ADR / ARC?** Load
-[workflow/rules/planning.md](./workflow/rules/planning.md) and use
+[workflow/rules/planning](./workflow/rules/planning/SKILL.md) and use
 [`/plan-new`](./workflow/skills/plan-new/SKILL.md) — do not hand-number plan files.
 Scopes override the `plans_root` / `decisions_home` params below.
 

@@ -10,7 +10,7 @@ allowed-tools: Read, Edit, Glob, Grep, Bash
 
 Allocate the next plan id for the current month and scaffold the file (or
 directory) with frontmatter pre-filled. Applies
-[workflow/rules/planning.md](../../rules/planning.md).
+[workflow/rules/planning](../../rules/planning/SKILL.md).
 
 Arguments: `$ARGUMENTS`
 
