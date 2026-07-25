@@ -28,10 +28,12 @@ adversarial pass; never post to GitHub until Robin has seen the review.
 ## Linear
 
 Any Linear work → follow
-[workflow/rules/linear-direct-api](../../workflow/rules/linear-direct-api/SKILL.md):
-direct GraphQL keyed by `LINEAR_API_KEY` from `~/Dev/justgames`'s `.envrc`, not
-MCP / interactive login. If this scope defines no `LINEAR_API_KEY`, stop and say
-so — never reuse the forestrie key here.
+[workflow/rules/linear-direct-api](../../workflow/rules/linear-direct-api/SKILL.md)
+for the mechanism (direct GraphQL, not MCP / interactive login), and
+[workflow/rules/linear-auth](./workflow/rules/linear-auth/SKILL.md) for how the
+key is resolved in this scope: via `direnv exec ~/Dev/justgames`, never a
+hardcoded `.envrc` path. If this scope defines no `LINEAR_API_KEY` — it
+currently does not — stop and say so; never reuse the forestrie key here.
 
 ## Planning params (overrides [workflow/rules/planning](../../workflow/rules/planning/SKILL.md))
 
