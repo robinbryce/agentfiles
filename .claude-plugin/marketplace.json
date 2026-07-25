@@ -1,0 +1,35 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentfiles",
+  "description": "Robin's personal agentic-coding workflows, split into isolated scopes. Optional Claude Code plugin view over the same skills bin/agentfiles-sync installs for Cursor and pi.",
+  "owner": {
+    "name": "Robin Bryce",
+    "url": "https://github.com/robinbryce"
+  },
+  "plugins": [
+    {
+      "name": "agentfiles-common",
+      "source": "./",
+      "description": "Cross-scope skills: /plan-new and /save-status, plus the plan-doc naming guardrail.",
+      "category": "workflow"
+    },
+    {
+      "name": "agentfiles-forestrie",
+      "source": "./scopes/forestrie",
+      "description": "Personal overlay on the shared forestrie-agents guidance. Install per-project, not machine-wide.",
+      "category": "workflow"
+    },
+    {
+      "name": "agentfiles-justgames",
+      "source": "./scopes/justgames",
+      "description": "JustGames/SentientDogs scope skills. Install per-project, not machine-wide.",
+      "category": "workflow"
+    },
+    {
+      "name": "agentfiles-personal",
+      "source": "./scopes/personal",
+      "description": "Personal-projects scope skills. Install per-project, not machine-wide.",
+      "category": "workflow"
+    }
+  ]
+}

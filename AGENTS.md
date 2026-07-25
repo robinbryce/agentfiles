@@ -14,7 +14,7 @@ unless the user explicitly asks to cross-reference.
 2. **Determine scope** — see table below; ask if ambiguous
 3. **One** [scopes/\<scope\>/AGENTS.md](./scopes/) — never more than one
 4. **Repo overlay** — the working project's own `AGENTS.md` / `forest/agents/AGENTS.md`
-5. **Workflow** — only the invoked [command](./workflow/commands/) or [skill](./workflow/skills/)
+5. **Workflow** — only the invoked [skill](./workflow/skills/)
 
 **Precedence on conflict:** repo overlay → scope → common `workflow/` →
 vendored → incubator (opt-in).
@@ -38,26 +38,29 @@ that's the entire reason scopes exist.
 
 ## Workflow index (cross-scope)
 
-### Commands (explicit invocation)
+### Skills (`/name`, or auto-applied when the description matches)
 
-See [workflow/commands/README.md](./workflow/commands/README.md).
+See [workflow/skills/README.md](./workflow/skills/README.md). Commands and
+skills are the same mechanism now — one `<name>/SKILL.md` directory per skill,
+installed into every harness by
+[`bin/agentfiles-sync`](./bin/agentfiles-sync).
 
-### Skills (on demand — read SKILL.md only when task matches)
-
-See [workflow/skills/README.md](./workflow/skills/README.md).
-
-### Rules (requestable — not auto-loaded unless repo configures alwaysApply)
+### Rules (auto-applied by `paths:` glob, or by description)
 
 See [workflow/rules/README.md](./workflow/rules/README.md).
 
+Rules are skills with `user-invocable: false` — hidden from the `/` menu, and
+loaded only when the session touches a file their `paths:` glob matches. They
+install the same way skills do.
+
 **Always-on (load in every task, all scopes):**
-[workflow/rules/clickable-references.md](./workflow/rules/clickable-references.md)
+[workflow/rules/clickable-references](./workflow/rules/clickable-references/SKILL.md)
 — render every file / line / PR / issue / commit reference as a clickable link
 (gitweb permalink for git content, absolute `path:line` for local-only).
 
 **Creating a plan / ADR / ARC?** Load
-[workflow/rules/planning.md](./workflow/rules/planning.md) and use
-[`/plan-new`](./workflow/commands/plan-new.md) — do not hand-number plan files.
+[workflow/rules/planning](./workflow/rules/planning/SKILL.md) and use
+[`/plan-new`](./workflow/skills/plan-new/SKILL.md) — do not hand-number plan files.
 Scopes override the `plans_root` / `decisions_home` params below.
 
 ---
@@ -66,9 +69,8 @@ Scopes override the `plans_root` / `decisions_home` params below.
 
 1. **Scope first, always** — determine scope before reading anything scope-specific
 2. **Link, don't restate** — point to authoritative docs; do not copy bodies into responses
-3. **Skills on demand** — read a skill only when its description matches the task
-4. **Commands on invoke** — user runs the command or pastes its content
-5. **Incubator is opt-in** — never load `incubator/` (root or scoped) unless the user names a path
+3. **Skills on demand** — read a `SKILL.md` only when its description matches the task, or when the user invokes `/name`
+4. **Incubator is opt-in** — never load `incubator/` (root or scoped) unless the user names a path
 
 ---
 

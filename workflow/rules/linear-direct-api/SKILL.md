@@ -1,7 +1,10 @@
 ---
-description: Prefer the direct Linear GraphQL API with the active scope's
-  LINEAR_API_KEY over MCP OAuth / interactive login. Cross-scope.
+name: linear-direct-api
+description: Prefer the direct Linear GraphQL API with the active scope's LINEAR_API_KEY over MCP OAuth / interactive login. Cross-scope.
+when_to_use: Any Linear work: creating, updating, or querying issues, projects, initiatives, or documents. Also when tempted to reach for the Linear MCP server.
+user-invocable: false
 ---
+
 # Linear via direct API key (not MCP)
 
 For any Linear work (create/update/query issues, projects, initiatives,

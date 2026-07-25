@@ -15,7 +15,8 @@ into isolated **scopes** — see below. If you're an agent, start at
 | [AGENTS.md](./AGENTS.md) | Agent bootstrap router — read first |
 | [USER-CLAUDE.md](./USER-CLAUDE.md) | Machine-wide Claude Code hook — symlinked from `~/.claude/CLAUDE.md` |
 | [scopes/](./scopes/) | Isolated workstreams: forestrie, justgames, personal |
-| [workflow/](./workflow/) | Cross-scope commands, rules, skills |
+| [workflow/](./workflow/) | Cross-scope [skills](./workflow/skills/) (= slash commands) and [rules](./workflow/rules/) |
+| [bin/](./bin/) | [`agentfiles-sync`](./bin/agentfiles-sync) — installs skills into every harness |
 | [vendored/](./vendored/) | Pinned third-party agent content |
 | [incubator/](./incubator/) | Provisional guidance, not yet promoted |
 | [harness/](./harness/) | Per-harness install notes |
@@ -69,19 +70,29 @@ stable path:
 
 ## Install
 
-1. Symlink the machine-wide Claude Code hook once:
+**Once per machine** — the Claude Code hook that makes scope routing available
+in every session:
 
-   ```bash
-   ln -s ~/agentfiles/USER-CLAUDE.md ~/.claude/CLAUDE.md
-   ```
+```bash
+ln -s ~/agentfiles/USER-CLAUDE.md ~/.claude/CLAUDE.md
+```
 
-2. For any repo you want `cursor-agent` to understand, or to lock Claude
-   Code to a scope explicitly rather than inferring it from cwd:
+**Once per repo** — routing plus slash commands:
 
-   ```bash
-   ln -s ~/agentfiles/scopes/<scope>/AGENTS.md AGENTS.md
-   ln -s AGENTS.md CLAUDE.md
-   ```
+```bash
+agentfiles-link <scope>    # AGENTS.md/CLAUDE.md -> the scope router  (dotfiles/bin)
+agentfiles-sync <scope>    # skills -> .claude/skills, .cursor/, .agents/  (this repo's bin/)
+```
 
-See [harness/claude-code.md](./harness/claude-code.md) or
-[harness/cursor.md](./harness/cursor.md) for the full detail and rationale.
+`agentfiles-sync` symlinks each `<name>/SKILL.md` directory into every path
+Claude Code, Cursor, and pi discover skills from, so `/plan-new` and
+`/save-status` work in all three from one canonical source. Generated links are
+added to `.git/info/exclude`, so they never appear in `git status`.
+
+Per-repo is deliberate: Claude Code resolves personal skills *above* project
+skills, so a machine-wide skill would shadow a scope's own. Use
+`agentfiles-sync --global` only for genuinely universal skills.
+
+See [harness/claude-code.md](./harness/claude-code.md),
+[harness/cursor.md](./harness/cursor.md), or [harness/pi.md](./harness/pi.md)
+for the full detail and rationale.

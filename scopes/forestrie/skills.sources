@@ -1,0 +1,18 @@
+# Extra skill sources folded into the forestrie scope, lowest precedence first.
+# One path per line; '#' comments; ~ and $VAR expanded; missing paths skipped.
+#
+# The shared team repo owns the Forestrie workflow skills, and pins the upstream
+# engineering skills. This scope only adds Robin's personal overlay on top
+# (scopes/forestrie/workflow/skills/), which wins on a name collision because it
+# is applied last.
+#
+# Net effect for a forestrie repo:
+#   agentfiles workflow/skills   -> /plan-new, /save-status
+#   matt-skills (pinned)         -> /tdd, /diagnose, /grill-with-docs
+#   forestrie-agents rules       -> /branch-naming, /typescript-comments, ...
+#   forestrie-agents skills      -> /review-changes, /triage, ... and its own
+#                                   /save-status, which shadows the generic one
+#   scopes/forestrie overlay     -> personal tweaks, shadowing anything above
+${FORESTRIE_AGENTS:-$HOME/Dev/personal/forestrie/forestrie-agents}/vendored/matt-skills/skills/engineering
+${FORESTRIE_AGENTS:-$HOME/Dev/personal/forestrie/forestrie-agents}/workflow/rules
+${FORESTRIE_AGENTS:-$HOME/Dev/personal/forestrie/forestrie-agents}/workflow/skills

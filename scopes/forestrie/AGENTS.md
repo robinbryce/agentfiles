@@ -16,12 +16,12 @@ This file only covers what's specific to *this* repo's forestrie scope:
 ## Linear
 
 Any Linear work (create/query issues, projects, initiatives, documents) →
-follow [workflow/rules/linear-direct-api.md](../../workflow/rules/linear-direct-api.md):
+follow [workflow/rules/linear-direct-api](../../workflow/rules/linear-direct-api/SKILL.md):
 direct GraphQL keyed by `LINEAR_API_KEY` from `~/Dev/personal/forestrie/.envrc`,
 not MCP / interactive login. Takes precedence over forestrie-agents'
 `linear-mcp-forestrie.md`.
 
-## Planning params (overrides [workflow/rules/planning.md](../../workflow/rules/planning.md))
+## Planning params (overrides [workflow/rules/planning](../../workflow/rules/planning/SKILL.md))
 
 | Param | Value |
 |-------|-------|
