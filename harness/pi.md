@@ -51,12 +51,19 @@ live in project `.envrc`/`.env.secret`, never in dotfiles.
 
 pi implements the Agent Skills standard (`SKILL.md` directories) and loads
 from `~/.pi/agent/skills/`, `~/.agents/skills/`, and repo `.pi/skills/` /
-`.agents/skills/`. Install by copying or symlinking, same sources and same
-one-scope rule as [claude-code.md](./claude-code.md#skills):
+`.agents/skills/`. The `.agents/skills/` path is shared with Cursor, so the
+same install serves both:
 
-- `scopes/<scope>/workflow/skills/` (scope-specific overlays)
-- `workflow/skills/` (cross-scope overlays)
-- `vendored/<source>/skills/` (pinned third-party)
+```bash
+~/agentfiles/bin/agentfiles-sync <scope>    # writes .agents/skills/ among others
+```
+
+Sources, and the one-scope rule, are as in
+[claude-code.md](./claude-code.md#skills-this-is-where-slash-commands-come-from):
+
+- `workflow/skills/` (cross-scope)
+- `scopes/<scope>/workflow/skills/` (scope overlays, shadow the above)
+- anything listed in `scopes/<scope>/skills.sources`
 
 ## cmux
 

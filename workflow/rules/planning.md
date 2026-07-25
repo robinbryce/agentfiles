@@ -123,4 +123,4 @@ The scheme above is the default. A scope's `AGENTS.md` sets only what differs:
 | `issue_refs` | issue tracker prefix for `refs:` | none |
 
 See [templates/](./templates/) for the file and directory-README scaffolds,
-and [`/plan-new`](../commands/plan-new.md) for automated allocation.
+and [`/plan-new`](../skills/plan-new/SKILL.md) for automated allocation.

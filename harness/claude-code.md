@@ -67,13 +67,62 @@ Wire it once in `~/.claude/settings.json`:
 The primary path is still `/plan-new` (allocates the id + scaffolds
 frontmatter); the hook is the backstop for direct writes that skip it.
 
-## Skills
+## Skills (this is where slash commands come from)
 
-Install skills by copying or symlinking from:
+Claude Code has merged custom commands into skills: a directory
+`<skills-dir>/<name>/SKILL.md` becomes the slash command `/<name>`, and Claude
+may also apply it automatically when its `description` matches the task.
 
-- `scopes/<scope>/workflow/skills/` (scope-specific overlays)
-- `workflow/skills/` (cross-scope overlays)
-- `vendored/<source>/skills/` (pinned third-party)
+Discovery locations, in Claude Code's own precedence order:
+
+| Level | Path | Applies to |
+|-------|------|-----------|
+| Personal | `~/.claude/skills/<name>/SKILL.md` | every project |
+| Project | `<repo>/.claude/skills/<name>/SKILL.md` | that repo (walks up to the repo root) |
+
+Entries may be **symlinks** to directories elsewhere on disk — Claude Code
+follows them and reads `SKILL.md` from the target. That is exactly how this
+repo installs: one canonical skill directory, symlinked into each harness.
+
+### Install
+
+```bash
+~/agentfiles/bin/agentfiles-sync <scope>       # run in the repo you're working in
+```
+
+That links the cross-scope [workflow/skills/](../workflow/skills/) plus
+`scopes/<scope>/workflow/skills/` (and anything listed in the scope's
+`skills.sources`) into the repo's `.claude/skills/`, `.cursor/skills/`,
+`.agents/skills/`, and `.cursor/commands/`, then adds those paths to
+`.git/info/exclude` so they never get committed into a repo that doesn't own
+them.
+
+### Why per-repo, not machine-wide
+
+**Personal skills override project skills.** A machine-wide `/save-status`
+would shadow the Forestrie-specific one that
+[forestrie-agents](https://github.com/forestrie/forestrie-agents) ships. Since
+scope isolation is the whole point of this repo, install per-repo and let the
+scope decide which `/save-status` you get.
+
+`agentfiles-sync --global` exists for genuinely universal skills. Use it
+sparingly, and never for a name a scope also defines.
+
+### Optional: install as a plugin instead
+
+[.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) exposes
+each scope as a Claude Code plugin, if you would rather manage this through
+`/plugin` than through symlinks:
+
+```bash
+claude plugin marketplace add ~/agentfiles
+claude plugin install agentfiles-forestrie@agentfiles     # per-project scope
+```
+
+Plugin skills are namespaced (`/agentfiles-forestrie:save-status`), so they
+cannot collide with personal or project skills — which also means they do not
+participate in the shadowing described above. This path is Claude Code only;
+`agentfiles-sync` is what serves Cursor and pi as well.
 
 Only ever load skills from **one** scope plus the cross-scope `workflow/` and
 `vendored/` — never mix two scopes' skills into the same session.

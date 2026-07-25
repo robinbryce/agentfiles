@@ -1,8 +1,12 @@
 # justgames/workflow/skills
 
-JustGames-specific skills, read on demand when their description matches the
-task.
+Scope-specific skills — each is a `<name>/SKILL.md` directory, invocable as
+`/<name>` once installed by [`bin/agentfiles-sync`](../../../../bin/agentfiles-sync).
 
-| Skill | When |
-|-------|------|
-| [review-pr-justgames](./review-pr-justgames/SKILL.md) | Any PR review / re-review in a justgames repo. Chat-only; gated multi-agent adversarial pass on Medium+ complexity or high-risk re-review deltas. Activated via `~/.claude/skills/review-pr-justgames` symlink (Cursor reads that path too). |
+A skill here **shadows** a cross-scope skill of the same name from
+[workflow/skills/](../../../../workflow/skills/), because scope sources are
+applied after common ones.
+
+| Skill | Purpose |
+|-------|---------|
+| [/review-pr-justgames](./review-pr-justgames/SKILL.md) | Any PR review / re-review in a justgames repo. |
