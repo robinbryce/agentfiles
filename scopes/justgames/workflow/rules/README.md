@@ -9,4 +9,4 @@ A rule here **shadows** a cross-scope rule of the same name.
 
 | Rule | Applies when |
 |------|--------------|
-| (none yet) | — |
+| [linear-auth](./linear-auth/SKILL.md) | Any direct Linear API call in JustGames work — key resolution and the no-cross-scope-fallback guardrail |
