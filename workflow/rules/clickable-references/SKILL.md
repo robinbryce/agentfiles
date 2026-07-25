@@ -1,8 +1,14 @@
 ---
-description: Every file / line / PR / issue / commit reference in agent output
-  must be a clickable link. Gitweb permalink for content in git; absolute path
-  (ideally an editor URL) for local-only content. Cross-scope, always-on.
+name: clickable-references
+description: Every file / line / PR / issue / commit reference in agent output must be a clickable link. Gitweb permalink for content in git; absolute path (ideally an editor URL) for local-only content. Cross-scope, always-on.
+when_to_use: Any output that names a file, line range, PR, issue, commit, or code symbol — chat replies, status/plan/ADR/ARC docs, PR descriptions, commit bodies. Effectively always.
+user-invocable: false
+# Claude Code ignores unrecognised frontmatter; agentfiles-sync --cursor-rules
+# reads this to set alwaysApply on the generated .mdc. AGENTS.md remains the
+# real always-on guarantee for Claude Code — see workflow/rules/README.md.
+cursor-always-apply: true
 ---
+
 # Clickable references
 
 > **User preference — Robin (durable, all sessions/scopes): always give an
@@ -77,7 +83,7 @@ Inside a repo doc (status/plan/ADR), a **relative** link survives the repo
 being moved, cloned, or browsed on the forge:
 
 ```markdown
-see [planning rule](../rules/planning.md#frontmatter-all-plan-docs)
+see [planning rule](../planning/SKILL.md#frontmatter-all-plan-docs)
 ```
 
 Use this over an absolute gitweb link when author and target sit in the same

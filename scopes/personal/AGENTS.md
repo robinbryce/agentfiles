@@ -18,7 +18,7 @@
 - [Rules](./workflow/rules/README.md)
 - [Skills](./workflow/skills/README.md)
 
-## Planning params (overrides [workflow/rules/planning.md](../../workflow/rules/planning.md))
+## Planning params (overrides [workflow/rules/planning](../../workflow/rules/planning/SKILL.md))
 
 | Param | Value |
 |-------|-------|

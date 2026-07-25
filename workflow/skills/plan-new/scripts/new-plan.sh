@@ -74,8 +74,9 @@ SELF_DIR="$(resolve_self)"
 TPL_DIR="${NEW_PLAN_TEMPLATES:-}"
 if [ -z "$TPL_DIR" ]; then
   for C in "$SELF_DIR/../templates" \
-           "$SELF_DIR/../../../rules/templates" \
-           "$SELF_DIR/../../rules/templates"; do
+           "$SELF_DIR/../../../rules/planning/templates" \
+           "$SELF_DIR/../../rules/planning/templates" \
+           "$SELF_DIR/../../../rules/templates"; do
     [ -d "$C" ] && { TPL_DIR="$(cd "$C" && pwd)"; break; }
   done
 fi

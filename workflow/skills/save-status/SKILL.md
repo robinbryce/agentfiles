@@ -12,7 +12,7 @@ Condense the current session into a `status-*.md` document that is the ideal
 starting point for a **fresh agent session**: combined with the prevailing
 context hooks, reading the status doc should be sufficient context to continue
 the work it describes. Naming follows
-[workflow/rules/planning.md](../../rules/planning.md) (date-cohort scheme).
+[workflow/rules/planning](../../rules/planning/SKILL.md) (date-cohort scheme).
 
 ## Context hints
 
@@ -68,7 +68,7 @@ significance. Then:
 - **Blockers** — anything blocking, such as dependencies on other tasks
 
 Use plan-style frontmatter (`id`, `status`, `created`, `refs` — see
-[rules/planning.md](../../rules/planning.md#frontmatter-all-plan-docs)), with
+[rules/planning](../../rules/planning/SKILL.md#frontmatter-all-plan-docs)), with
 `refs:` carrying the Linear issues and plan/ADR/ARC ids the workstream serves.
 On update, refresh the sections in place and keep `refs:` current rather than
 appending a log.
