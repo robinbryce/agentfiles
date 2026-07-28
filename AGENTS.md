@@ -55,6 +55,12 @@ See [workflow/rules/README.md](./workflow/rules/README.md).
 — render every file / line / PR / issue / commit reference as a clickable link
 (gitweb permalink for git content, absolute `path:line` for local-only).
 
+**Always-on in herdr task worktrees (`*/.worktrees-herdr/<task>/`):**
+[workflow/rules/herdr-session-handoff.md](./workflow/rules/herdr-session-handoff.md)
+— at clean completion points, proactively offer a "ready to clear and hand
+off" block (kickoff prompt, absolute memory/handoff paths, stay-vs-new-
+workspace advice).
+
 **Creating a plan / ADR / ARC?** Load
 [workflow/rules/planning.md](./workflow/rules/planning.md) and use
 [`/plan-new`](./workflow/commands/plan-new.md) — do not hand-number plan files.
