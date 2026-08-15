@@ -5,6 +5,17 @@ description: Every file / line / PR / issue / commit reference in agent output
 ---
 # Clickable references
 
+> **User preference — Robin (durable, all sessions/scopes): always give an
+> absolute path to any document.** When a chat reply to Robin references a
+> document or file (a plan, ADR, handoff, memo, source file, config…), the
+> reference **must include its absolute path** — e.g.
+> `/Users/robin/Dev/justgames/code/.../plan-2608-19-….md`, never a bare
+> filename, a relative `./…` path, or link text alone. A gitweb permalink or
+> editor URL may be added *alongside* the absolute path, but never *instead of*
+> it. This overrides the decision order below **for chat-facing references to
+> Robin**; inside committed repo docs, keep authoring links per the decision
+> order (relative links / permalinks) so they render on the forge.
+
 Whenever output names a **file, line range, PR, issue, commit, or code
 symbol**, render it as a **clickable link** — never as bare prose the reader
 has to retype. This applies to chat replies, status/plan/ADR/ARC docs, PR
