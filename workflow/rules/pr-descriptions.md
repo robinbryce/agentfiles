@@ -5,9 +5,14 @@ description: PR descriptions must be self-contained — introduce and link every
 ---
 # PR descriptions are self-contained
 
-A pull request description is read by someone who did not sit in the session
-that produced it: a reviewer, a future reader of `git log`, or Robin a week
-later. It must make sense on its own.
+## Standing principle
+
+Write the description for a reader who is **generally familiar with the
+project or repo's domain but not involved in the detail of the current
+plans**: a reviewer from an adjacent repo, a future reader of `git log`, or
+Robin a week later. That reader knows what a checkpoint or a grant is; they
+do not know what "D2" or "slice 04" refers to, and should not have to open
+a plan to find out. Everything below serves this principle.
 
 ## Rule
 
@@ -34,6 +39,11 @@ later. It must make sense on its own.
    they carry, so the set can be reviewed in order.
 
 ## Why
+
+Robin, 2026-09-20: "The standing principle is that the PR description
+should be easily consumable by a reader generally familiar with the project
+and/or repo domain but not specifically involved in the detail of the
+current plans."
 
 Robin, 2026-09-20, on a PR body that opened with "D1 revised, D2 withdrawn,
 D3 one label": "creating PR descriptions with abbreviations and hard to

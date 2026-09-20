@@ -57,8 +57,9 @@ See [workflow/rules/README.md](./workflow/rules/README.md).
 
 **Always-on when creating or editing a pull request:**
 [workflow/rules/pr-descriptions.md](./workflow/rules/pr-descriptions.md)
-— the description is self-contained: introduce and link every term, id or
-decision before using shorthand; lead with the change in plain words.
+— written for a reader familiar with the domain but not the current plans:
+self-contained, every term, id or decision introduced and linked before
+shorthand; lead with the change in plain words.
 
 **Always-on in herdr task worktrees (`*/.worktrees-herdr/<task>/`):**
 [workflow/rules/herdr-session-handoff.md](./workflow/rules/herdr-session-handoff.md)
