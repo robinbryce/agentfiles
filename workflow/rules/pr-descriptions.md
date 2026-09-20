@@ -37,13 +37,21 @@ a plan to find out. Everything below serves this principle.
    lives in another PR, link that PR and say what to read there.
 5. **Companion PRs are named and linked**, with one clause each on what
    they carry, so the set can be reviewed in order.
+6. **A named event is a link.** "The slice 02 review", "the earlier
+   handoff", "the plan", "the security finding" are never bare prose: link
+   the PR, issue comment, review thread or document where that event is on
+   the record. If the primary record is local-only (a review folder outside
+   git), link the nearest public trace of it (the PR it was reported on, the
+   Linear comment that summarises it) and say the full record is held
+   locally.
 
 ## Why
 
 Robin, 2026-09-20: "The standing principle is that the PR description
 should be easily consumable by a reader generally familiar with the project
 and/or repo domain but not specifically involved in the detail of the
-current plans."
+current plans." And, on "The slice 02 review showed …" in a PR body:
+"references like this should always be links."
 
 Robin, 2026-09-20, on a PR body that opened with "D1 revised, D2 withdrawn,
 D3 one label": "creating PR descriptions with abbreviations and hard to
@@ -58,6 +66,7 @@ introduced and linked; ideally the PR description would be self contained."
       linked on first use.
 - [ ] No bullet is only identifiers.
 - [ ] Every path or document a reviewer needs is a link, or flagged as local.
+- [ ] Every named review, plan, handoff or finding is a link.
 - [ ] Companion PRs linked with a clause each.
 
 The same applies to commit bodies that will become squash-merge messages.
