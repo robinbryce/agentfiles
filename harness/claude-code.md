@@ -1,142 +1,47 @@
-# Claude Code harness
+# Claude Code
 
-## This repo's own root
+## Profiles
 
-`CLAUDE.md` at the root of agentfiles is a one-line pointer to `AGENTS.md` —
-read that first.
+`bin/agentfiles bootstrap <profile>` creates `~/.claude-<profile>` with:
 
-## Global hook (machine-wide, zero per-repo setup)
+- `CLAUDE.md` → `profiles/<profile>/CLAUDE.md` (user instructions, every session)
+- `rules/*.md` → `rules/` and `profiles/<profile>/rules/` (user rules; `paths:`-scoped ones load on demand)
+- `settings.json` rendered from `profiles/<profile>/settings.json`: marketplaces
+  (`extraKnownMarketplaces`, `directory` source so plugins load **in place**
+  from the checkout), `enabledPlugins`, and
+  `instructionFiles: claude-md-and-agents-md` so repo `AGENTS.md` files load
+  even when a `CLAUDE.md` exists somewhere above
+- the marketplaces registered and plugins installed with `claude plugin …`
 
-Claude Code loads `~/.claude/CLAUDE.md` in every session regardless of
-working directory. [USER-CLAUDE.md](../USER-CLAUDE.md) is the maintained,
-version-controlled source for that file — symlink it into place once per
-machine:
+Select a profile by directory (direnv exports `CLAUDE_CONFIG_DIR`) or by
+wrapper (`claude-forestrie`). The plain `claude` wrapper honours direnv first.
 
-```bash
-ln -s ~/agentfiles/USER-CLAUDE.md ~/.claude/CLAUDE.md
+## The default `~/.claude`
+
+Verified (plan 2610-01, Q2): `~/.claude/CLAUDE.md` loads **in addition** to
+the profile's `CLAUDE.md`. Keep it to this stub:
+
+```markdown
+# Unprofiled Claude Code session
+No profile is active. Prefer `claude-personal`, `claude-forestrie` or `claude-home`
+(see ~/agentfiles). Nothing else is configured here on purpose.
 ```
 
-This makes scope routing available in every Claude Code session, in every
-project, regardless of nesting (tmux/nvim/cmux don't matter — it isn't
-cwd-driven), with no changes to any downstream repo. The first time Claude
-Code encounters the `@import` inside it, it shows a one-time approval
-dialog — accept it.
+Move hooks and permissions out of `~/.claude/settings.json`; they belong in a
+profile template or ship with a plugin.
 
-## Per-repo scope lock (optional, explicit)
+## Plugins
 
-The global hook makes Claude infer scope from cwd against the table in
-[AGENTS.md](../AGENTS.md). To skip that inference entirely for a specific
-project repo — or to give `cursor-agent` the same content, since it has no
-global hook — symlink the repo root to the scope directly:
+- Skills are namespaced: `/core:plan-new`, `/forestrie-core:review-changes`.
+- Edit a skill in the checkout, then `/reload-plugins`. No version bump.
+- `claude plugin validate ~/agentfiles` after structural changes.
+- Hooks ship with the plugin (`plugins/core/hooks/hooks.json`); nothing to
+  wire by hand.
 
-```bash
-ln -s ~/agentfiles/scopes/<scope>/AGENTS.md AGENTS.md
-ln -s AGENTS.md CLAUDE.md
-```
+## Cloud sessions
 
-Both tools then read the correct scope unambiguously, without depending on
-path-matching heuristics.
-
-## Hooks
-
-### Plan-doc guardrail (`PreToolUse`)
-
-[hooks/validate-plan.sh](./hooks/validate-plan.sh) enforces the plan naming
-scheme from [workflow/rules/planning](../workflow/rules/planning/SKILL.md). On any
-`Write`/`Edit` whose path is inside a `plans/` directory, it blocks (exit 2) a
-filename that matches neither the date-cohort scheme (`plan-YYYY-NN-<slug>.md`),
-the frozen legacy scheme (`plan-NNNN-<slug>.md`), a directory sub-doc
-(`NN-<slug>.md`), nor `README.md`/`handoff.md`/`decisions.md`. Missing
-frontmatter on a new-scheme file is a soft, non-blocking nudge. Non-plan paths
-pass straight through.
-
-Wire it once in `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      { "matcher": "Write|Edit",
-        "hooks": [ { "type": "command",
-                     "command": "bash ~/agentfiles/harness/hooks/validate-plan.sh" } ] }
-    ]
-  }
-}
-```
-
-The primary path is still `/plan-new` (allocates the id + scaffolds
-frontmatter); the hook is the backstop for direct writes that skip it.
-
-## Skills (this is where slash commands come from)
-
-Claude Code has merged custom commands into skills: a directory
-`<skills-dir>/<name>/SKILL.md` becomes the slash command `/<name>`, and Claude
-may also apply it automatically when its `description` matches the task.
-
-Discovery locations, in Claude Code's own precedence order:
-
-| Level | Path | Applies to |
-|-------|------|-----------|
-| Personal | `~/.claude/skills/<name>/SKILL.md` | every project |
-| Project | `<repo>/.claude/skills/<name>/SKILL.md` | that repo (walks up to the repo root) |
-
-Entries may be **symlinks** to directories elsewhere on disk — Claude Code
-follows them and reads `SKILL.md` from the target. That is exactly how this
-repo installs: one canonical skill directory, symlinked into each harness.
-
-### Install
-
-```bash
-~/agentfiles/bin/agentfiles-sync <scope>       # run in the repo you're working in
-```
-
-That links the cross-scope [workflow/skills/](../workflow/skills/) and
-[workflow/rules/](../workflow/rules/), plus their `scopes/<scope>/` overlays
-(and anything listed in the scope's `skills.sources`), into the repo's `.claude/skills/`, `.cursor/skills/`,
-`.agents/skills/`, and `.cursor/commands/`, then adds those paths to
-`.git/info/exclude` so they never get committed into a repo that doesn't own
-them.
-
-### Why per-repo, not machine-wide
-
-**Personal skills override project skills.** A machine-wide `/save-status`
-would shadow the Forestrie-specific one that
-[forestrie-agents](https://github.com/forestrie/forestrie-agents) ships. Since
-scope isolation is the whole point of this repo, install per-repo and let the
-scope decide which `/save-status` you get.
-
-`agentfiles-sync --global` exists for genuinely universal skills. Use it
-sparingly, and never for a name a scope also defines.
-
-### Optional: install as a plugin instead
-
-[.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) exposes
-each scope as a Claude Code plugin, if you would rather manage this through
-`/plugin` than through symlinks:
-
-```bash
-claude plugin marketplace add ~/agentfiles
-claude plugin install agentfiles-forestrie@agentfiles     # per-project scope
-```
-
-Plugin skills are namespaced (`/agentfiles-forestrie:save-status`), so they
-cannot collide with personal or project skills — which also means they do not
-participate in the shadowing described above. This path is Claude Code only;
-`agentfiles-sync` is what serves Cursor and pi as well.
-
-### Rules are skills with a narrower trigger
-
-[workflow/rules/](../workflow/rules/) uses the same `<name>/SKILL.md` form,
-annotated `user-invocable: false` (hidden from the `/` menu) and, where the
-rule is file-type scoped, `paths:` — so `typescript-comments` costs no context
-until the session touches a `.ts` file, then loads by itself. That replaces
-Cursor's always-inject-or-forget `alwaysApply` model.
-
-Only ever load skills from **one** scope plus the cross-scope `workflow/` and
-`vendored/` — never mix two scopes' skills into the same session.
-
-## Forestrie note
-
-For Forestrie project repos, the canonical skills/commands source is still
-[forestrie-agents](https://github.com/forestrie/forestrie-agents). This
-repo's `scopes/forestrie/` only supplies Robin's personal additions on top.
+Plugins and user config never load in a cloud session. A repo gets parity by
+committing `AGENTS.md`, `.claude/rules/` and `.agents/skills/` (with
+`.claude/skills/` symlinks); `agentfiles sync <repo> --manifest …` produces
+that layer. Account skills enabled on claude.ai load everywhere you are
+signed in.

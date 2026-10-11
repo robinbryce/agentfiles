@@ -1,0 +1,22 @@
+{
+  "$comment": "Template rendered by `agentfiles bootstrap home` into ~/.claude-home/settings.json. ${AGENTFILES} and ${AGENTFILES_HOME} are substituted.",
+  "extraKnownMarketplaces": {
+    "agentfiles":      { "source": { "source": "directory", "path": "${AGENTFILES}" } },
+    "agentfiles-home": { "source": { "source": "directory", "path": "${AGENTFILES_HOME}" } }
+  },
+  "fallbackSources": {
+    "agentfiles":      { "source": "github", "repo": "robinbryce/agentfiles" },
+    "agentfiles-home": { "source": "github", "repo": "robinbryce/agentfiles-home" }
+  },
+  "enabledPlugins": {
+    "core@agentfiles": true,
+    "research@agentfiles": true,
+    "admin@agentfiles-home": true,
+    "finance@agentfiles-home": true,
+    "research-personal@agentfiles-home": true
+  },
+  "pluginConfigs": {
+    "cc-plugin-agents-md@builtin": { "options": { "instructionFiles": "claude-md-and-agents-md" } }
+  },
+  "alwaysThinkingEnabled": true
+}

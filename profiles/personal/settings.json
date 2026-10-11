@@ -1,0 +1,14 @@
+{
+  "$comment": "Template rendered by `agentfiles bootstrap personal` into ~/.claude-personal/settings.json. ${HOME} and ${AGENTFILES} are substituted; keys not listed here are left as the live file has them.",
+  "extraKnownMarketplaces": {
+    "agentfiles": { "source": { "source": "directory", "path": "${AGENTFILES}" } }
+  },
+  "enabledPlugins": {
+    "core@agentfiles": true,
+    "research@agentfiles": true
+  },
+  "pluginConfigs": {
+    "cc-plugin-agents-md@builtin": { "options": { "instructionFiles": "claude-md-and-agents-md" } }
+  },
+  "alwaysThinkingEnabled": true
+}
