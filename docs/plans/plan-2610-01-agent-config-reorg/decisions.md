@@ -278,3 +278,24 @@ Run by Robin on canopy main (f61729a) while forestrie-agents was still
   and installs forestrie-core; run two cloud sessions on it.
 - The session saw the `commit-conventions` rule override the tool's
   Co-Authored-By reminder, as intended.
+
+### Cloud plugin-install probe (2026-10-11)
+
+forestrie-agents made public by Robin. Probe branch
+[canopy `probe/cloud-plugin-install`](https://github.com/forestrie/canopy/commit/4a65172)
+keeps the settings pointer and adds a SessionStart hook that runs
+`claude plugin marketplace add forestrie/forestrie-agents` and
+`claude plugin install` for both plugins (skipped when `CLAUDE_CONFIG_DIR`
+is set, so local profiles are untouched).
+
+Result, first cloud session: **forestrie-core (28 skills, `arc-*` included)
+and mattpocock-skills (3) were available in the same session** the hook ran
+in. The plugin's `require-worktree` PreToolUse hook is registered from its
+`hooks.json` (not exercised). A second session is not needed.
+
+Consequence: public repos need no copies. Pointer + SessionStart install
+hook in `.claude/settings.json`, `CLAUDE.md` as `@AGENTS.md`. Costs: rules
+arrive as plugin skills rather than always-on `.claude/rules/`, so
+always-on guidance becomes on-demand in cloud; Cursor and Codex get AGENTS.md
+links only. Pending: the hook log (was forestrie-core already installed by
+the pointer alone? is `CLAUDE_CODE_REMOTE` set, for the guard?).
