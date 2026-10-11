@@ -42,15 +42,16 @@ Worktrees removed.
 [devdocs#219](https://github.com/forestrie/devdocs/pull/219).
 Worktrees at `~/Dev/personal/forestrie/.worktrees/<repo>-agent-layer-sync`. Repo-specific fixes: devdocs `.gitignore` (ignored all of `.claude/`), mandate `.prettierignore` (`prettier --check .` failed on the copies). `bin/agentfiles` now flags a gitignored layer (commit 952cbef). See [decisions.md](./decisions.md#phase-2-step-5-rollout-2026-10-11).
 
+**Direction change (2026-10-11): pointer, not copies.** Robin dropped the CI drift job and the per-repo copies for public repos: forestrie-agents goes public so a committed `.claude/settings.json` marketplace pointer works without auth. Private repos wait. Source split stays. See [decisions.md](./decisions.md#rethinking-d4-pointer-not-copies-2026-10-11). Sensitivity review done (nothing confidential); the one fix is [forestrie/forestrie-agents#11](https://github.com/forestrie/forestrie-agents/pull/11) (draft): MIT notice for the vendored mattpocock/skills. Robin chose no license for forestrie-agents itself.
+
 **Next slice:**
 
-1. Robin runs the cloud check in canopy (README verification item 4) and reports back:
+1. Merge forestrie-agents#11, then switch forestrie-agents to public (confirm with Robin first; `gh repo edit forestrie/forestrie-agents --visibility public --accept-visibility-change-consequences`).
+2. Robin runs the cloud check in canopy (README verification item 4). Part (3) is now the gate: does a cloud session install `forestrie-core` from canopy's `.claude/settings.json` pointer?
    `cd ~/Dev/personal/forestrie/canopy && claude --cloud "Check the committed agent layer. Change no files. (1) List every skill available to you and mark which come from this repo's .claude/skills/. (2) List the .claude/rules/ files loaded as instructions and say which are path-scoped. (3) Say whether any forestrie-core@forestrie-agents plugin skills or hooks are present. Reply in chat only; do not commit or push."`
-   Expected: the six project skills; probably no forestrie-core (private marketplace). Then add the result to canopy#268 and repeat in arbor once arbor#112 merges ("done when" needs canopy and arbor).
-2. Watch CI on the seven drafts (univocity Foundry and mandate lint were pending at handoff), then mark ready. Merge practice: merge `main` into a branch, never force-push; if forestrie-agents main changes before merge, re-sync from main.
-3. The `agentfiles doctor --repo --ci` CI job: proposal in [decisions.md](./decisions.md#ci-job-proposal-2026-10-11), awaiting Robin's choice.
-4. Follow-ups, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, which [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90) removed; it needs a rewrite. canopy#268's commits carry `Co-Authored-By`, which the org `commit-conventions` rule forbids; the rollout commits omit it.
-5. Stale worktrees from PR 1: `~/Dev/personal/forestrie/.worktrees/forestrie-agents-marketplace` and `…/forestrie-agents-skills` (both branches merged); remove when convenient.
+3. If yes: shrink the public-repo drafts ([arbor#112](https://github.com/forestrie/arbor/pull/112), [univocity#47](https://github.com/forestrie/univocity/pull/47), [univocity-tools#32](https://github.com/forestrie/univocity-tools/pull/32), [mandate#103](https://github.com/forestrie/mandate/pull/103)) to the pointer plus AGENTS.md edits, remove canopy's copies in a follow-up, and decide whether repo-specific rules of the road and `arc-<repo>` move into each repo as their own source. Hold or close the private-repo drafts ([forest-1#42](https://github.com/forestrie/forest-1/pull/42), [arbor-flux#62](https://github.com/forestrie/arbor-flux/pull/62), [devdocs#219](https://github.com/forestrie/devdocs/pull/219)); devdocs' `.gitignore` fix is worth keeping either way. If no: revisit (SessionStart-hook probe, or AGENTS.md links only).
+4. Follow-ups, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, removed by [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90). canopy#268's commits carry `Co-Authored-By`, which the org `commit-conventions` rule forbids.
+5. Stale worktrees: `~/Dev/personal/forestrie/.worktrees/forestrie-agents-marketplace`, `…/forestrie-agents-skills` (merged branches); `…/forestrie-agents-vendored-license` after #11 merges; the seven `<repo>-agent-layer-sync` worktrees once their PRs settle.
 
 **Resume prompt:**
 
