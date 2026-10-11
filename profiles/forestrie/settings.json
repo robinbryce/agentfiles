@@ -12,7 +12,6 @@
     "core@agentfiles": true,
     "research@agentfiles": true,
     "forestrie-core@forestrie-agents": true,
-    "forestrie-linear@forestrie-agents": true,
     "mattpocock-skills@forestrie-agents": true
   },
   "pluginConfigs": {
