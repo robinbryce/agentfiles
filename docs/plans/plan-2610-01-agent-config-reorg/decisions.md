@@ -155,3 +155,26 @@ skills + rules, which works whatever the answer. Clean-up done.
   live session both see the current checkout (28 skills, `arc-*` included).
   Do not read the version string as staleness for a directory marketplace.
 - `forestrie-agent-context.md` deleted; `workspace/AGENTS.md` replaces it.
+
+## Phase 2 step 5 rollout (2026-10-11)
+
+- **Same PR shape as canopy#268**, one worktree and draft PR per repo, all on
+  `robin/agent-layer-sync`, synced from forestrie-agents main 797688a.
+- **AGENTS.md edits stay minimal**: `../devdocs/` links become GitHub links
+  (marked private in public repos), the glossary points at
+  `forestrie/protocol`, a "Team rules and skills" line names the manifest, and
+  `.cursor/rules` lists keep only the rules with no synced twin (Terraform,
+  YAML-manifest, citty CLI, markdown, doppler-run-tasks). univocity's
+  `../../devdocs/` links were broken and are fixed. mandate had no CLAUDE.md.
+- **Repos can hide the layer.** devdocs ignored `.claude/` (added 2026-08-01
+  for `.claude/worktrees/`); now only `.claude/worktrees/` and
+  `.claude/settings.local.json`. `sync` warns and `doctor --repo` reports
+  drift when a layer path is gitignored (agentfiles 952cbef), since a local
+  doctor run otherwise passes while every clone lacks the files.
+- **Repo formatters must skip the copies.** mandate's `prettier --check .`
+  failed on them; `.prettierignore` now lists `.agents/` and `.claude/`.
+  Reformatting in place would be drift. canopy and univocity-tools scope
+  prettier to package dirs and need nothing.
+- **Org commit rule wins over tool attribution.** The synced
+  `commit-conventions` rule forbids `Co-Authored-By` in org repos, so the
+  rollout commits carry none (canopy#268's do).
