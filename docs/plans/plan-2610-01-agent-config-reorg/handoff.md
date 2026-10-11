@@ -21,25 +21,24 @@
 
 **Phase 2 status (2026-10-11):** PR 1 open as draft, [forestrie/forestrie-agents#8](https://github.com/forestrie/forestrie-agents/pull/8). Sandboxed bootstrap against it installs forestrie-core (21 skills, 1 hook) and mattpocock-skills (3 skills).
 
-**Phase 2 PRs 2–3 and pilot (2026-10-11):** all open as drafts.
+**Phase 2 PRs 2–3 and pilot (2026-10-11): merged.**
 
-- [forestrie/forestrie-agents#9](https://github.com/forestrie/forestrie-agents/pull/9): `arc-*` glossary skills, copy-safe rules-of-the-road, `sync/<repo>.manifest` ×8, YAML frontmatter fix.
-- [forestrie/forestrie-agents#10](https://github.com/forestrie/forestrie-agents/pull/10) (stacked on #9): `workspace/AGENTS.md`, AGENTS.md as org map + contributor guide, `harness/` cut to `claude-code.md` + `other-tools.md`.
-- [forestrie/canopy#268](https://github.com/forestrie/canopy/pull/268): the synced layer, from #10's head. `/context` and path-scoped rules verified; `doctor --repo --ci` clean.
+- [forestrie/forestrie-agents#9](https://github.com/forestrie/forestrie-agents/pull/9) (squash 0e414ec): `arc-*` glossary skills, copy-safe rules-of-the-road, `sync/<repo>.manifest` ×8, YAML frontmatter fix. Review added: Go library links repointed from arbor's gitignored `services/_deps` to `forestrie/go-*`; agentfiles links pinned to a SHA.
+- [forestrie/forestrie-agents#10](https://github.com/forestrie/forestrie-agents/pull/10) (squash 797688a): `workspace/AGENTS.md`, AGENTS.md as org map + contributor guide, `harness/` cut to `claude-code.md` + `other-tools.md`. Review added: the three unmapped workspace directories.
+- [forestrie/canopy#268](https://github.com/forestrie/canopy/pull/268) (merge f61729a): the synced layer, re-synced from forestrie-agents main 797688a before merge. `/context` and path-scoped rules verified; `doctor --repo --ci` clean without `--source`.
 - `bin/agentfiles` sync/doctor fixes from the pilot: commit b20b48e. Details and deviations from 01-target-layout: [decisions.md](./decisions.md#phase-2-notes-prs-23-and-the-canopy-pilot-2026-10-11).
 
-Worktrees: `~/Dev/personal/forestrie/.worktrees/{forestrie-agents-pr2,forestrie-agents-pr3,canopy-agent-layer}`.
+Worktrees removed.
 
 **Next slice:**
 
-1. Robin reviews and merges #9 → #10 → canopy#268 (re-sync canopy from forestrie-agents main first if #9/#10 changed). Then `/reload-plugins` or rebootstrap so the forestrie profile picks up the `arc-*` skills.
+1. `/reload-plugins` or `agentfiles bootstrap forestrie` so the forestrie profile picks up the `arc-*` skills (Phase 2 step 6 rides on the same rerun: `~/Dev/personal/forestrie/AGENTS.md` → `workspace/AGENTS.md`, then delete `forestrie-agent-context.md`).
 2. Verify a cloud session in canopy lists the six project skills (`claude --cloud "run /context and list skills"`); README verification items 3 and 4.
-3. Phase 2 step 6: rerun `agentfiles bootstrap forestrie` so `~/Dev/personal/forestrie/AGENTS.md` links `workspace/AGENTS.md`, then delete `forestrie-agent-context.md`.
-4. Phase 2 step 5: roll out to arbor, univocity, univocity-tools, mandate, forest-1, arbor-flux, devdocs (same PR shape; manifests already exist), and add the `agentfiles doctor --repo --ci` job.
+3. Phase 2 step 5: roll out to arbor, univocity, univocity-tools, mandate, forest-1, arbor-flux, devdocs (same PR shape; manifests exist), and add the `agentfiles doctor --repo --ci` job. Sync only from forestrie-agents **main**: the repo squash-merges, so a branch SHA in `.synced-from` would dangle.
+4. Follow-ups found in review, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, which [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90) removed (lane B is now defined by promotion). The skill needs a rewrite, not a link swap. It is in no sync manifest.
 
 **Resume prompt:**
 
 > Continue plan 2610-01 in `~/agentfiles` (branch `robin/agent-config-reorg`).
 > Read `docs/plans/plan-2610-01-agent-config-reorg/handoff.md` and
-> `decisions.md`. Check whether forestrie-agents#9, #10 and canopy#268 have
-> merged, then pick up the next slice above.
+> `decisions.md`, then pick up the next slice above.
