@@ -13,7 +13,8 @@
 #   agentfiles sync <repo-dir> --manifest <file>
 #       Apply a sync manifest: vendor skills into .agents/skills (+ .claude/skills
 #       symlinks) with `npx skills`, copy rule files into .claude/rules, merge
-#       marketplace/plugin entries into .claude/settings.json, record the source
+#       marketplace/plugin entries into .claude/settings.json plus a SessionStart
+#       hook that installs those plugins in cloud sessions, record the source
 #       in .agents/skills/.synced-from.
 #   agentfiles link <profile> [dir]
 #       Legacy per-repo AGENTS.md/CLAUDE.md links for harnesses with no
@@ -313,6 +314,8 @@ import json,sys
 s=json.load(open(sys.argv[1]))
 print("  settings marketplaces:", ", ".join(s.get("extraKnownMarketplaces",{})) or "none")
 print("  settings enabledPlugins:", ", ".join(k for k,v in s.get("enabledPlugins",{}).items() if v) or "none")
+hooked = any("agentfiles:cloud-install" in h.get("command","") for g in s.get("hooks",{}).get("SessionStart",[]) for h in g.get("hooks",[]))
+print("  cloud install hook:", "present" if hooked else "MISSING (cloud sessions will not get the plugins; rerun sync)")
 PY2
   local from="$repo/.agents/skills/.synced-from"
   if [ ! -f "$from" ]; then say "synced-from: none (not synced by agentfiles)"; return; fi
@@ -366,7 +369,7 @@ cmd_doctor() {
 #   skill <name> [...]                 # skills to vendor from source into .agents/skills
 #   rule <src-path> [dest-name]        # file copied into .claude/rules/ (src relative to source)
 #   marketplace <name> <owner/repo>    # .claude/settings.json extraKnownMarketplaces (GitHub source)
-#   plugin <plugin@marketplace>        # .claude/settings.json enabledPlugins
+#   plugin <plugin@marketplace>        # .claude/settings.json enabledPlugins (+ cloud install hook)
 
 # Resolve a manifest's 'source' to an absolute directory.
 manifest_source() {
@@ -465,9 +468,23 @@ for arg in sys.argv[2:]:
         s.setdefault("extraKnownMarketplaces", {})[name] = {"source": {"source": "github", "repo": repo}}
     else:
         s.setdefault("enabledPlugins", {})[val] = True
+# Cloud sessions never install plugins from the settings above (probed 2026-10-11), so a
+# SessionStart hook does it; CLAUDE_CODE_REMOTE keeps it out of terminal sessions.
+# Replace our own entry (tagged), keep any others.
+TAG = "# agentfiles:cloud-install"
+mk = s.get("extraKnownMarketplaces", {})
+steps = [f"claude plugin marketplace add {m['source']['repo']}" for m in mk.values() if m.get("source", {}).get("source") == "github"]
+steps += [f"claude plugin install {p}" for p, on in s.get("enabledPlugins", {}).items() if on]
+cmd = ('[ "$CLAUDE_CODE_REMOTE" = true ] || exit 0; ' + TAG + "\n"
+       + "".join(f"env -u CLAUDECODE {c} >/dev/null 2>&1 || echo 'cloud-install failed: {c}'\n" for c in steps)
+       + "exit 0")
+groups = [g for g in s.get("hooks", {}).get("SessionStart", [])
+          if not any(TAG in h.get("command", "") for h in g.get("hooks", []))]
+groups.append({"hooks": [{"type": "command", "command": cmd, "timeout": 180}]})
+s.setdefault("hooks", {})["SessionStart"] = groups
 open(path, "w").write(json.dumps(s, indent=2) + "\n")
 PY2
-      say "settings.json: ${markets[*]} ${plugins[*]}"; }
+      say "settings.json: ${markets[*]} ${plugins[*]} + cloud install hook"; }
   fi
   local ign; ign="$(layer_ignored "$repo")"
   [ -n "$ign" ] && say "WARNING: gitignored in $repo, so git add will skip them: $ign (narrow the .gitignore entry)"
