@@ -1,0 +1,12 @@
+{
+  "name": "core",
+  "description": "Cross-profile skills (/core:plan-new, /core:save-status), background rules (planning, pr-descriptions, multi-repo-fanout, linear-direct-api) and the plan-doc naming guardrail hook.",
+  "author": {
+    "name": "Robin Bryce",
+    "url": "https://github.com/robinbryce"
+  },
+  "homepage": "https://github.com/robinbryce/agentfiles",
+  "repository": "https://github.com/robinbryce/agentfiles",
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json"
+}

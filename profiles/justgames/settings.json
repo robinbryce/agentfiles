@@ -1,0 +1,16 @@
+{
+  "$comment": "Template for ~/.claude-justgames/settings.json. Not applied by default (justgames migration deferred, see plan 2610-01 decisions); run `agentfiles bootstrap justgames` explicitly when ready.",
+  "extraKnownMarketplaces": {
+    "agentfiles": { "source": { "source": "directory", "path": "${AGENTFILES}" } }
+  },
+  "fallbackSources": {
+    "agentfiles": { "source": "github", "repo": "robinbryce/agentfiles" }
+  },
+  "enabledPlugins": {
+    "core@agentfiles": true
+  },
+  "pluginConfigs": {
+    "cc-plugin-agents-md@builtin": { "options": { "instructionFiles": "claude-md-and-agents-md" } }
+  },
+  "alwaysThinkingEnabled": true
+}

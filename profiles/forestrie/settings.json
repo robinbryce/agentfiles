@@ -1,0 +1,28 @@
+{
+  "$comment": "Template rendered by `agentfiles bootstrap forestrie` into ~/.claude-forestrie/settings.json. ${HOME}, ${AGENTFILES} and ${FORESTRIE_AGENTS} are substituted; a directory source whose path is missing is replaced by the github source in `fallbackSources`.",
+  "extraKnownMarketplaces": {
+    "agentfiles":       { "source": { "source": "directory", "path": "${AGENTFILES}" } },
+    "forestrie-agents": { "source": { "source": "directory", "path": "${FORESTRIE_AGENTS}" } }
+  },
+  "fallbackSources": {
+    "agentfiles":       { "source": "github", "repo": "robinbryce/agentfiles" },
+    "forestrie-agents": { "source": "github", "repo": "forestrie/forestrie-agents" }
+  },
+  "enabledPlugins": {
+    "core@agentfiles": true,
+    "research@agentfiles": true,
+    "forestrie-core@forestrie-agents": true,
+    "forestrie-linear@forestrie-agents": true,
+    "mattpocock-skills@forestrie-agents": true
+  },
+  "pluginConfigs": {
+    "cc-plugin-agents-md@builtin": { "options": { "instructionFiles": "claude-md-and-agents-md" } }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(curl -s https://api.linear.app/graphql*)",
+      "Bash(direnv exec . bash -c 'curl -s https://api.linear.app/graphql*)"
+    ]
+  },
+  "alwaysThinkingEnabled": true
+}

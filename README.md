@@ -1,98 +1,70 @@
 # agentfiles
 
-Personal home for agentic coding workflows, rules, and skills — **dotfiles,
-but for agentic use.** Harness-neutral markdown for Claude Code, Cursor, and
-other coding agents.
+Robin's agent configuration: **dotfiles for coding agents.** One repo holds
+the cross-profile skills, the always-on rules, and a template for each
+isolated *profile* (personal, forestrie, home, justgames). It is a Claude Code
+plugin marketplace and follows the open [Agent Skills](https://agentskills.io)
+and [AGENTS.md](https://agents.md) standards, so pi, cursor-agent, Codex and
+friends read the same files.
 
-This is a mix of professional and personal contexts, so the repo is split
-into isolated **scopes** — see below. If you're an agent, start at
-[AGENTS.md](./AGENTS.md), not this file.
+Design and migration plan:
+[docs/plans/plan-2610-01-agent-config-reorg/](./docs/plans/plan-2610-01-agent-config-reorg/README.md).
+
+## The model in one paragraph
+
+A **profile** is a Claude Code config directory (`CLAUDE_CONFIG_DIR`), chosen
+by the shell (direnv at a workspace root, or a `claude-<profile>` wrapper),
+never inferred by the model. Each profile has its own tiny `CLAUDE.md`, its
+always-on `rules/`, and a `settings.json` that enables exactly the plugin
+marketplaces that profile may see: this repo for everyone, forestrie-agents
+for forestrie work, a private agentfiles-home for life admin. **Skills** carry
+content, **AGENTS.md** files carry routing (workspace and repo), **rules** carry
+constraints, **hooks** enforce. What a repo commits (`AGENTS.md`,
+`.claude/rules/`, `.agents/skills/`) is what cloud sessions and other tools
+see; `agentfiles sync` produces that layer from the marketplace.
+
+## Install
+
+```bash
+git clone git@github.com:robinbryce/agentfiles.git ~/agentfiles
+~/agentfiles/bin/agentfiles bootstrap            # personal + forestrie (+ home if ~/agentfiles-home exists)
+~/agentfiles/bin/agentfiles doctor               # what each profile will load
+```
+
+Then source `~/.config/agentfiles/wrappers.sh` from your shell rc (dotfiles
+does this) and add the two `export` lines bootstrap prints to each workspace
+`.envrc`, or rerun with `--envrc`.
+
+Reduce `~/.claude/CLAUDE.md` to the stub in
+[harness/claude-code.md](./harness/claude-code.md); it loads into every
+profile.
 
 ## What lives here
 
 | Path | Purpose |
 |------|---------|
-| [AGENTS.md](./AGENTS.md) | Agent bootstrap router — read first |
-| [USER-CLAUDE.md](./USER-CLAUDE.md) | Machine-wide Claude Code hook — symlinked from `~/.claude/CLAUDE.md` |
-| [scopes/](./scopes/) | Isolated workstreams: forestrie, justgames, personal |
-| [workflow/](./workflow/) | Cross-scope [skills](./workflow/skills/) (= slash commands) and [rules](./workflow/rules/) |
-| [bin/](./bin/) | [`agentfiles-sync`](./bin/agentfiles-sync) — installs skills into every harness |
-| [vendored/](./vendored/) | Pinned third-party agent content |
-| [incubator/](./incubator/) | Provisional guidance, not yet promoted |
-| [harness/](./harness/) | Per-harness install notes |
+| [plugins/core](./plugins/core/) | `/core:plan-new`, `/core:save-status`; planning, PR-description, fan-out and Linear rules; plan-naming hook |
+| [plugins/research](./plugins/research/) | `/research:research-brief` |
+| [rules/](./rules/) | always-on: clickable references; path-scoped: herdr handoff offers |
+| [profiles/](./profiles/) | per-profile `CLAUDE.md` + `settings.json` templates |
+| [bin/agentfiles](./bin/agentfiles) | `bootstrap`, `doctor`, `sync`, `link` |
+| [harness/](./harness/) | Claude Code, pi, cursor-agent, local models |
+| [incubator/](./incubator/) | drafts, not installed |
 
-## Scopes
+## Profiles
 
-A **scope** keeps a workstream's context, rules, and glossary completely
-separate from the others — different employers/orgs and confidentiality
-boundaries live side by side in one repo without leaking into each other.
+| Profile | Marketplaces | Selected by |
+|---------|-------------|-------------|
+| personal | agentfiles | `~/Dev/personal/.envrc`, or default |
+| forestrie | agentfiles + [forestrie-agents](https://github.com/forestrie/forestrie-agents) | `~/Dev/personal/forestrie/.envrc` |
+| home | agentfiles + agentfiles-home (private) | `~/Dev/personal/home/.envrc` |
+| justgames | agentfiles (+ just-agents later) | `~/Dev/justgames/.envrc`; migration deferred |
 
-| Scope | Role |
-|-------|------|
-| [forestrie](./scopes/forestrie/) | Personal overlay on the shared [forestrie-agents](https://github.com/forestrie/forestrie-agents) repo |
-| [justgames](./scopes/justgames/) | JustGames/SentientDogs work |
-| [personal](./scopes/personal/) | Personal projects and life admin automation |
-
-See [scopes/README.md](./scopes/README.md) for the isolation rule and how an
-agent detects which scope applies.
-
-## Layer model
-
-1. **Repo overlay** — an `AGENTS.md`/`forest/agents/`-style router in the
-   working project repo itself (wins on conflict)
-2. **Scope** — `scopes/<scope>/` in this repo
-3. **Common workflow** — this repo's root `workflow/`
-4. **Vendored** — upstream skills; extend via overlay, do not edit in place
-5. **Incubator** — opt-in only; never default
-
-## Promotion policy
-
-Draft guidance starts in `incubator/` (repo-wide) or a scope's own
-`incubator/` (e.g. `scopes/forestrie/incubator/`, for drafts destined for the
-shared forestrie-agents repo rather than this one). To promote:
-
-1. Sanitize for the target audience (no cross-scope references)
-2. Open a PR moving content into the right scope's `workflow/`/`arc-context/`
-   — or into this repo's root `workflow/` if it's genuinely cross-scope
-3. Update the relevant README/AGENTS.md indexes
-
-## Clone layout
-
-Clone directly under home, as a sibling of `~/dotfiles`, so shell rc files,
-symlink targets, and `@import` paths can all reference it via a short,
-stable path:
-
-```text
-~/
-├── agentfiles/     # this repo
-└── dotfiles/
-```
-
-## Install
-
-**Once per machine** — the Claude Code hook that makes scope routing available
-in every session:
+## Using skills from other tools
 
 ```bash
-ln -s ~/agentfiles/USER-CLAUDE.md ~/.claude/CLAUDE.md
+npx skills add robinbryce/agentfiles -a pi -a cursor -g     # global, any supported agent
 ```
 
-**Once per repo** — routing plus slash commands:
-
-```bash
-agentfiles-link <scope>    # AGENTS.md/CLAUDE.md -> the scope router  (dotfiles/bin)
-agentfiles-sync <scope>    # skills -> .claude/skills, .cursor/, .agents/  (this repo's bin/)
-```
-
-`agentfiles-sync` symlinks each `<name>/SKILL.md` directory into every path
-Claude Code, Cursor, and pi discover skills from, so `/plan-new` and
-`/save-status` work in all three from one canonical source. Generated links are
-added to `.git/info/exclude`, so they never appear in `git status`.
-
-Per-repo is deliberate: Claude Code resolves personal skills *above* project
-skills, so a machine-wide skill would shadow a scope's own. Use
-`agentfiles-sync --global` only for genuinely universal skills.
-
-See [harness/claude-code.md](./harness/claude-code.md),
-[harness/cursor.md](./harness/cursor.md), or [harness/pi.md](./harness/pi.md)
-for the full detail and rationale.
+The skills CLI discovers skills through `marketplace.json`, so the same repo
+serves 75+ agents without adapters.
