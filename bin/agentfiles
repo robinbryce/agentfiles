@@ -61,15 +61,27 @@ for k, v in env.items():
 tpl = json.loads(raw)
 tpl.pop("$comment", None)
 fallback = tpl.pop("fallbackSources", {})
-# swap missing directory sources for their github fallback
+# swap missing directory sources for their github fallback; skip a checkout
+# that exists but is not (yet) a marketplace, together with its plugins
+skipped = set()
 for name, mk in list(tpl.get("extraKnownMarketplaces", {}).items()):
     src = mk.get("source", {})
-    if src.get("source") == "directory" and not os.path.isdir(src.get("path", "")):
+    if src.get("source") != "directory":
+        continue
+    path = src.get("path", "")
+    if not os.path.isdir(path):
         if name in fallback:
             tpl["extraKnownMarketplaces"][name] = {"source": fallback[name]}
-            print("note: %s not on disk, using %s" % (src.get("path"), fallback[name]), file=sys.stderr)
+            print("note: %s not on disk, using %s" % (path, fallback[name]), file=sys.stderr)
         else:
-            print("warn: marketplace %s path missing and no fallback: %s" % (name, src.get("path")), file=sys.stderr)
+            print("warn: marketplace %s path missing and no fallback: %s" % (name, path), file=sys.stderr)
+    elif not os.path.exists(os.path.join(path, ".claude-plugin", "marketplace.json")):
+        print("note: %s is not a marketplace yet (no .claude-plugin/marketplace.json); skipping it and its plugins" % path, file=sys.stderr)
+        del tpl["extraKnownMarketplaces"][name]
+        skipped.add(name)
+for pid in list(tpl.get("enabledPlugins", {})):
+    if pid.split("@", 1)[-1] in skipped:
+        del tpl["enabledPlugins"][pid]
 live = {}
 if os.path.exists(out_path):
     try:
