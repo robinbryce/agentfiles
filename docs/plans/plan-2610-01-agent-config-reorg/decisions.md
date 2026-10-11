@@ -138,3 +138,8 @@ skills + rules, which works whatever the answer. Clean-up done.
 - **Measured cost in canopy:** AGENTS.md 1.6k tokens; always-on rules 5.9k
   (rules-of-the-road-canopy 3k, platform 1.5k, branch-naming 0.9k); six project
   skills ~0.5k of metadata. TypeScript rules attach only on a `.ts` read.
+- **Merge practice (2026-10-11).** forestrie-agents squash-merges, canopy uses
+  merge commits. Stacked PRs in forestrie-agents: after the base squashes,
+  merge `main` into the next branch (keeping the branch side) rather than
+  rebasing and force-pushing. Re-sync target repos from forestrie-agents main
+  after its PRs merge, so `.synced-from` names a commit that stays on main.
