@@ -32,14 +32,25 @@ Worktrees removed.
 
 **Phase 2 step 6 (2026-10-11): done.** `agentfiles bootstrap forestrie` rerun; `~/Dev/personal/forestrie/AGENTS.md` → `forestrie-agents/workspace/AGENTS.md`; `forestrie-agent-context.md` deleted. A headless session in canopy loads the profile CLAUDE.md, the workspace AGENTS.md, canopy's AGENTS.md and the always-on `.claude/rules/`, and lists all seven `forestrie-core:arc-*` skills (README verification item 3, canopy).
 
+**Phase 2 step 5 rollout (2026-10-11): seven draft PRs open**, branch `robin/agent-layer-sync` in each, synced from forestrie-agents main 797688a, `doctor --repo --ci` clean, headless session lists the project skills in every one:
+[arbor#112](https://github.com/forestrie/arbor/pull/112),
+[univocity#47](https://github.com/forestrie/univocity/pull/47),
+[univocity-tools#32](https://github.com/forestrie/univocity-tools/pull/32),
+[mandate#103](https://github.com/forestrie/mandate/pull/103),
+[forest-1#42](https://github.com/forestrie/forest-1/pull/42),
+[arbor-flux#62](https://github.com/forestrie/arbor-flux/pull/62),
+[devdocs#219](https://github.com/forestrie/devdocs/pull/219).
+Worktrees at `~/Dev/personal/forestrie/.worktrees/<repo>-agent-layer-sync`. Repo-specific fixes: devdocs `.gitignore` (ignored all of `.claude/`), mandate `.prettierignore` (`prettier --check .` failed on the copies). `bin/agentfiles` now flags a gitignored layer (commit 952cbef). See [decisions.md](./decisions.md#phase-2-step-5-rollout-2026-10-11).
+
 **Next slice:**
 
 1. Robin runs the cloud check in canopy (README verification item 4) and reports back:
    `cd ~/Dev/personal/forestrie/canopy && claude --cloud "Check the committed agent layer. Change no files. (1) List every skill available to you and mark which come from this repo's .claude/skills/. (2) List the .claude/rules/ files loaded as instructions and say which are path-scoped. (3) Say whether any forestrie-core@forestrie-agents plugin skills or hooks are present. Reply in chat only; do not commit or push."`
-   Expected: the six project skills (`arc-canopy`, `persist-plan`, `pre-commit-checks`, `review-changes`, `rules-of-the-road-review`, `save-status`); probably no forestrie-core (private marketplace).
-2. Phase 2 step 5: roll out to arbor, univocity, univocity-tools, mandate, forest-1, arbor-flux, devdocs (same PR shape; manifests exist), and add the `agentfiles doctor --repo --ci` job. Sync only from forestrie-agents **main**: the repo squash-merges, so a branch SHA in `.synced-from` would dangle.
-3. Follow-ups found in review, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, which [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90) removed (lane B is now defined by promotion). The skill needs a rewrite, not a link swap. It is in no sync manifest.
-4. Stale worktrees from PR 1 remain: `~/Dev/personal/forestrie/.worktrees/forestrie-agents-marketplace` (`robin/marketplace`) and `…/forestrie-agents-skills` (`robin/skills-as-slash-commands`). Both branches are merged; remove when convenient.
+   Expected: the six project skills; probably no forestrie-core (private marketplace). Then add the result to canopy#268 and repeat in arbor once arbor#112 merges ("done when" needs canopy and arbor).
+2. Watch CI on the seven drafts (univocity Foundry and mandate lint were pending at handoff), then mark ready. Merge practice: merge `main` into a branch, never force-push; if forestrie-agents main changes before merge, re-sync from main.
+3. The `agentfiles doctor --repo --ci` CI job: proposal in [decisions.md](./decisions.md#ci-job-proposal-2026-10-11), awaiting Robin's choice.
+4. Follow-ups, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, which [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90) removed; it needs a rewrite. canopy#268's commits carry `Co-Authored-By`, which the org `commit-conventions` rule forbids; the rollout commits omit it.
+5. Stale worktrees from PR 1: `~/Dev/personal/forestrie/.worktrees/forestrie-agents-marketplace` and `…/forestrie-agents-skills` (both branches merged); remove when convenient.
 
 **Resume prompt:**
 
