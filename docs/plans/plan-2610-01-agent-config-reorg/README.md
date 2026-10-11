@@ -7,7 +7,7 @@ refs: []
 
 # Plan 2610-01 — agent config reorg: profiles, marketplaces, skills
 
-**Status:** ACTIVE (Phase 1 applied; Phase 2 PR 1 in review) · **Created:** 2026-10-11
+**Status:** ACTIVE (Phase 1 applied; Phase 2 PR 1 merged) · **Created:** 2026-10-11
 
 Reorganise [agentfiles](https://github.com/robinbryce/agentfiles) and
 [forestrie-agents](https://github.com/forestrie/forestrie-agents) from the
@@ -201,7 +201,7 @@ unprofiled default; run `claude-<profile>`".
 
 ## Open questions — verify before Phase 2
 
-Answers so far are recorded in [decisions.md](./decisions.md): Q2 yes, Q3 both supported, Q4 works with caveats, Q5 decided, Q1 pending the cloud probe.
+Answers so far are recorded in [decisions.md](./decisions.md): Q2 yes, Q3 both supported, Q4 works with caveats, Q5 decided, Q1 no.
 
 | # | Question | Why it matters | How to check |
 |---|----------|----------------|--------------|

@@ -63,7 +63,16 @@ Caveats:
 
 ### Q5 — account skills. Decided above (core + non-sensitive admin).
 
-### Q1 — skills-dir plugin in a cloud session. **Unresolved; plan assumes no.**
+### Q1 — skills-dir plugin in a cloud session. **No.**
+
+Robin checked `/skills` in the claude.ai web session on 2026-10-11:
+`plugin-probe` (a skill inside a plugin directory under `.claude/skills/`) was
+not listed. A repo cannot ship a whole plugin, hooks included, to cloud
+sessions. The committed layer stays plain skills in `.agents/skills/` (with
+`.claude/skills/` symlinks) plus `.claude/rules/`; plugin hooks run only in
+terminal sessions. Probe branch and worktree deleted.
+
+Original probe notes:
 
 Probe branch `probe/skills-dir-plugin` on the draft repo carries
 `.claude/skills/probe-plugin/` (plugin dir with a skill and a SessionStart hook)
@@ -82,9 +91,7 @@ but never pushed `probe/result` in about 25 minutes, including after a
 follow-up message. Cloud sessions may only be able to push to `claude/…`
 branches, or the session may be waiting on a prompt. Open the session to read
 its `/context` output directly. Until then the committed layer stays plain
-skills + rules, which works whatever the answer. Clean-up when done: delete the
-remote `probe/skills-dir-plugin` branch and the local worktree
-`draft-bryce-cose-receipts-mmr-profile/.claude/worktrees/probe-skills-dir-plugin`.
+skills + rules, which works whatever the answer. Clean-up done.
 
 ## Phase 2 notes (2026-10-11)
 

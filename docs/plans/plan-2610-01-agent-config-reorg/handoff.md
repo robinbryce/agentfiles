@@ -21,7 +21,7 @@
 
 **Phase 2 status (2026-10-11):** PR 1 open as draft, [forestrie/forestrie-agents#8](https://github.com/forestrie/forestrie-agents/pull/8). Sandboxed bootstrap against it installs forestrie-core (21 skills, 1 hook) and mattpocock-skills (3 skills).
 
-**Next slice:** after #8 merges and `~/Dev/personal/forestrie/forestrie-agents` is on main, rerun `~/agentfiles/bin/agentfiles bootstrap forestrie`. Then PR 2 (arc-context as skills, rules-of-the-road sources, sync manifests) and PR 3 (workspace AGENTS.md); pilot `agentfiles sync` in canopy. Q1 still open, see decisions.md.
+**Next slice:** #8 merged and the forestrie profile rebootstrapped (all four plugins enabled). Next, PR 2 (arc-context as skills, rules-of-the-road sources, sync manifests) and PR 3 (workspace AGENTS.md); pilot `agentfiles sync` in canopy. Q1 answered: no.
 
 **Resume prompt:**
 
