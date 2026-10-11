@@ -258,3 +258,23 @@ comments, no issues.
   but ships without upstream's LICENSE; add it under `vendored/matt-skills/`.
   forestrie-agents itself has no license (canopy, arbor, univocity none;
   univocity-tools, mandate, protocol MIT).
+
+### Cloud check in canopy (2026-10-11), README verification item 4
+
+Run by Robin on canopy main (f61729a) while forestrie-agents was still
+**private**.
+
+- The six synced skills are listed as project skills (from `.claude/skills/`
+  symlinks); the five always-on rules load and the five `paths:`-scoped ones
+  do not until a matching file is touched. The committed layer works in
+  cloud.
+- **forestrie-core is not present.** `installed_plugins.json` is empty and
+  the marketplace was never fetched, although `.claude/settings.json`
+  declares it. No hooks ran.
+- Ambiguous cause: cloud may ignore project-declared marketplaces (terminal
+  sessions ask before trusting one; cloud has no one to ask), or it could not
+  read the private repo. Next probe: make forestrie-agents public, then a
+  throwaway canopy branch with a SessionStart hook that adds the marketplace
+  and installs forestrie-core; run two cloud sessions on it.
+- The session saw the `commit-conventions` rule override the tool's
+  Co-Authored-By reminder, as intended.
