@@ -178,3 +178,44 @@ skills + rules, which works whatever the answer. Clean-up done.
 - **Org commit rule wins over tool attribution.** The synced
   `commit-conventions` rule forbids `Co-Authored-By` in org repos, so the
   rollout commits carry none (canopy#268's do).
+
+## CI job proposal (2026-10-11)
+
+Awaiting Robin's choice; nothing added yet.
+
+**What it checks.** The committed layer is exactly what `agentfiles sync`
+wrote at the forestrie-agents SHA recorded in `.agents/skills/.synced-from`:
+no hand edits, nothing missing, nothing gitignored. It does **not** fail
+because forestrie-agents main moved on; staleness is a separate, advisory
+concern.
+
+**Where it lives.** A composite action
+`forestrie/.github/actions/agent-layer-doctor` in the public org `.github`
+repo, next to `secret-egress-lint`, which repos already call as
+`forestrie/.github/actions/secret-egress-lint@main`. Each repo calls it from
+a job in `workflow-lint.yml` (arbor, univocity and mandate already have the
+workflow; the others get it). Trigger: `pull_request` with paths `AGENTS.md`,
+`CLAUDE.md`, `.claude/**`, `.agents/**`, `.gitignore`, plus `push` to main.
+The action fetches `bin/agentfiles` from public `robinbryce/agentfiles` at a
+pinned SHA.
+
+**How it gets forestrie-agents (private): two options.**
+
+- **A. GitHub App token.** `actions/create-github-app-token` with the org app
+  (`GITAPP_ID` / `GITAPP_PRIVATE_KEY`, scoped to `repositories:
+  forestrie-agents`, contents read), check out forestrie-agents at the
+  `.synced-from` SHA, run `doctor --repo . --source <dir> --ci`. Needs the
+  app installed on forestrie-agents and the key as an org secret visible to
+  eight repos. Fork PRs cannot mint, so the job skips there. Known hazard:
+  canopy's `dev` environment shadows `GITAPP_PRIVATE_KEY` with an invalid key
+  (canopy `tests-system.yml`), so the job must not use an environment.
+- **B. No secret: record file hashes at sync time (recommended).** `sync`
+  writes a sha256 per synced file into `.synced-from`; `doctor --repo --ci`
+  checks the committed files against those hashes when no source checkout is
+  present. That catches the same failures (hand edits, missing or ignored
+  files) without reading forestrie-agents, works on fork PRs, and puts no
+  secret in eight repos. Staleness against forestrie-agents main then belongs
+  in forestrie-agents itself (a later scheduled job that re-syncs and opens
+  PRs). Cost: an agentfiles change and one re-sync of every repo, which is
+  cheap now while seven of the eight PRs are drafts; canopy needs a small
+  follow-up PR.
