@@ -1,0 +1,16 @@
+{
+  "name": "agentfiles-common",
+  "description": "Cross-scope agentfiles skills (/plan-new, /save-status) and rules (clickable-references, planning, linear-direct-api), plus the plan-doc naming guardrail.",
+  "author": {
+    "name": "Robin Bryce",
+    "url": "https://github.com/robinbryce"
+  },
+  "homepage": "https://github.com/robinbryce/agentfiles",
+  "repository": "https://github.com/robinbryce/agentfiles",
+  "license": "MIT",
+  "skills": [
+    "./workflow/skills/",
+    "./workflow/rules/"
+  ],
+  "hooks": "./harness/hooks/hooks.json"
+}

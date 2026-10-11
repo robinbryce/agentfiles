@@ -1,17 +1,50 @@
 # workflow/rules
 
-Cross-scope rules. Default: **requestable** (load when relevant). Project
-repo overlays may set harness-specific `alwaysApply`.
+Cross-scope rules. Each is a `<name>/SKILL.md` directory, exactly like a
+[skill](../skills/) — because on every current harness a rule *is* a skill.
+What distinguishes them is frontmatter, not location:
 
-| Rule | Scope |
-|------|-------|
-| [clickable-references.md](./clickable-references.md) | Every file / line / PR / issue / commit reference must be a clickable link — gitweb permalink for git content, absolute `path:line` for local-only. Cross-scope, intended always-on. |
-| [planning.md](./planning.md) | Plan / ADR / ARC organisation & numbering — date-cohort plans, absolute ADR/ARC. Scopes override the params. |
-| [linear-direct-api.md](./linear-direct-api.md) | Linear via the direct GraphQL API keyed by the active scope's `LINEAR_API_KEY` (not MCP / interactive login). forestrie + justgames. |
-| [multi-repo-fanout.md](./multi-repo-fanout.md) | Fan out to execute, never to decide — one context spanning repos makes the cross-repo decisions, per-repo agents implement an already-written plan. The plan is the interface. Cross-scope. |
-| [pr-descriptions.md](./pr-descriptions.md) | PR descriptions are written for a reader familiar with the domain but not the current plans: self-contained, introduce and link every term, id or decision before using shorthand for it; lead with the change in plain words; no bullets of bare identifiers. Cross-scope, always-on when creating or editing a PR. |
-| [herdr-session-handoff.md](./herdr-session-handoff.md) | In herdr task worktrees, proactively offer a "ready to clear and hand off" block at clean completion points — kickoff prompt, absolute memory/handoff paths, stay-vs-new-workspace advice. Cross-scope, always-on in `*/.worktrees-herdr/*`. |
+| Frontmatter | Effect |
+|-------------|--------|
+| `user-invocable: false` | Background knowledge; hidden from the `/` menu |
+| `paths: [...]` | Loaded **only** when the session touches a matching file |
+| `description` / `when_to_use` | How the agent decides to apply an unscoped rule |
 
-Scope-specific rules live in `scopes/<scope>/workflow/rules/` instead — this
-directory is only for genuinely cross-scope conventions (e.g. general commit
-hygiene, not any org's specific Linear/Jira workflow).
+| Rule | Applies when |
+|------|--------------|
+| [clickable-references](./clickable-references/SKILL.md) | Always — any output naming a file, line, PR, issue, commit, or symbol |
+| [planning](./planning/SKILL.md) | Touching `plans/`, `adr/`, `arc/`. Owns [templates/](./planning/templates/) |
+| [linear-direct-api](./linear-direct-api/SKILL.md) | Any Linear work — direct GraphQL keyed by the scope's `LINEAR_API_KEY`, not MCP |
+| [multi-repo-fanout.md](./multi-repo-fanout.md) | Any task spanning several repos — fan out to execute, never to decide; the plan is the interface. *(plain rule file; not yet converted to skill form)* |
+| [pr-descriptions.md](./pr-descriptions.md) | Creating or editing a PR — self-contained description for a reader who knows the domain but not the current plans; introduce and link every id before shorthand. Always-on for PR work. *(plain rule file)* |
+| [herdr-session-handoff.md](./herdr-session-handoff.md) | In `*/.worktrees-herdr/*` — proactively offer a "ready to clear and hand off" block at clean completion points. *(plain rule file)* |
+
+Scope-specific rules live in `scopes/<scope>/workflow/rules/` and shadow a
+cross-scope rule of the same name.
+
+## Why `paths:` replaced `alwaysApply`
+
+The old model was Cursor's: a rule was either always injected or requestable by
+name. `paths:` is strictly better — a rule costs **zero context** until the
+session touches a file it governs, then loads automatically without anyone
+having to remember it. `typescript-comments` is absent in a Terraform repo and
+present the moment you open a `.ts` file.
+
+Only [clickable-references](./clickable-references/SKILL.md) is genuinely
+always-on. It has no `paths`, so it loads on description alone.
+
+**Honest limit:** Claude Code has no hard `alwaysApply` for skills. The
+guarantee for always-on content is the pointer in
+[AGENTS.md](../../AGENTS.md), which is loaded every session — the skill form is
+what makes the body available without spending context on it up front.
+
+## Cursor
+
+`bin/agentfiles-sync --cursor-rules` generates `.cursor/rules/<name>.mdc`
+shims: `paths:` becomes Cursor's native `globs:`, `cursor-always-apply: true`
+becomes `alwaysApply: true`, and the body is a one-line pointer at the same
+`SKILL.md` — so there is no duplicated content to drift.
+
+It is opt-in and **never overwrites a `.mdc` it did not generate**: files
+lacking its marker are skipped, and generated ones are excluded individually
+via `.git/info/exclude` so a repo that tracks `.cursor/rules/` stays clean.

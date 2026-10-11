@@ -1,3 +1,11 @@
+---
+name: planning
+description: How plan, ADR, and ARC documents are named, numbered, and laid out: date-cohort plan ids, absolute ADR/ARC ids, frontmatter, and the forward-only migration policy. Scopes override the parameters.
+when_to_use: Creating, renaming, or reorganising a plan / ADR / ARC document, or picking an id for one. The /plan-new skill applies this for you.
+paths: ["**/plans/**", "**/docs/plans/**", "**/adr/**", "**/docs/adr/**", "**/arc/**", "**/docs/arc/**"]
+user-invocable: false
+---
+
 # Planning & decision docs — organisation and numbering
 
 Cross-scope **default** for how plan, ADR, and ARC documents are named,
@@ -123,4 +131,4 @@ The scheme above is the default. A scope's `AGENTS.md` sets only what differs:
 | `issue_refs` | issue tracker prefix for `refs:` | none |
 
 See [templates/](./templates/) for the file and directory-README scaffolds,
-and [`/plan-new`](../commands/plan-new.md) for automated allocation.
+and [`/plan-new`](../../skills/plan-new/SKILL.md) for automated allocation.
