@@ -297,5 +297,12 @@ Consequence: public repos need no copies. Pointer + SessionStart install
 hook in `.claude/settings.json`, `CLAUDE.md` as `@AGENTS.md`. Costs: rules
 arrive as plugin skills rather than always-on `.claude/rules/`, so
 always-on guidance becomes on-demand in cloud; Cursor and Codex get AGENTS.md
-links only. Pending: the hook log (was forestrie-core already installed by
-the pointer alone? is `CLAUDE_CODE_REMOTE` set, for the guard?).
+links only.
+
+Hook log: `installed_plugins.json` did not exist before the hook ran, so
+**the settings pointer alone installs nothing in cloud**, even with the repo
+public; the hook did all of it (anonymous clone, both plugins installed at
+forestrie-agents main 5cc4ef4, Claude Code 2.1.296). Cloud sets
+`CLAUDE_CODE_REMOTE=true`: use that as the hook's guard. Cloud sessions get
+forestrie-agents **main** at session start, not a pinned SHA: no drift and
+no re-sync, at the price of per-commit reproducibility.
