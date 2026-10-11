@@ -1,13 +1,13 @@
 ---
 id: 2610-01
-status: draft
+status: active
 created: 2026-10-11
 refs: []
 ---
 
 # Plan 2610-01 — agent config reorg: profiles, marketplaces, skills
 
-**Status:** DRAFT · **Created:** 2026-10-11
+**Status:** ACTIVE (Phase 0) · **Created:** 2026-10-11
 
 Reorganise [agentfiles](https://github.com/robinbryce/agentfiles) and
 [forestrie-agents](https://github.com/forestrie/forestrie-agents) from the
@@ -23,6 +23,7 @@ of truth per trust boundary**.
 | [01-target-layout.md](./01-target-layout.md) | repos, directory trees, manifests, profile files, direnv |
 | [02-loading-model.md](./02-loading-model.md) | what loads where on each surface; the session-start routing sequence |
 | [03-migration.md](./03-migration.md) | phased plan, concrete commands, file-by-file mapping of today's content |
+| [decisions.md](./decisions.md) | Robin's choices (2026-10-11) and the verified answers to Q1–Q5 |
 | [handoff.md](./handoff.md) | resume prompt for the next session |
 
 ---
@@ -199,6 +200,8 @@ unprofiled default; run `claude-<profile>`".
 ---
 
 ## Open questions — verify before Phase 2
+
+Answers so far are recorded in [decisions.md](./decisions.md): Q2 yes, Q3 both supported, Q4 works with caveats, Q5 decided, Q1 pending the cloud probe.
 
 | # | Question | Why it matters | How to check |
 |---|----------|----------------|--------------|
