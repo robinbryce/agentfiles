@@ -219,3 +219,42 @@ pinned SHA.
   PRs). Cost: an agentfiles change and one re-sync of every repo, which is
   cheap now while seven of the eight PRs are drafts; canopy needs a small
   follow-up PR.
+
+## Rethinking D4: pointer, not copies (2026-10-11)
+
+Robin questioned replicating the agent layer into every repo: copies drift,
+and the drift check above only papers over that. Decisions:
+
+- **Drop the CI drift job** (the proposal above is withdrawn).
+- **Keep the source split** (agentfiles, forestrie-agents, agentfiles-home;
+  one marketplace per trust boundary, D3).
+- **Public repos first.** Make forestrie-agents public after a sensitivity
+  review, so a committed `.claude/settings.json` marketplace pointer works
+  with no auth. Private repos (forest-1, arbor-flux, devdocs) wait.
+- Open standards (AGENTS.md, SKILL.md) have no cross-repo include by design
+  (no remote instructions, reproducible per commit, no auth), so routing is
+  a harness feature: Claude plugins via the pointer, or MCP. Cursor and Codex
+  get AGENTS.md links only.
+- Gate: Robin's cloud check in canopy must show cloud sessions installing
+  forestrie-core from the project-settings pointer. The seven draft PRs are
+  on hold until then; if it works they shrink to the pointer plus AGENTS.md.
+
+### forestrie-agents sensitivity review (2026-10-11)
+
+Scope: all 41 commits on every ref, 79 files on main, 10 PRs and their
+comments, no issues.
+
+- gitleaks over full history and PR text: no leaks.
+- No IPs, cloud project ids, cluster names, contract addresses or machine
+  paths. Only author email is Robin's.
+- Hostnames (`mandate-dev.forestrie.dev`, `mandate.forestrie.dev`,
+  `api-b.forest-2.forestrie.dev`), Doppler project names and env-var names
+  appear in `workflow/skills/fork-mandate` and `setup-clone`. All already
+  appear in public mandate or canopy `main`.
+- "customer"/"partner" hits are generic examples in the vendored
+  grill-with-docs skill.
+- PR bodies link five claude.ai session ids; they open only for Robin.
+- **To fix before publishing:** the vendored mattpocock/skills copy is MIT
+  but ships without upstream's LICENSE; add it under `vendored/matt-skills/`.
+  forestrie-agents itself has no license (canopy, arbor, univocity none;
+  univocity-tools, mandate, protocol MIT).
