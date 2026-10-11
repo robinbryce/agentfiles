@@ -336,7 +336,12 @@ PY2
              [ -e "$repo/.claude/skills/$x" ] || { say "DRIFT: missing .claude/skills/$x"; drift=1; } ;;
     esac
   done <<<"$plan"
-  [ "$drift" = 0 ] && say "no drift: committed layer matches the source" || { say "rerun: agentfiles sync $repo --manifest $srcdir/$mf"; [ "${CI_MODE:-0}" = 1 ] && return 1; }
+  # A gitignored layer passes the checks above on this machine but is absent from every clone.
+  local ign; ign="$(layer_ignored "$repo")"
+  [ -n "$ign" ] && say "DRIFT: gitignored, so never committed: $ign (narrow the .gitignore entry)"
+  [ "$drift" = 1 ] && say "rerun: agentfiles sync $repo --manifest $srcdir/$mf"
+  [ "$drift" = 0 ] && [ -z "$ign" ] && say "no drift: committed layer matches the source"
+  [ "$drift" = 1 ] || [ -n "$ign" ] && [ "${CI_MODE:-0}" = 1 ] && return 1
   return 0
 }
 
@@ -370,6 +375,16 @@ manifest_source() {
   src="${src/#\~/$HOME}"
   case "$src" in /*) ;; *) src="$(cd "$(dirname "$mf")" && cd "$src" 2>/dev/null && pwd)" || return 1 ;; esac
   echo "$src"
+}
+
+# Layer paths that exist in <repo> but are gitignored there, space-separated (empty if none).
+layer_ignored() {
+  local repo="$1" p out=()
+  for p in AGENTS.md CLAUDE.md .claude/settings.json .claude/rules .agents/skills .claude/skills; do
+    [ -e "$repo/$p" ] || [ -L "$repo/$p" ] || continue
+    git -C "$repo" check-ignore -q --no-index "$p" 2>/dev/null && out+=("$p")
+  done
+  echo "${out[*]:-}"
 }
 
 # owner/repo from a checkout's origin remote (empty if none).
@@ -454,6 +469,8 @@ open(path, "w").write(json.dumps(s, indent=2) + "\n")
 PY2
       say "settings.json: ${markets[*]} ${plugins[*]}"; }
   fi
+  local ign; ign="$(layer_ignored "$repo")"
+  [ -n "$ign" ] && say "WARNING: gitignored in $repo, so git add will skip them: $ign (narrow the .gitignore entry)"
   ( cd "$repo" && git status --short 2>/dev/null | sed 's/^/  /' )
 }
 
