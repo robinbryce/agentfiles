@@ -21,12 +21,25 @@
 
 **Phase 2 status (2026-10-11):** PR 1 open as draft, [forestrie/forestrie-agents#8](https://github.com/forestrie/forestrie-agents/pull/8). Sandboxed bootstrap against it installs forestrie-core (21 skills, 1 hook) and mattpocock-skills (3 skills).
 
-**Next slice:** #8 merged and the forestrie profile rebootstrapped (all four plugins enabled). Next, PR 2 (arc-context as skills, rules-of-the-road sources, sync manifests) and PR 3 (workspace AGENTS.md); pilot `agentfiles sync` in canopy. Q1 answered: no.
+**Phase 2 PRs 2–3 and pilot (2026-10-11):** all open as drafts.
+
+- [forestrie/forestrie-agents#9](https://github.com/forestrie/forestrie-agents/pull/9): `arc-*` glossary skills, copy-safe rules-of-the-road, `sync/<repo>.manifest` ×8, YAML frontmatter fix.
+- [forestrie/forestrie-agents#10](https://github.com/forestrie/forestrie-agents/pull/10) (stacked on #9): `workspace/AGENTS.md`, AGENTS.md as org map + contributor guide, `harness/` cut to `claude-code.md` + `other-tools.md`.
+- [forestrie/canopy#268](https://github.com/forestrie/canopy/pull/268): the synced layer, from #10's head. `/context` and path-scoped rules verified; `doctor --repo --ci` clean.
+- `bin/agentfiles` sync/doctor fixes from the pilot: commit b20b48e. Details and deviations from 01-target-layout: [decisions.md](./decisions.md#phase-2-notes-prs-23-and-the-canopy-pilot-2026-10-11).
+
+Worktrees: `~/Dev/personal/forestrie/.worktrees/{forestrie-agents-pr2,forestrie-agents-pr3,canopy-agent-layer}`.
+
+**Next slice:**
+
+1. Robin reviews and merges #9 → #10 → canopy#268 (re-sync canopy from forestrie-agents main first if #9/#10 changed). Then `/reload-plugins` or rebootstrap so the forestrie profile picks up the `arc-*` skills.
+2. Verify a cloud session in canopy lists the six project skills (`claude --cloud "run /context and list skills"`); README verification items 3 and 4.
+3. Phase 2 step 6: rerun `agentfiles bootstrap forestrie` so `~/Dev/personal/forestrie/AGENTS.md` links `workspace/AGENTS.md`, then delete `forestrie-agent-context.md`.
+4. Phase 2 step 5: roll out to arbor, univocity, univocity-tools, mandate, forest-1, arbor-flux, devdocs (same PR shape; manifests already exist), and add the `agentfiles doctor --repo --ci` job.
 
 **Resume prompt:**
 
 > Continue plan 2610-01 in `~/agentfiles` (branch `robin/agent-config-reorg`).
-> Read `docs/plans/plan-2610-01-agent-config-reorg/README.md`, `decisions.md`
-> and `03-migration.md`. If Q1 in `decisions.md` is still pending, fetch
-> `probe/result` from robinbryce/draft-bryce-cose-receipts-mmr-profile and
-> record it. Then execute Phase 1 of `03-migration.md`.
+> Read `docs/plans/plan-2610-01-agent-config-reorg/handoff.md` and
+> `decisions.md`. Check whether forestrie-agents#9, #10 and canopy#268 have
+> merged, then pick up the next slice above.

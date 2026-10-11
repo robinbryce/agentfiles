@@ -104,3 +104,37 @@ skills + rules, which works whatever the answer. Clean-up done.
   sha-pinned upstream (Q4's alternative).
 - `forestrie-linear` is not split out yet; `linear-mcp-forestrie` ships inside
   `forestrie-core`. The profile template no longer enables `forestrie-linear`.
+
+## Phase 2 notes, PRs 2–3 and the canopy pilot (2026-10-11)
+
+- **Layout deviates from 01-target-layout.** `forestrie-core` stays rooted at
+  the repo (`source: "./"`, skills from `workflow/skills/`, `workflow/rules/`,
+  `arc-context/`) rather than moving under `plugins/forestrie-core/`. Glossaries
+  are `arc-context/arc-<name>/SKILL.md`; `rules-of-the-road/` stays where it is
+  and serves as the rules source. `workflow/rules/` was not split into
+  `rules/{common,lang}/`: the manifests copy `workflow/rules/<name>/SKILL.md`
+  to `.claude/rules/<name>.md` directly, and Claude Code reads `paths:` from
+  the skill frontmatter (verified in canopy).
+- **Public repos get the synced subset (Robin, 2026-10-11).** forestrie-agents
+  is private; canopy, arbor, univocity, univocity-tools and mandate are public.
+  Robin chose to publish the synced subset as-is (process guidance and
+  invariants, no secrets; links into private repos 404 for outsiders) rather
+  than trim it or make forestrie-agents public. forestrie-agents' AGENTS.md now
+  says to write nothing there that cannot be public.
+- **Manifest format grew** `marketplace` and `plugin` directives (merged into
+  `.claude/settings.json`), and a relative `source` resolves against the
+  manifest's directory (`source ..`).
+- **Frontmatter YAML.** Ten forestrie-agents SKILL.md files had unquoted `: `
+  in `description`/`when_to_use`. Claude Code tolerated it; `npx skills` skipped
+  them. Fixed in forestrie-agents#9; AGENTS.md tells contributors to check
+  with `npx skills add . --list`.
+- **Drift is content, not SHA.** `doctor --repo` diffs the committed files
+  against a local checkout of the source; the source SHA moves with unrelated
+  commits. `.synced-from` holds no machine paths or timestamps, and sync deletes
+  the `skills-lock.json` that `npx skills` writes.
+- **Marketplace name overlap is harmless.** The profile knows
+  `forestrie-agents` as a directory source, canopy's project settings as a
+  GitHub source; the session used the profile's without prompting.
+- **Measured cost in canopy:** AGENTS.md 1.6k tokens; always-on rules 5.9k
+  (rules-of-the-road-canopy 3k, platform 1.5k, branch-naming 0.9k); six project
+  skills ~0.5k of metadata. TypeScript rules attach only on a `.ts` read.
