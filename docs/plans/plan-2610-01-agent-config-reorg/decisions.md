@@ -63,7 +63,7 @@ Caveats:
 
 ### Q5 — account skills. Decided above (core + non-sensitive admin).
 
-### Q1 — skills-dir plugin in a cloud session. **Pending.**
+### Q1 — skills-dir plugin in a cloud session. **Unresolved; plan assumes no.**
 
 Probe branch `probe/skills-dir-plugin` on the draft repo carries
 `.claude/skills/probe-plugin/` (plugin dir with a skill and a SessionStart hook)
@@ -75,3 +75,25 @@ Local observation while the probe worktree was the session cwd: Claude Code
 surfaced `plain-probe` as a nested skill but **not** `plugin-probe`, consistent
 with the docs' note that skills-dir plugins are read only from the primary
 working directory and never from nested or parent directories.
+
+Status 2026-10-11: the cloud session started
+([session_016pszdKMVD3AAEttVgbXa1y](https://claude.ai/code/session_016pszdKMVD3AAEttVgbXa1y))
+but never pushed `probe/result` in about 25 minutes, including after a
+follow-up message. Cloud sessions may only be able to push to `claude/…`
+branches, or the session may be waiting on a prompt. Open the session to read
+its `/context` output directly. Until then the committed layer stays plain
+skills + rules, which works whatever the answer. Clean-up when done: delete the
+remote `probe/skills-dir-plugin` branch and the local worktree
+`draft-bryce-cose-receipts-mmr-profile/.claude/worktrees/probe-skills-dir-plugin`.
+
+## Phase 2 notes (2026-10-11)
+
+- forestrie-agents already had an unmerged `robin/skills-as-slash-commands`
+  branch (skills form, duplicate vendored copy removed, tracked `tdd` patch).
+  PR 1 builds on it: [forestrie/forestrie-agents#8](https://github.com/forestrie/forestrie-agents/pull/8),
+  branch `robin/marketplace`.
+- Because `tdd` carries a local patch, the engineering skills stay **vendored**
+  as plugin `mattpocock-skills` (source `./vendored/matt-skills`) rather than
+  sha-pinned upstream (Q4's alternative).
+- `forestrie-linear` is not split out yet; `linear-mcp-forestrie` ships inside
+  `forestrie-core`. The profile template no longer enables `forestrie-linear`.

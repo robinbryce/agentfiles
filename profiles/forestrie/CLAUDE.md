@@ -1,8 +1,8 @@
 # Profile: forestrie
 
 This session runs in Robin's **forestrie** profile (`~/.claude-forestrie`).
-Team conventions arrive as the `forestrie-core`, `forestrie-linear` and
-`mattpocock-skills` plugin skills and as each repo's committed `AGENTS.md` and
+Team conventions arrive as the `forestrie-core` and `mattpocock-skills`
+plugin skills and as each repo's committed `AGENTS.md` and
 `.claude/rules/`. Personal conventions arrive as `core` plugin skills and the
 rules in this profile. Nothing from the personal, home or justgames profiles is
 installed here; do not go looking for it.
@@ -26,5 +26,5 @@ ownership". Legacy `plan-NNNN` ids are frozen, forward-only.
 ## Linear
 
 Direct GraphQL keyed by `LINEAR_API_KEY` from `~/Dev/personal/forestrie/.envrc`
-(`core:linear-direct-api` has the mechanism; `forestrie-linear` the identity
-pre-flight). Never MCP or interactive login by default.
+(`core:linear-direct-api` has the mechanism; `forestrie-core:linear-mcp-forestrie`
+the MCP identity pre-flight for the fallback case). Never MCP or interactive login by default.
