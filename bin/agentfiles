@@ -6,14 +6,15 @@
 #       marketplaces + plugins), mirror to ~/.pi-<profile>, write the shell
 #       wrappers, and install the forestrie workspace AGENTS.md.
 #       Default profiles: personal forestrie, plus home when $AGENTFILES_HOME exists.
-#   agentfiles doctor [profile...] | doctor --repo <dir>
+#   agentfiles doctor [profile...] | doctor --repo <dir> [--source <dir>] [--ci]
 #       Report what each profile will load, and warn about leaks
 #       (e.g. a non-stub ~/.claude/CLAUDE.md). With --repo: check the committed
-#       layer of a repository against its sync source.
+#       layer of a repository against its sync source (content drift; --ci exits 1 on drift).
 #   agentfiles sync <repo-dir> --manifest <file>
 #       Apply a sync manifest: vendor skills into .agents/skills (+ .claude/skills
-#       symlinks) with `npx skills`, copy rule files into .claude/rules, record
-#       the source in .agents/skills/.synced-from.
+#       symlinks) with `npx skills`, copy rule files into .claude/rules, merge
+#       marketplace/plugin entries into .claude/settings.json, record the source
+#       in .agents/skills/.synced-from.
 #   agentfiles link <profile> [dir]
 #       Legacy per-repo AGENTS.md/CLAUDE.md links for harnesses with no
 #       directory walk-up.
@@ -300,24 +301,51 @@ PY
 }
 
 doctor_repo() {
-  local repo="$1"
+  local repo="$1" srcdir="${2:-}"
   echo "== repo $repo"
   [ -f "$repo/AGENTS.md" ] && say "AGENTS.md: $(wc -l < "$repo/AGENTS.md" | tr -d ' ') lines" || say "AGENTS.md: missing"
   say "rules: $(ls "$repo/.claude/rules" 2>/dev/null | tr '\n' ' ')"
   say "skills (.agents): $(ls -d "$repo"/.agents/skills/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')"
   say "skills (.claude): $(ls "$repo/.claude/skills" 2>/dev/null | tr '\n' ' ')"
-  if [ -f "$repo/.agents/skills/.synced-from" ]; then
-    say "synced-from: $(cat "$repo/.agents/skills/.synced-from")"
-    local src sha; src="$(sed -n 's/^source=//p' "$repo/.agents/skills/.synced-from")"; sha="$(sed -n 's/^sha=//p' "$repo/.agents/skills/.synced-from")"
-    if [ -d "$src/.git" ] || [ -d "$src" ]; then
-      local cur; cur="$(git -C "$src" rev-parse HEAD 2>/dev/null || echo unknown)"
-      [ "$cur" = "$sha" ] && say "source is at the synced sha" || say "DRIFT: source at $cur, synced $sha — rerun agentfiles sync"
-    fi
-  else say "synced-from: none (not synced by agentfiles)"; fi
+  local s; for s in "$repo"/.claude/skills/*; do [ -L "$s" ] && [ ! -e "$s" ] && say "BROKEN symlink: ${s#$repo/}"; done
+  [ -f "$repo/.claude/settings.json" ] && python3 - "$repo/.claude/settings.json" <<'PY2'
+import json,sys
+s=json.load(open(sys.argv[1]))
+print("  settings marketplaces:", ", ".join(s.get("extraKnownMarketplaces",{})) or "none")
+print("  settings enabledPlugins:", ", ".join(k for k,v in s.get("enabledPlugins",{}).items() if v) or "none")
+PY2
+  local from="$repo/.agents/skills/.synced-from"
+  if [ ! -f "$from" ]; then say "synced-from: none (not synced by agentfiles)"; return; fi
+  local slug sha mf; slug="$(sed -n 's/^source=//p' "$from")"; sha="$(sed -n 's/^sha=//p' "$from")"; mf="$(sed -n 's/^manifest=//p' "$from")"
+  say "synced-from: $slug@${sha:0:12} manifest=$mf"
+  # Find a local checkout of the source: --source, else $FORESTRIE_AGENTS when its origin matches.
+  if [ -z "$srcdir" ] && [ "$(repo_slug "$FORESTRIE_AGENTS")" = "$slug" ]; then srcdir="$FORESTRIE_AGENTS"; fi
+  [ -n "$srcdir" ] && [ -f "$srcdir/$mf" ] || { say "no local checkout of $slug with $mf; pass --source <dir> to check content drift"; return; }
+  say "comparing content against $srcdir ($(git -C "$srcdir" rev-parse --short=12 HEAD 2>/dev/null))"
+  # Content, not SHA, decides drift: unrelated commits to the source move its SHA without changing what was synced.
+  local drift=0 kind x y d plan
+  plan="$(manifest_plan "$srcdir/$mf" "$srcdir")"
+  while read -r kind x y; do
+    case "$kind" in
+      rule)  d="$repo/.claude/rules/$y"
+             if [ ! -f "$d" ]; then say "DRIFT: missing .claude/rules/$y"; drift=1
+             elif ! cmp -s "$srcdir/$x" "$d"; then say "DRIFT: .claude/rules/$y differs from $x"; drift=1; fi ;;
+      skill) d="$repo/.agents/skills/$x"
+             if [ ! -d "$d" ]; then say "DRIFT: missing .agents/skills/$x"; drift=1
+             elif ! diff -rq "$srcdir/$y" "$d" >/dev/null 2>&1; then say "DRIFT: .agents/skills/$x differs from $y"; drift=1; fi
+             [ -e "$repo/.claude/skills/$x" ] || { say "DRIFT: missing .claude/skills/$x"; drift=1; } ;;
+    esac
+  done <<<"$plan"
+  [ "$drift" = 0 ] && say "no drift: committed layer matches the source" || { say "rerun: agentfiles sync $repo --manifest $srcdir/$mf"; [ "${CI_MODE:-0}" = 1 ] && return 1; }
+  return 0
 }
 
 cmd_doctor() {
-  if [ "${1:-}" = --repo ]; then doctor_repo "${2:-.}"; return; fi
+  if [ "${1:-}" = --repo ]; then
+    shift; local repo="." src=""
+    while [ $# -gt 0 ]; do case "$1" in --source) src="$2"; shift;; --ci) CI_MODE=1;; *) repo="$1";; esac; shift; done
+    doctor_repo "$repo" "$src"; return
+  fi
   local profiles=("$@"); [ ${#profiles[@]} -eq 0 ] && profiles=(personal forestrie home justgames)
   for p in "${profiles[@]}"; do have_profile "$p" && doctor_profile "$p"; done
   echo "== leaks"
@@ -327,39 +355,104 @@ cmd_doctor() {
 
 # --------------------------------------------------------------------- sync --
 # Manifest format (one directive per line, '#' comments):
-#   source <path-or-owner/repo>        # where skills come from (local dir or GitHub)
+#   source <dir>                       # where skills and rules come from; a relative
+#                                      # path resolves against the manifest's directory
 #   agents <a,b,c>                     # skills-cli agent ids (default: claude-code,codex,cursor)
-#   skill <name> [...]                 # skills to vendor from source
-#   rule <src-path> [dest-name]        # file copied into .claude/rules/ (src relative to source dir)
+#   skill <name> [...]                 # skills to vendor from source into .agents/skills
+#   rule <src-path> [dest-name]        # file copied into .claude/rules/ (src relative to source)
+#   marketplace <name> <owner/repo>    # .claude/settings.json extraKnownMarketplaces (GitHub source)
+#   plugin <plugin@marketplace>        # .claude/settings.json enabledPlugins
+
+# Resolve a manifest's 'source' to an absolute directory.
+manifest_source() {
+  local mf="$1" src; src="$(sed -n 's/^[[:space:]]*source[[:space:]]\{1,\}\([^#[:space:]]*\).*/\1/p' "$mf" | tail -1)"
+  [ -n "$src" ] || return 0
+  src="${src/#\~/$HOME}"
+  case "$src" in /*) ;; *) src="$(cd "$(dirname "$mf")" && cd "$src" 2>/dev/null && pwd)" || return 1 ;; esac
+  echo "$src"
+}
+
+# owner/repo from a checkout's origin remote (empty if none).
+repo_slug() { git -C "$1" remote get-url origin 2>/dev/null | sed -E 's#^(git@[^:]+:|https?://[^/]+/)##; s#\.git$##'; }
+
+# Print the manifest as normalised lines: 'rule <src> <dest>', 'skill <name> <dir-rel-to-source>',
+# 'agents <list>', 'marketplace <name> <repo>', 'plugin <id>'.
+manifest_plan() {
+  local mf="$1" src="$2" line kw a rest n d
+  while IFS= read -r line; do
+    line="${line%%#*}"; [ -z "${line// }" ] && continue
+    read -r kw a rest <<<"$line"
+    case "$kw" in
+      source) ;;
+      agents) echo "agents $a" ;;
+      rule)   echo "rule $a ${rest:-$(basename "$a")}" ;;
+      skill)  for n in $a $rest; do
+                d="$(cd "$src" && find . -path ./.git -prune -o -path ./incubator -prune -o -path ./node_modules -prune -o -type f -path "*/$n/SKILL.md" -print | head -1)"
+                [ -n "$d" ] || die "skill '$n' not found under $src"
+                d="${d#./}"; echo "skill $n ${d%/SKILL.md}"
+              done ;;
+      marketplace) echo "marketplace $a $rest" ;;
+      plugin) echo "plugin $a" ;;
+      *) die "manifest $mf: unknown directive '$kw'" ;;
+    esac
+  done < "$mf"
+}
+
 cmd_sync() {
   local repo="" manifest=""
   while [ $# -gt 0 ]; do case "$1" in --manifest) manifest="$2"; shift;; --dry-run) DRY=1;; -*) die "unknown flag $1";; *) repo="$1";; esac; shift; done
   [ -n "$repo" ] && [ -d "$repo" ] || die "usage: agentfiles sync <repo-dir> --manifest <file>"
   [ -f "$manifest" ] || die "manifest not found: $manifest"
-  local source="" agents="claude-code,codex,cursor" skills=() line kw a b
-  while IFS= read -r line; do
-    line="${line%%#*}"; [ -z "${line// }" ] && continue
-    read -r kw a b <<<"$line"
-    case "$kw" in
-      source) source="$a" ;;
-      agents) agents="$a" ;;
-      skill)  skills+=($a $b) ;;
-      rule)   [ -n "$source" ] || die "manifest: 'source' must precede 'rule'"
-              [ -d "$source" ] || die "rules can only be copied from a local source dir ($source)"
-              run mkdir -p "$repo/.claude/rules"; run cp "$source/$a" "$repo/.claude/rules/${b:-$(basename "$a")}"; say "rule $a -> .claude/rules/${b:-$(basename "$a")}" ;;
-      *) die "manifest: unknown directive '$kw'" ;;
+  repo="$(cd "$repo" && pwd)"; manifest="$(cd "$(dirname "$manifest")" && pwd)/$(basename "$manifest")"
+  local source; source="$(manifest_source "$manifest")" || die "manifest: source dir not found"
+  [ -n "$source" ] && [ -d "$source" ] || die "manifest: 'source' must name a local directory"
+  local agents="claude-code,codex,cursor" skills=() markets=() plugins=() kind x y plan
+  plan="$(manifest_plan "$manifest" "$source")"
+  while read -r kind x y; do
+    case "$kind" in
+      agents) agents="$x" ;;
+      rule)   run mkdir -p "$repo/.claude/rules"; run cp "$source/$x" "$repo/.claude/rules/$y"; say "rule $x -> .claude/rules/$y" ;;
+      skill)  skills+=("$x") ;;
+      marketplace) markets+=("$x=$y") ;;
+      plugin) plugins+=("$x") ;;
     esac
-  done < "$manifest"
+  done <<<"$plan"
   if [ ${#skills[@]} -gt 0 ]; then
-    [ -n "$source" ] || die "manifest: 'source' required for skills"
-    ( cd "$repo" && run npx -y "$SKILLS_CLI" add "$source" -s "${skills[@]}" -a "${agents//,/ }" -y )
+    # npx skills writes skills-lock.json with a machine-relative source path; .synced-from replaces it.
+    local had_lock=0; [ -e "$repo/skills-lock.json" ] && had_lock=1
+    # shellcheck disable=SC2086  # agent ids are word-split on purpose
+    ( cd "$repo" && run npx -y "$SKILLS_CLI" add "$source" -s "${skills[@]}" -a ${agents//,/ } -y )
+    [ "$had_lock" = 1 ] || run rm -f "$repo/skills-lock.json"
+    local s
     for s in "${skills[@]}"; do
-      if [ -d "$repo/.agents/skills/$s" ] && [ ! -e "$repo/.claude/skills/$s" ]; then
+      if [ -d "$repo/.agents/skills/$s" ] && [ ! -e "$repo/.claude/skills/$s" ] && [ ! -L "$repo/.claude/skills/$s" ]; then
         run mkdir -p "$repo/.claude/skills"; run ln -s "../../.agents/skills/$s" "$repo/.claude/skills/$s"
       fi
     done
-    local sha="unknown"; [ -d "$source" ] && sha="$(git -C "$source" rev-parse HEAD 2>/dev/null || echo unknown)"
-    [ "$DRY" = 0 ] && { mkdir -p "$repo/.agents/skills"; printf 'source=%s\nsha=%s\nmanifest=%s\nsynced=%s\n' "$source" "$sha" "$manifest" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$repo/.agents/skills/.synced-from"; }
+    # Provenance, without machine-local paths or timestamps, so a re-sync with no content change is a no-op diff
+    # (apart from the source SHA).
+    local slug sha rel; slug="$(repo_slug "$source")"; sha="$(git -C "$source" rev-parse HEAD 2>/dev/null || echo unknown)"
+    rel="${manifest#"$(git -C "$source" rev-parse --show-toplevel 2>/dev/null || echo "$source")"/}"
+    [ "$DRY" = 0 ] && printf 'source=%s\nsha=%s\nmanifest=%s\n' "${slug:-$source}" "$sha" "$rel" > "$repo/.agents/skills/.synced-from"
+  fi
+  if [ ${#markets[@]} -gt 0 ] || [ ${#plugins[@]} -gt 0 ]; then
+    [ "$DRY" = 1 ] && say "[dry-run] merge .claude/settings.json: ${markets[*]} ${plugins[*]}" || {
+      mkdir -p "$repo/.claude"
+      python3 - "$repo/.claude/settings.json" "${markets[@]/#/m:}" "${plugins[@]/#/p:}" <<'PY2'
+import json, os, sys
+path = sys.argv[1]
+s = json.load(open(path)) if os.path.exists(path) else {}
+s.setdefault("$schema", "https://json.schemastore.org/claude-code-settings.json")
+for arg in sys.argv[2:]:
+    kind, val = arg.split(":", 1)
+    if kind == "m":
+        name, repo = val.split("=", 1)
+        s.setdefault("extraKnownMarketplaces", {})[name] = {"source": {"source": "github", "repo": repo}}
+    else:
+        s.setdefault("enabledPlugins", {})[val] = True
+open(path, "w").write(json.dumps(s, indent=2) + "\n")
+PY2
+      say "settings.json: ${markets[*]} ${plugins[*]}"; }
   fi
   ( cd "$repo" && git status --short 2>/dev/null | sed 's/^/  /' )
 }
@@ -377,6 +470,6 @@ case "${1:-}" in
   doctor)    shift; cmd_doctor "$@" ;;
   sync)      shift; cmd_sync "$@" ;;
   link)      shift; cmd_link "$@" ;;
-  -h|--help|"") sed -n '2,22p' "$self" ;;
+  -h|--help|"") sed -n '2,23p' "$self" ;;
   *) die "unknown command: $1" ;;
 esac
