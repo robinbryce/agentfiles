@@ -17,7 +17,9 @@
 - The July branch `robin/skills-as-slash-commands` is kept and merged first (Phase 0). **Done** (merge commit on this branch).
 - Robin's 2026-10-11 choices and Q2–Q5 answers: see [decisions.md](./decisions.md).
 
-**Next slice:** record the Q1 cloud-probe result in `decisions.md`, then start Phase 1 (restructure agentfiles into `plugins/core`, `rules/`, `profiles/`, `bin/agentfiles`; bootstrap `personal` + `forestrie`; stub `~/.claude/CLAUDE.md`).
+**Phase 1 status (2026-10-11):** repo restructured (commit e56ee15); `~/agentfiles` switched to this branch; `bin/agentfiles bootstrap personal forestrie --envrc` run on Robin's machine (core + research installed in both profiles; forestrie-agents skipped until it is a marketplace); `~/.claude/CLAUDE.md` stubbed and its dangling hook/permissions removed; dotfiles `profiles/common/agents.sh` sources the generated wrappers; `.envrc` exports appended at `~/Dev/personal` and `~/Dev/personal/forestrie` (need `direnv allow`).
+
+**Next slice:** record the Q1 cloud-probe result in `decisions.md`; then Phase 2 PR 1 in forestrie-agents (marketplace skeleton), after which `agentfiles bootstrap forestrie` picks up the team plugins.
 
 **Resume prompt:**
 

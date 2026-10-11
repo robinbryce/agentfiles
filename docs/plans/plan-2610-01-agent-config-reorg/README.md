@@ -7,7 +7,7 @@ refs: []
 
 # Plan 2610-01 — agent config reorg: profiles, marketplaces, skills
 
-**Status:** ACTIVE (Phase 0) · **Created:** 2026-10-11
+**Status:** ACTIVE (Phase 1 applied; Phase 2 next) · **Created:** 2026-10-11
 
 Reorganise [agentfiles](https://github.com/robinbryce/agentfiles) and
 [forestrie-agents](https://github.com/forestrie/forestrie-agents) from the
