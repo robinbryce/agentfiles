@@ -143,3 +143,15 @@ skills + rules, which works whatever the answer. Clean-up done.
   merge `main` into the next branch (keeping the branch side) rather than
   rebasing and force-pushing. Re-sync target repos from forestrie-agents main
   after its PRs merge, so `.synced-from` names a commit that stays on main.
+
+## Phase 2 step 6 and workspace loading (2026-10-11)
+
+- **The workspace AGENTS.md loads without a CLAUDE.md beside it.** Claude
+  Code (2.1.x) picks up `~/Dev/personal/forestrie/AGENTS.md` from the parent
+  directory of a repo session, so the workspace needs no `CLAUDE.md` shim.
+- **Directory-source plugin versions are cosmetic.** After the rerun,
+  `claude plugin list` still shows forestrie-core at `72fa8903d9fa` (the #8
+  commit) and the cache directory keeps that name, but `plugin details` and a
+  live session both see the current checkout (28 skills, `arc-*` included).
+  Do not read the version string as staleness for a directory marketplace.
+- `forestrie-agent-context.md` deleted; `workspace/AGENTS.md` replaces it.

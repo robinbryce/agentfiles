@@ -30,12 +30,16 @@
 
 Worktrees removed.
 
+**Phase 2 step 6 (2026-10-11): done.** `agentfiles bootstrap forestrie` rerun; `~/Dev/personal/forestrie/AGENTS.md` → `forestrie-agents/workspace/AGENTS.md`; `forestrie-agent-context.md` deleted. A headless session in canopy loads the profile CLAUDE.md, the workspace AGENTS.md, canopy's AGENTS.md and the always-on `.claude/rules/`, and lists all seven `forestrie-core:arc-*` skills (README verification item 3, canopy).
+
 **Next slice:**
 
-1. `/reload-plugins` or `agentfiles bootstrap forestrie` so the forestrie profile picks up the `arc-*` skills (Phase 2 step 6 rides on the same rerun: `~/Dev/personal/forestrie/AGENTS.md` → `workspace/AGENTS.md`, then delete `forestrie-agent-context.md`).
-2. Verify a cloud session in canopy lists the six project skills (`claude --cloud "run /context and list skills"`); README verification items 3 and 4.
-3. Phase 2 step 5: roll out to arbor, univocity, univocity-tools, mandate, forest-1, arbor-flux, devdocs (same PR shape; manifests exist), and add the `agentfiles doctor --repo --ci` job. Sync only from forestrie-agents **main**: the repo squash-merges, so a branch SHA in `.synced-from` would dangle.
-4. Follow-ups found in review, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, which [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90) removed (lane B is now defined by promotion). The skill needs a rewrite, not a link swap. It is in no sync manifest.
+1. Robin runs the cloud check in canopy (README verification item 4) and reports back:
+   `cd ~/Dev/personal/forestrie/canopy && claude --cloud "Check the committed agent layer. Change no files. (1) List every skill available to you and mark which come from this repo's .claude/skills/. (2) List the .claude/rules/ files loaded as instructions and say which are path-scoped. (3) Say whether any forestrie-core@forestrie-agents plugin skills or hooks are present. Reply in chat only; do not commit or push."`
+   Expected: the six project skills (`arc-canopy`, `persist-plan`, `pre-commit-checks`, `review-changes`, `rules-of-the-road-review`, `save-status`); probably no forestrie-core (private marketplace).
+2. Phase 2 step 5: roll out to arbor, univocity, univocity-tools, mandate, forest-1, arbor-flux, devdocs (same PR shape; manifests exist), and add the `agentfiles doctor --repo --ci` job. Sync only from forestrie-agents **main**: the repo squash-merges, so a branch SHA in `.synced-from` would dangle.
+3. Follow-ups found in review, not blocking: `workflow/skills/fork-mandate` still describes `system-testing/manifests/lane-b.jsonc`, which [forestrie/system-testing#90](https://github.com/forestrie/system-testing/pull/90) removed (lane B is now defined by promotion). The skill needs a rewrite, not a link swap. It is in no sync manifest.
+4. Stale worktrees from PR 1 remain: `~/Dev/personal/forestrie/.worktrees/forestrie-agents-marketplace` (`robin/marketplace`) and `…/forestrie-agents-skills` (`robin/skills-as-slash-commands`). Both branches are merged; remove when convenient.
 
 **Resume prompt:**
 
