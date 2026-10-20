@@ -15,6 +15,15 @@ description: Every file / line / PR / issue / commit reference in agent output
 > it. This overrides the decision order below **for chat-facing references to
 > Robin**; inside committed repo docs, keep authoring links per the decision
 > order (relative links / permalinks) so they render on the forge.
+>
+> **Rendering form (2026-09-01): short display, absolute target.** Long absolute
+> paths overflow the terminal width and stop being clickable, and a bare
+> relative path rendered as a link resolves to garbage
+> (`https://docs/plans/…`). So in chat, render file references as a markdown
+> link whose **display text is the repo-relative path** and whose **href is the
+> absolute path** (or the gitweb permalink when pushed):
+> `[docs/plans/plan-x.md](/Users/robin/Dev/justgames/code/flip-oracle/docs/plans/plan-x.md)`.
+> Never emit a relative path without an absolute (or forge-URL) href behind it.
 
 Whenever output names a **file, line range, PR, issue, commit, or code
 symbol**, render it as a **clickable link** — never as bare prose the reader
