@@ -19,6 +19,13 @@
 - [Rules](./workflow/rules/README.md)
 - [Skills](./workflow/skills/README.md)
 
+## PR review
+
+Any request to review or re-review a pull request in a justgames repo → use
+the [review-pr-justgames](./workflow/skills/review-pr-justgames/SKILL.md)
+skill. It is chat-only and decides for itself whether to run the multi-agent
+adversarial pass; never post to GitHub until Robin has seen the review.
+
 ## Linear
 
 Any Linear work → follow
