@@ -34,7 +34,7 @@
     {
       "id": "unserved-scope",
       "setup": "CLAUDE_CONFIG_DIR=~/.claude-justgames, cwd under ~/Dev/personal/foo.",
-      "prompt": "/wif",
+      "prompt": "/core:wif",
       "assert": [
         "one line saying the scope is not served by this account",
         "no file written under ~/.claude-justgames/wif/personal"
@@ -43,7 +43,7 @@
     {
       "id": "rotation",
       "setup": "ctx sidecar says used_pct 64; stream active.",
-      "prompt": "/wif tick",
+      "prompt": "/core:wif tick",
       "assert": [
         "prints only the `wif show --changes` output (changed rows, or `no changes`)",
         "runs the handoff protocol and ends by telling Robin to /clear",

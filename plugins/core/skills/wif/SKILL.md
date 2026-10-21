@@ -8,16 +8,16 @@ allowed-tools: Bash(wif *) Bash(*/skills/wif/scripts/wif *) Bash(git *) Bash(gh 
 # wif — work in flight
 
 ```
-/wif [status]                 dashboard (default)
-/wif start "<session goal>"   bind this session to the stream here; set its goal
-/wif mark ...                 override an inferred goal/intent; set position/next/status
-/wif note|tangent|remind ...  capture a side thought without acting on it
-/wif scan [--prs]             rebuild the index from disk (gh lookups opt-in, cached 6h)
-/wif tick                     loop body: scan, print only what changed, check rotation
-/wif handoff                  land the plane: fold session → stream, write kickoff, advise /clear
-/wif adopt <task> [-s parked] create a stream for an untracked container
-/wif where                    what account/scope/stream this directory resolves to
-/wif install [--apply]        merge hooks + statusline into every profile's settings.json
+/core:wif [status]                 dashboard (default)
+/core:wif start "<session goal>"   bind this session to the stream here; set its goal
+/core:wif mark ...                 override an inferred goal/intent; set position/next/status
+/core:wif note|tangent|remind ...  capture a side thought without acting on it
+/core:wif scan [--prs]             rebuild the index from disk (gh lookups opt-in, cached 6h)
+/core:wif tick                     loop body: scan, print only what changed, check rotation
+/core:wif handoff                  land the plane: fold session → stream, write kickoff, advise /clear
+/core:wif adopt <task> [-s parked] create a stream for an untracked container
+/core:wif where                    what account/scope/stream this directory resolves to
+/core:wif install [--apply]        merge hooks + statusline into every profile's settings.json
 ```
 
 Glossary: [CONTEXT.md](./CONTEXT.md). Decisions: [DESIGN.md](./DESIGN.md).
@@ -26,7 +26,7 @@ Dashboard spec: [references/dashboard.md](./references/dashboard.md).
 Handoff protocol: [references/handoff-protocol.md](./references/handoff-protocol.md).
 
 CLI: `wif` (linked into `~/.local/bin` by install; entry point
-`scripts/wif` in this skill's directory, code in `wif/`,
+`${CLAUDE_SKILL_DIR}/scripts/wif`, code in `wif/`,
 Python 3.9+ stdlib only). `wif help` lists every subcommand and its flags.
 
 ## 0. First action, every invocation
@@ -56,7 +56,7 @@ the dashboard.
   (archived) stream is never recreated by hooks; `wif adopt` re-opens it.
 - **Keep it short.** Dashboard ≤ 40 lines, stream file ≤ 120 lines, kickoff ≤ 25.
 
-## 2. Inference duties (every session in a stream, with or without /wif)
+## 2. Inference duties (every session in a stream, with or without /core:wif)
 
 The hooks inject one `[wif]` line per prompt. On seeing it:
 
@@ -73,20 +73,20 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
 - A note has been acted on (followup became the intent, reminder fired,
   tangent promoted or rejected) → `wif note --done "<substring>"`.
 
-## 3. `/wif` and `/wif status`
+## 3. `/core:wif` and `/core:wif status`
 
 Print nothing beyond the dashboard unless something needs Robin's decision:
 due reminders, `landed?` proposals, `over-cap` streams, or a stream without a
 goal. For each, one line with the command that resolves it.
 
-## 4. `/wif start "<goal>"`
+## 4. `/core:wif start "<goal>"`
 
 `wif mark -g "<goal>" --session ${CLAUDE_SESSION_ID}` (creates the stream if
 the cwd is a herdr container). In a plain repo checkout, first `wif adopt .`.
 If the goal names a tangent recorded on another stream, say which one and
 suggest `-p <parent>` so the two stay linked.
 
-## 5. `/wif tick` (for `/loop /wif tick`, self-paced)
+## 5. `/core:wif tick` (for `/loop /core:wif tick`, self-paced)
 
 1. `wif scan --quiet` (add `--prs` at most once per 6h; the cache enforces it).
 2. `wif show --changes` — print exactly that output, nothing more.
@@ -98,23 +98,26 @@ suggest `-p <parent>` so the two stay linked.
    a tick non-noop; it repeats until acted on). The first tick only records a
    baseline.
 
-## 6. `/wif handoff`
+## 6. `/core:wif handoff`
 
 Follow [references/handoff-protocol.md](./references/handoff-protocol.md).
 Summary: update `## Now` (goal / approach / done / failing, ≤ 20 lines) and
 `next`/`position`; write the kickoff into `## Handoff` (≤ 25 lines); write
 durable facts to the existing convention and set `handoff_doc`; update auto
 memory; print the kickoff and the stay-vs-new-workspace advice from
-[herdr-session-handoff](../../rules/herdr-session-handoff.md). Then
+[herdr-session-handoff](../../../../rules/herdr-session-handoff.md). Then
 `wif mark -s landed` only when the `landed?` flag shows (every PR merged,
 nothing dirty or unpushed, remote ref verifiable) or every PR is explicitly
 parked.
 
-## 7. `/wif adopt`, `/wif install`, `/wif where`
+## 7. `/core:wif adopt`, `/core:wif install`, `/core:wif where`
 
 Pass-throughs to the CLI. `install` without `--apply` is a dry run that
 prints the settings diff; run it that way first and show Robin the diff.
-Removing a worktree is `/worktrees-closeout`'s job. Before it runs, from
+Run `install` from the agentfiles checkout
+(`~/agentfiles/plugins/core/skills/wif/scripts/wif install`), never from the
+plugin cache: the cache path changes on every plugin update.
+Removing a worktree is `/core:worktrees-closeout`'s job. Before it runs, from
 inside the container, `wif mark -s closed` (moves the stream file to
 `archive/`, and hooks stop recording there until `wif adopt`); after removal
 the container no longer resolves.

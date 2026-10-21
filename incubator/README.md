@@ -1,14 +1,12 @@
 # incubator
 
-Provisional agent guidance, not yet promoted to `workflow/` or a scope's own
-`arc-context/`/`workflow/`. **Not loaded by default.**
+Provisional agent guidance, not yet promoted to a plugin under `plugins/`.
+**Not installed.**
 
 | Draft | Status |
 |-------|--------|
-| (none) | — |
-
-Promotion path: see [README.md](../README.md#promotion-policy).
+| [justgames/review-pr-justgames](./justgames/review-pr-justgames/SKILL.md) | Parked until the justgames profile migrates; likely home is just-agents |
 
 Note: drafts destined for the shared **forestrie-agents** repo (rather than
-this one) belong in [scopes/forestrie/incubator/](../scopes/forestrie/incubator/)
+this one) belong in [forestrie/](./forestrie/)
 instead, since they follow that repo's own promotion policy.

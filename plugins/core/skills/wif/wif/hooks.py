@@ -100,7 +100,7 @@ def handle(event: dict) -> dict | None:
         nw = stream.section("Now")[:20]
         if nw:
             body += ["## Now", *nw]
-        body.append(f"stream file: {ctx.stream_file} · dashboard: /wif")
+        body.append(f"stream file: {ctx.stream_file} · dashboard: /core:wif")
         return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "\n".join(body)}}
 
     if ev == "SessionEnd":

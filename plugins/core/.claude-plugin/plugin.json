@@ -1,6 +1,6 @@
 {
   "name": "core",
-  "description": "Cross-profile skills (/core:plan-new, /core:save-status), background rules (planning, pr-descriptions, multi-repo-fanout, linear-direct-api) and the plan-doc naming guardrail hook.",
+  "description": "Cross-profile skills (/core:plan-new, /core:save-status, /core:wif, /core:worktrees-closeout), background rules (planning, pr-descriptions, multi-repo-fanout, linear-direct-api) and the plan-doc naming guardrail hook.",
   "author": {
     "name": "Robin Bryce",
     "url": "https://github.com/robinbryce"

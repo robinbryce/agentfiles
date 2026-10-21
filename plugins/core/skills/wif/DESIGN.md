@@ -52,7 +52,7 @@ listed so they can be changed deliberately rather than rediscovered.
 - Memory-dir keys use Claude Code's sanitizer: every non-alphanumeric
   character becomes `-` (observed in the installed binary, not documented).
 - PR lookups (`gh`) are opt-in (`--prs`) and cached 6h; git facts always.
-- Loop: `/loop /wif tick`, self-paced; a tick prints only changed rows.
+- Loop: `/loop /core:wif tick`, self-paced; a tick prints only changed rows.
 - Account map: `.claude-justgames` → justgames; `.claude-personal`, `.claude`
   → personal + forestrie. Override with `WIF_ACCOUNT_SCOPES="a b"`.
 - Scope roots: justgames `~/Dev/justgames/code`, forestrie
@@ -108,7 +108,7 @@ settings.json commands did not change. No jq, no third-party modules.
 - `tests/test_meta.py` guards the harness itself: no test class may shadow a
   `TestCase` method (a helper named `run` once silently disabled a whole class).
 
-Run: `cd ~/agentfiles/workflow/skills/wif && python3 -m unittest discover -s tests -t .`
+Run: `cd ~/agentfiles/plugins/core/skills/wif && python3 -m unittest discover -s tests -t .`
 The package runs on Python 3.9+; the tests need 3.11+ (`contextlib.chdir`).
 
 Second review (2026-10-21, two blind reviewers on the package): fixed the

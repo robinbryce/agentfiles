@@ -85,6 +85,11 @@ class InstallTests(WifCase):
         self.assertEqual(sum(c.endswith("/scripts/wif hook") for c in cmds), 4)
         self.assertNotIn("/old/", self.read(d)["statusLine"]["command"])
 
+    def test_warns_when_run_from_plugin_cache(self):
+        with mock.patch("wif.install.entry_point", return_value=Path("/h/.claude-p/plugins/cache/agentfiles/core/abc/skills/wif/scripts/wif")):
+            rc, out, err = self.inst("--config-dir", str(self.base / "G"), "--bin", str(self.base / "bin"))
+        self.assertIn("plugin cache", err)
+
     def test_unknown_arg(self):
         rc, out, err = self.inst("--nope")
         self.assertEqual(rc, 1)

@@ -1,9 +1,9 @@
-# scopes/forestrie/incubator
+# incubator/forestrie
 
 Draft guidance destined for a PR into
 [forestrie-agents](https://github.com/forestrie/forestrie-agents) —
-distinct from this repo's own root [incubator/](../../../incubator/), which
-is for agentfiles-only drafts.
+distinct from the rest of [incubator/](../README.md), which is for
+agentfiles-only drafts.
 
 | Draft | Status |
 |-------|--------|

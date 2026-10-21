@@ -43,7 +43,7 @@ profile.
 
 | Path | Purpose |
 |------|---------|
-| [plugins/core](./plugins/core/) | `/core:plan-new`, `/core:save-status`; planning, PR-description, fan-out and Linear rules; plan-naming hook |
+| [plugins/core](./plugins/core/) | `/core:plan-new`, `/core:save-status`, `/core:wif` (work-in-flight tracker; hooks via `wif install --apply`), `/core:worktrees-closeout`; planning, PR-description, fan-out and Linear rules; plan-naming hook |
 | [plugins/research](./plugins/research/) | `/research:research-brief` |
 | [rules/](./rules/) | always-on: clickable references; path-scoped: herdr handoff offers |
 | [profiles/](./profiles/) | per-profile `CLAUDE.md` + `settings.json` templates |

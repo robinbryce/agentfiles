@@ -98,6 +98,8 @@ def main(args: list[str], out=None, err=None) -> int:
         if not dirs:
             print("wif: no ~/.claude-<profile> config dirs found; pass --config-dir", file=err); return 1
     ep = entry_point()
+    if "/plugins/cache/" in str(ep):
+        print(f"wif: warning: {ep} is in the plugin cache, which moves on every plugin update; run install from the agentfiles checkout", file=err)
     rc = 0
     for d in dirs:
         f = d / "settings.json"

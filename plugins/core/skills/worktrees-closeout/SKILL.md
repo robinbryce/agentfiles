@@ -7,7 +7,7 @@ allowed-tools: Bash(git *) Bash(gh *) Bash(herdr-task-done *) Bash(ls *) Bash(ca
 # worktrees-closeout
 
 ```
-/worktrees-closeout [<container-path> | <task-name>] [--keep-branches] [--dry-run]
+/core:worktrees-closeout [<container-path> | <task-name>] [--keep-branches] [--dry-run]
 ```
 
 - `container-path` — a directory whose immediate subdirectories are git
@@ -33,11 +33,11 @@ Never skip to part 3.
   branch as head, and HEAD is level with `origin/<default>` **or** is the
   `headRefOid` of a MERGED PR **or** every extra commit is patch-identical to
   something already on `origin/<default>`. Anything else is kept and reported.
-- One context, all repos ([multi-repo-fanout](../../rules/multi-repo-fanout.md)):
+- One context, all repos ([multi-repo-fanout](../multi-repo-fanout/SKILL.md)):
   cross-repo facts (a PR in repo A that supersedes a branch in repo B) are only
   visible with every sibling loaded. Do not fan out the assessment.
 - Every path, PR, commit and ticket in the report is a clickable link with an
-  absolute path ([clickable-references](../../rules/clickable-references.md)).
+  absolute path ([clickable-references](../../../../rules/clickable-references.md)).
 
 ## 1. Inventory (read-only)
 

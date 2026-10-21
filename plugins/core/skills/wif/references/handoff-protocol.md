@@ -1,7 +1,7 @@
 # Handoff protocol ("land the plane")
 
 Trigger: a clean completion point (per
-[herdr-session-handoff](../../../rules/herdr-session-handoff.md)), or `wif ctx`
+[herdr-session-handoff](../../../../../rules/herdr-session-handoff.md)), or `wif ctx`
 reporting ≥ 60% context, or Robin saying they are stopping. Never mid-step.
 
 Order matters; each step is cheap on its own.

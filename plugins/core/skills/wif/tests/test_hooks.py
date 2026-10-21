@@ -168,5 +168,6 @@ class HookTests(WifCase):
     def test_is_slash_command(self):
         self.assertTrue(hooks.is_slash_command("/wif"))
         self.assertTrue(hooks.is_slash_command("/wif tick now"))
+        self.assertTrue(hooks.is_slash_command("/core:wif tick"))
         self.assertFalse(hooks.is_slash_command("/Users/robin/x"))
         self.assertFalse(hooks.is_slash_command("plain"))
