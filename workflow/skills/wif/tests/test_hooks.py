@@ -70,7 +70,7 @@ class HookTests(WifCase):
     def test_lone_surrogate_prompt_is_recorded(self):
         out = hooks.handle(self.ev("UserPromptSubmit", prompt="bad \udcff char"))
         self.assertIn("[wif] eng-1", out["hookSpecificOutput"]["additionalContext"])
-        self.assertEqual(self.sess("s1")["ring"][-1]["prompt"], "bad \ufffd char")
+        self.assertEqual(self.sess("s1")["ring"][-1]["prompt"], "bad ? char")
         self.assertEqual([p.name for p in (self.ledger / "sessions").glob("*.tmp")], [])
 
     def test_ring_env_zero_is_still_bounded(self):
