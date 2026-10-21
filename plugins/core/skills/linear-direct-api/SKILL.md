@@ -51,6 +51,6 @@ Personal API keys go in the `Authorization` header directly, with **no**
 
 ## Relationship to the team rule
 
-Forestrie's team repo carries `workflow/rules/linear-mcp-forestrie.md` with MCP
+Forestrie's team repo carries the `forestrie-core:linear-mcp-forestrie` skill with MCP
 identity pre-flight checks. On this machine, **this rule takes precedence** for
 mechanism choice; those MCP checks apply only in the fallback case.

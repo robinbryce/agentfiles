@@ -12,7 +12,7 @@ Condense the current session into a `status-*.md` document that is the ideal
 starting point for a **fresh agent session**: combined with the prevailing
 context hooks, reading the status doc should be sufficient context to continue
 the work it describes. Naming follows
-[workflow/rules/planning](../planning/SKILL.md) (date-cohort scheme).
+[core:planning](../planning/SKILL.md) (date-cohort scheme).
 
 ## Context hints
 

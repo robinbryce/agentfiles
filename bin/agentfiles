@@ -99,6 +99,10 @@ def merge(dst, src):
         else:
             dst[k] = v
 merge(live, tpl)
+# a marketplace source is one value: replace it whole, so switching between a
+# directory source and its github fallback leaves no stale keys behind
+for name, mk in tpl.get("extraKnownMarketplaces", {}).items():
+    live["extraKnownMarketplaces"][name] = mk
 if dry:
     print("[dry-run] would write %s" % out_path, file=sys.stderr)
 else:
@@ -144,13 +148,19 @@ for e in mp.get("plugins", []):
 PY
 }
 
+# Symlink $1 at $2, replacing an older symlink but never a real file or dir.
+link_safe() {
+  if [ -e "$2" ] && [ ! -L "$2" ]; then say "$2 exists and is not a symlink — not replaced"; return 0; fi
+  run ln -sfn "$1" "$2"
+}
+
 # ---------------------------------------------------------------- bootstrap --
 bootstrap_profile() {
   local p="$1" cfg; cfg="$(cfg_dir "$p")"
   have_profile "$p" || die "unknown profile '$p' (no profiles/$p/CLAUDE.md)"
   echo "== profile $p → $cfg"
   run mkdir -p "$cfg/rules"
-  run ln -sfn "$AGENTFILES/profiles/$p/CLAUDE.md" "$cfg/CLAUDE.md"
+  link_safe "$AGENTFILES/profiles/$p/CLAUDE.md" "$cfg/CLAUDE.md"
   # rules: shared always-on + profile-local; prune our stale links
   local f
   for f in "$cfg"/rules/*; do
@@ -159,7 +169,7 @@ bootstrap_profile() {
   done
   for f in "$AGENTFILES"/rules/*.md "$AGENTFILES/profiles/$p"/rules/*.md; do
     [ -f "$f" ] || continue
-    run ln -sfn "$f" "$cfg/rules/$(basename "$f")"
+    link_safe "$f" "$cfg/rules/$(basename "$f")"
   done
   # settings
   local rendered; rendered="$(AGENTFILES="$AGENTFILES" FORESTRIE_AGENTS="$FORESTRIE_AGENTS" AGENTFILES_HOME="$AGENTFILES_HOME" render_settings "$p" "$cfg")"
@@ -193,7 +203,7 @@ bootstrap_profile() {
       for f in "$AGENTFILES"/rules/*.md "$AGENTFILES/profiles/$p"/rules/*.md; do
         [ -f "$f" ] || continue
         grep -q '^paths:' "$f" && continue   # path-scoped rules have no pi equivalent
-        printf '\n---\n\n'; sed '1{/^---$/,/^---$/d;}' "$f"
+        printf '\n---\n\n'; awk 'NR==1&&/^---$/{f=1;next} f&&/^---$/{f=0;next} !f' "$f"
       done
     } > "$pid/AGENTS.md"
     for f in "$pid"/skills/*; do [ -L "$f" ] && [ ! -e "$f" ] && rm -f "$f"; done
@@ -203,7 +213,7 @@ bootstrap_profile() {
         [ "$kind2" = plugin ] || continue
         [ "${id##*@}" = "$a" ] || continue
         plugin_skill_dirs "$c" "${id%%@*}" | while read -r sd; do
-          ln -sfn "$sd" "$pid/skills/$(basename "$sd")"
+          link_safe "$sd" "$pid/skills/$(basename "$sd")"
         done
       done <<<"$rendered"
     done <<<"$rendered"
@@ -296,9 +306,10 @@ print("  marketplaces:", ", ".join("%s(%s)"%(k,v.get("source",{}).get("source"))
 print("  enabledPlugins:", ", ".join(k for k,v in s.get("enabledPlugins",{}).items() if v) or "none")
 print("  instructionFiles:", s.get("pluginConfigs",{}).get("cc-plugin-agents-md@builtin",{}).get("options",{}).get("instructionFiles","default"))
 PY
-  if command -v claude >/dev/null 2>&1; then pclaude "$p" plugin list 2>/dev/null | sed 's/^/  /' | head -40; fi
+  if command -v claude >/dev/null 2>&1; then { pclaude "$p" plugin list 2>/dev/null | sed 's/^/  /' | head -40; } || true; fi
   local pid; pid="$(pi_dir "$p")"
-  [ -d "$pid" ] && say "pi: $pid ($(ls "$pid/skills" 2>/dev/null | wc -l | tr -d ' ') skills, AGENTS.md $([ -f "$pid/AGENTS.md" ] && echo present || echo missing))"
+  if [ -d "$pid" ]; then say "pi: $pid ($(ls "$pid/skills" 2>/dev/null | wc -l | tr -d ' ') skills, AGENTS.md $([ -f "$pid/AGENTS.md" ] && echo present || echo missing))"; fi
+  return 0
 }
 
 doctor_repo() {
@@ -405,8 +416,9 @@ manifest_plan() {
       agents) echo "agents $a" ;;
       rule)   echo "rule $a ${rest:-$(basename "$a")}" ;;
       skill)  for n in $a $rest; do
-                d="$(cd "$src" && find . -path ./.git -prune -o -path ./incubator -prune -o -path ./node_modules -prune -o -type f -path "*/$n/SKILL.md" -print | head -1)"
+                d="$(cd "$src" && find . -path ./.git -prune -o -path ./incubator -prune -o -path ./node_modules -prune -o -type f -path "*/$n/SKILL.md" -print)"
                 [ -n "$d" ] || die "skill '$n' not found under $src"
+                [ "$(printf '%s\n' "$d" | wc -l | tr -d ' ')" = 1 ] || die "skill '$n' is ambiguous under $src: $(printf '%s ' $d)"
                 d="${d#./}"; echo "skill $n ${d%/SKILL.md}"
               done ;;
       marketplace) echo "marketplace $a $rest" ;;
@@ -494,8 +506,8 @@ PY2
 # --------------------------------------------------------------------- link --
 cmd_link() {
   local p="${1:-}" dir="${2:-.}"; have_profile "$p" || die "usage: agentfiles link <profile> [dir]"
-  run ln -sfn "$AGENTFILES/profiles/$p/CLAUDE.md" "$dir/AGENTS.md"
-  run ln -sfn AGENTS.md "$dir/CLAUDE.md"
+  link_safe "$AGENTFILES/profiles/$p/CLAUDE.md" "$dir/AGENTS.md"
+  link_safe AGENTS.md "$dir/CLAUDE.md"
   say "$dir: AGENTS.md -> profiles/$p/CLAUDE.md, CLAUDE.md -> AGENTS.md"
 }
 

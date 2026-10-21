@@ -45,7 +45,7 @@ because each arrives as a plausible finished PR.
 1. **One agent, many repos.** Read across the trees, state the connections,
    settle the design. Expect to be corrected; expect to withdraw things.
 2. **Write the decision down** — ADR / ARC per
-   [planning.md](./planning.md) — so it outlives the context that produced it.
+   [core:planning](../planning/SKILL.md) — so it outlives the context that produced it.
    A decision that exists only in a conversation will be re-derived, differently.
 3. **Write the plan**: a master section (goal, locked decisions with citations,
    sequencing, definition of done, out-of-scope) and **one subsection per repo**.

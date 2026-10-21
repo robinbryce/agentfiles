@@ -10,7 +10,7 @@ allowed-tools: Read, Edit, Glob, Grep, Bash
 
 Allocate the next plan id for the current month and scaffold the file (or
 directory) with frontmatter pre-filled. Applies
-[workflow/rules/planning](../planning/SKILL.md).
+[core:planning](../planning/SKILL.md).
 
 Arguments: `$ARGUMENTS`
 
@@ -48,5 +48,5 @@ let the scan allocate it so parallel branches don't collide.
 - The helper resolves its own symlinks to find its `templates/` directory;
   override with `NEW_PLAN_TEMPLATES` if you relocate them.
 - The plan-doc `PreToolUse` guardrail
-  ([harness/hooks/validate-plan.sh](../../hooks/scripts/validate-plan.sh))
+  ([hooks/scripts/validate-plan.sh](../../hooks/scripts/validate-plan.sh))
   is the backstop for direct writes that skip this skill.

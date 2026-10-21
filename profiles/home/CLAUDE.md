@@ -3,8 +3,8 @@
 This session runs in Robin's **home** profile (`~/.claude-home`): tax,
 finance, household administration and personal research. Procedures arrive as
 `admin`, `finance` and `research-personal` plugin skills from the private
-`agentfiles-home` marketplace, plus `core` and `research`. The privacy rule in
-this profile is always on. Nothing from the coding profiles is installed here.
+`agentfiles-home` marketplace, plus `core` and `research`. A privacy rule
+(`rules/privacy.md`, always on) is planned but not written yet. Nothing from the coding profiles is installed here.
 
 ## Working conventions
 

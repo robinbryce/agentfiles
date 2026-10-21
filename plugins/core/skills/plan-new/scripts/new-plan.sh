@@ -52,15 +52,14 @@ YYMM="$(printf '%s' "$TODAY" | sed -E 's/^[0-9]{2}([0-9]{2})-([0-9]{2})-.*/\1\2/
 
 # highest ordinal in this month's cohort (files or dirs)
 LAST="$(ls -d "$ROOT"/"$PREFIX"-"$YYMM"-* 2>/dev/null \
-  | sed -E "s#.*/$PREFIX-$YYMM-([0-9]{2})-.*#\1#" | sort -n | tail -1 || true)"
+  | sed -nE "s#.*/$PREFIX-$YYMM-([0-9]+)(-.*|\.md)?\$#\1#p" | sort -n | tail -1 || true)"
 NEXT="$(printf '%02d' "$(( 10#${LAST:-0} + 1 ))")"
 ID="$YYMM-$NEXT"
 TITLE="$(printf '%s' "$SLUG" | tr '-' ' ')"
 
-# Locate the shared templates. The script may be invoked from its canonical
-# home (workflow/skills/plan-new/scripts/) or through a symlink installed into a
-# repo's .claude/skills/ — resolve the real path first, then try the known
-# offsets. NEW_PLAN_TEMPLATES overrides for unusual layouts.
+# Locate the templates beside this skill (plan-new/templates/). The script may be
+# invoked through a symlink (save-status/scripts/, a repo's .claude/skills/), so
+# resolve the real path first. NEW_PLAN_TEMPLATES overrides for unusual layouts.
 resolve_self() {
   local src="${BASH_SOURCE[0]}" dir
   while [ -L "$src" ]; do
@@ -72,13 +71,8 @@ resolve_self() {
 }
 SELF_DIR="$(resolve_self)"
 TPL_DIR="${NEW_PLAN_TEMPLATES:-}"
-if [ -z "$TPL_DIR" ]; then
-  for C in "$SELF_DIR/../templates" \
-           "$SELF_DIR/../../../rules/planning/templates" \
-           "$SELF_DIR/../../rules/planning/templates" \
-           "$SELF_DIR/../../../rules/templates"; do
-    [ -d "$C" ] && { TPL_DIR="$(cd "$C" && pwd)"; break; }
-  done
+if [ -z "$TPL_DIR" ] && [ -d "$SELF_DIR/../templates" ]; then
+  TPL_DIR="$(cd "$SELF_DIR/../templates" && pwd)"
 fi
 [ -n "$TPL_DIR" ] || { echo "cannot locate rules/templates from $SELF_DIR (set NEW_PLAN_TEMPLATES)" >&2; exit 2; }
 [ -f "$TPL_DIR/$PREFIX.md" ] || { echo "no template for prefix '$PREFIX' ($TPL_DIR/$PREFIX.md)" >&2; exit 2; }

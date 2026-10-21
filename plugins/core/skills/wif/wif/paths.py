@@ -55,7 +55,7 @@ def scope_root(scope: str) -> Path | None:
 
 
 def scope_of(path: Path) -> str:
-    """Mirror of the agentfiles AGENTS.md scope table."""
+    """Workspace roots per scope; each agentfiles profile selects its own via direnv."""
     h = home()
     p = Path(path)
     def under(base: Path) -> bool:

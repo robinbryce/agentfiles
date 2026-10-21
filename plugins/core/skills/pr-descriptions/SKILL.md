@@ -20,7 +20,7 @@ a plan to find out. Everything below serves this principle.
 
 1. **Introduce before you abbreviate.** The first time the description
    names a decision, section, issue, error, flag or file, spell out what it
-   is and link it (per [clickable-references.md](./clickable-references.md)).
+   is and link it (per [clickable-references](../../../../rules/clickable-references.md)).
    Only after that may shorthand appear. "D2 withdrawn" is fine once the
    reader has been told that D2 is the chain-semantics decision in ADR-0066
    and where to find it; on its own it is a puzzle.

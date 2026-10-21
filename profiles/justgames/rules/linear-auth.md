@@ -1,21 +1,13 @@
----
-name: linear-auth
-description: How to resolve LINEAR_API_KEY for JustGames Linear work — discovered from the scope root via direnv, never a hardcoded path, and a hard stop rather than falling back to another scope's key.
-when_to_use: Any direct Linear API call (GraphQL, REST, curl, or a script) in JustGames work, or when a Linear call fails with missing or invalid auth.
-user-invocable: false
----
-
 # Linear auth — JustGames scope
 
-Extends the cross-scope
-[linear-direct-api](../../../../../workflow/rules/linear-direct-api/SKILL.md)
-rule, which owns the *mechanism* decision (direct GraphQL over MCP). This file
+Extends the cross-profile `core:linear-direct-api` skill, which owns the
+*mechanism* decision (direct GraphQL over MCP). This file
 only covers how the key is resolved **in this scope**.
 
 ## Resolve the key (never print it)
 
-The scope root is the one recorded in the scope-detection table in
-[AGENTS.md](../../../../../AGENTS.md) — `~/Dev/justgames`. Resolve through
+The scope root is `~/Dev/justgames`, as the justgames profile's `CLAUDE.md`
+records. Resolve through
 direnv from that root, so the key follows wherever the scope's `.envrc`
 actually lives:
 
@@ -63,8 +55,7 @@ session.
 ## Not for Linear MCP
 
 The MCP server authenticates through Cursor OAuth and does not read
-`LINEAR_API_KEY`. Per
-[linear-direct-api](../../../../../workflow/rules/linear-direct-api/SKILL.md),
+`LINEAR_API_KEY`. Per `core:linear-direct-api`,
 MCP is the fallback only.
 
 ## Never
