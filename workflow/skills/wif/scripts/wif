@@ -1,31 +1,11 @@
-#!/usr/bin/env bash
-# wif — work in flight. Dispatcher. See ../SKILL.md.
-set -u
-HERE="$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd -P)"
-[ -f "$HERE/wif-lib.sh" ] || HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-. "$HERE/wif-lib.sh"            # exports the tunables for the Python subcommands
-cmd=${1:-show}; shift || true
-case "$cmd" in
-  show|scan|adopt|mark|note|tangent|remind|ctx|hook|statusline|install|where|sessions)
-    if [ -f "$HERE/wif-$cmd.py" ]; then exec python3 "$HERE/wif-$cmd.py" "$@"; fi
-    exec bash "$HERE/wif-$cmd.sh" "$@" ;;
-  help|-h|--help)
-    cat <<'EOT'
-wif <command> [args]
-  show [--brief|--changes|--json]   dashboard for the current scope (default)
-  where                             what stream/scope/account this cwd resolves to
-  scan [--prs] [--scope S]          rebuild index.json from disk (read-only elsewhere)
-  adopt <task> [-s status] [-g goal] [-p parent]   create a stream for a container
-  mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--session ID]
-  note "<text>"        followup for this stream;  note --done "<substring>" removes a note
-  tangent "<text>"     candidate for a new stream (discovered-from this one)
-  remind <when> "<text>"   when = YYYY-MM-DD | +Nd | landed
-  ctx [--session ID]   context % from the statusline dump (for rotation)
-  sessions [stream]    recent sessions and their goals/intents
-  install [--apply] [--config-dir DIR]...   merge hooks + statusline into settings.json
-  hook                 (stdin JSON) Claude Code hook entrypoint
-  statusline           (stdin JSON) Claude Code statusline entrypoint
-EOT
-    ;;
-  *) echo "wif: unknown command '$cmd' (try: wif help)" >&2; exit 1 ;;
-esac
+#!/usr/bin/env python3
+"""wif — work in flight. Entry point; the code lives in ../wif/ (stdlib only)."""
+import os
+import sys
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))
+from wif.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(main())

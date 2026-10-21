@@ -25,9 +25,9 @@ Formats: [references/stream-format.md](./references/stream-format.md).
 Dashboard spec: [references/dashboard.md](./references/dashboard.md).
 Handoff protocol: [references/handoff-protocol.md](./references/handoff-protocol.md).
 
-CLI: `wif` (linked into `~/.local/bin` by install; source
-`/Users/robin/agentfiles/workflow/skills/wif/scripts/wif`). `wif help` lists
-every subcommand and its flags.
+CLI: `wif` (linked into `~/.local/bin` by install; entry point
+`/Users/robin/agentfiles/workflow/skills/wif/scripts/wif`, code in `wif/`,
+Python 3.11+ stdlib only). `wif help` lists every subcommand and its flags.
 
 ## 0. First action, every invocation
 

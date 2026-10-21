@@ -37,8 +37,8 @@ listed so they can be changed deliberately rather than rediscovered.
   branch that was never pushed (`unpublished`) can never be proposed landed.
 - Session files: ended sessions older than 30 days and orphaned ctx sidecars
   are pruned by scan. Tunables (`WIF_RING`, `WIF_STREAM_CAP`, `WIF_STALE_DAYS`,
-  `WIF_ROTATE_PCT`, `WIF_PR_TTL`, `WIF_SESSION_KEEP_DAYS`) live in
-  `scripts/wif-lib.sh` and are exported to the Python subcommands.
+  `WIF_ROTATE_PCT`, `WIF_PR_TTL`, `WIF_SESSION_KEEP_DAYS`, `WIF_BUDGET_LINES`)
+  are environment variables read by `wif/config.py` at call time.
 - Rotation: at `context_window.used_percentage >= 60` the tick / dashboard says
   "hand off now"; the number comes from the statusline dump, not a guess.
 - PR lookups (`gh`) are opt-in (`--prs`) and cached 6h; git facts always.
@@ -72,6 +72,30 @@ listed so they can be changed deliberately rather than rediscovered.
   goal, install truncating settings.json, awk `-v` escape mangling, spaces in
   task names, submodule ids, gh failures cached as empty, memory-dir binding
   by longest task prefix, `--changes` semantics, line budget, off-by-one caps.
+
+## Implementation and tests (2026-10-21, v0.2)
+
+The first cut was bash + jq + two Python scripts; the adversarial review
+found most of its defects in shell-specific corners (error traps, `awk -v`
+escapes, `ls` parsing, jq truthiness). It was replaced by a stdlib-only Python
+package, `wif/`, behind the same `scripts/wif` entry point, so the installed
+settings.json commands did not change. No jq, no third-party modules.
+
+- `wif/proc.py` is the single subprocess seam; tests patch `wif.proc.run` to
+  fake `gh` and `herdr` while real `git` runs in temp repos.
+- `tests/` is plain `unittest`: `tests/base.py` gives every case an isolated
+  `HOME` and `CLAUDE_CONFIG_DIR` inside a `TemporaryDirectory`, a fully
+  replaced environment (`mock.patch.dict(os.environ, ..., clear=True)`, with
+  `GIT_CONFIG_GLOBAL=/dev/null` so the developer's git config cannot leak),
+  `contextlib.chdir` for cwd, and helpers that build git repos, bare remotes,
+  herdr containers and auto-memory dirs. Paths are compared after
+  `Path.resolve()` because macOS temp dirs live under a symlink.
+- The review reproductions are pinned as tests (foreign session file at
+  SessionStart, compact vs clear goal carry, closed-stream resurrection,
+  escape round-trips, spaces in task names, gh failure caching, memory
+  prefix binding, `--changes` semantics, settings merge/remove).
+
+Run: `cd ~/agentfiles/workflow/skills/wif && python3 -m unittest discover -s tests -t .`
 
 ## Sources
 

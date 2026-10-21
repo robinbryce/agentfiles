@@ -1,8 +1,8 @@
 # Stream file format
 
 Path: `${CLAUDE_CONFIG_DIR}/wif/<scope>/streams/<id>.md`. Markdown with a
-flat YAML frontmatter (every value a double-quoted scalar; the shell helpers
-parse nothing fancier). Cap: 120 lines total — `over-cap` is a dashboard flag.
+flat YAML frontmatter (every value a double-quoted scalar; the parser
+handles nothing fancier). Cap: 120 lines total — `over-cap` is a dashboard flag.
 
 ```
 ---
