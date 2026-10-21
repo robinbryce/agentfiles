@@ -1,0 +1,521 @@
+#!/usr/bin/env bash
+# agentfiles — one tool for the whole agent-config setup.
+#
+#   agentfiles bootstrap [--dry-run] [--no-plugins] [--envrc] [profile...]
+#       Create or refresh ~/.claude-<profile> (CLAUDE.md, rules/, settings.json,
+#       marketplaces + plugins), mirror to ~/.pi-<profile>, write the shell
+#       wrappers, and install the forestrie workspace AGENTS.md.
+#       Default profiles: personal forestrie, plus home when $AGENTFILES_HOME exists.
+#   agentfiles doctor [profile...] | doctor --repo <dir> [--source <dir>] [--ci]
+#       Report what each profile will load, and warn about leaks
+#       (e.g. a non-stub ~/.claude/CLAUDE.md). With --repo: check the committed
+#       layer of a repository against its sync source (content drift; --ci exits 1 on drift).
+#   agentfiles sync <repo-dir> --manifest <file>
+#       Apply a sync manifest: vendor skills into .agents/skills (+ .claude/skills
+#       symlinks) with `npx skills`, copy rule files into .claude/rules, merge
+#       marketplace/plugin entries into .claude/settings.json plus a SessionStart
+#       hook that installs those plugins in cloud sessions, record the source
+#       in .agents/skills/.synced-from.
+#   agentfiles link <profile> [dir]
+#       Legacy per-repo AGENTS.md/CLAUDE.md links for harnesses with no
+#       directory walk-up.
+#
+# Everything here is a thin shell over `claude plugin …` and `npx skills`.
+# Paths: AGENTFILES (this checkout), FORESTRIE_AGENTS, AGENTFILES_HOME.
+set -euo pipefail
+
+self="$(python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "${BASH_SOURCE[0]}")"
+AGENTFILES="${AGENTFILES:-$(cd "$(dirname "$self")/.." && pwd)}"
+FORESTRIE_AGENTS="${FORESTRIE_AGENTS:-$HOME/Dev/personal/forestrie/forestrie-agents}"
+AGENTFILES_HOME="${AGENTFILES_HOME:-$HOME/agentfiles-home}"
+WRAPPERS="${AGENTFILES_WRAPPERS:-$HOME/.config/agentfiles/wrappers.sh}"
+SKILLS_CLI="${SKILLS_CLI:-skills@1.7.2}"
+DRY=0; NO_PLUGINS=0; WRITE_ENVRC=0
+
+die() { echo "agentfiles: $*" >&2; exit 1; }
+say() { printf '  %s\n' "$*"; }
+run() { if [ "$DRY" = 1 ]; then printf '  [dry-run]'; printf ' %q' "$@"; printf '\n'; else "$@"; fi; }
+have_profile() { [ -f "$AGENTFILES/profiles/$1/CLAUDE.md" ]; }
+cfg_dir() { echo "$HOME/.claude-$1"; }
+pi_dir() { echo "$HOME/.pi-$1"; }
+
+# Run claude with a profile's config dir, outside any parent Claude session.
+pclaude() { local p="$1"; shift; env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u CLAUDE_CODE_CHILD_SESSION CLAUDE_CONFIG_DIR="$(cfg_dir "$p")" claude "$@"; }
+
+# ------------------------------------------------------------------ render ---
+# Render profiles/<p>/settings.json into <cfg>/settings.json, merging with what
+# is there. Prints the rendered marketplaces (name<TAB>kind<TAB>value) and
+# enabled plugin ids on stdout for the caller.
+render_settings() {
+  local p="$1" cfg="$2"
+  python3 - "$AGENTFILES/profiles/$p/settings.json" "$cfg/settings.json" "$DRY" <<'PY'
+import json, os, sys
+tpl_path, out_path, dry = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+env = {
+  "HOME": os.environ["HOME"],
+  "AGENTFILES": os.environ["AGENTFILES"],
+  "FORESTRIE_AGENTS": os.environ["FORESTRIE_AGENTS"],
+  "AGENTFILES_HOME": os.environ["AGENTFILES_HOME"],
+}
+raw = open(tpl_path).read()
+for k, v in env.items():
+    raw = raw.replace("${%s}" % k, v)
+tpl = json.loads(raw)
+tpl.pop("$comment", None)
+fallback = tpl.pop("fallbackSources", {})
+# swap missing directory sources for their github fallback; skip a checkout
+# that exists but is not (yet) a marketplace, together with its plugins
+skipped = set()
+for name, mk in list(tpl.get("extraKnownMarketplaces", {}).items()):
+    src = mk.get("source", {})
+    if src.get("source") != "directory":
+        continue
+    path = src.get("path", "")
+    if not os.path.isdir(path):
+        if name in fallback:
+            tpl["extraKnownMarketplaces"][name] = {"source": fallback[name]}
+            print("note: %s not on disk, using %s" % (path, fallback[name]), file=sys.stderr)
+        else:
+            print("warn: marketplace %s path missing and no fallback: %s" % (name, path), file=sys.stderr)
+    elif not os.path.exists(os.path.join(path, ".claude-plugin", "marketplace.json")):
+        print("note: %s is not a marketplace yet (no .claude-plugin/marketplace.json); skipping it and its plugins" % path, file=sys.stderr)
+        del tpl["extraKnownMarketplaces"][name]
+        skipped.add(name)
+for pid in list(tpl.get("enabledPlugins", {})):
+    if pid.split("@", 1)[-1] in skipped:
+        del tpl["enabledPlugins"][pid]
+live = {}
+if os.path.exists(out_path):
+    try:
+        live = json.load(open(out_path))
+    except Exception as e:
+        print("warn: could not parse %s (%s); starting fresh" % (out_path, e), file=sys.stderr)
+def merge(dst, src):
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            merge(dst[k], v)
+        elif isinstance(v, list) and isinstance(dst.get(k), list):
+            dst[k] = dst[k] + [x for x in v if x not in dst[k]]
+        else:
+            dst[k] = v
+merge(live, tpl)
+# a marketplace source is one value: replace it whole, so switching between a
+# directory source and its github fallback leaves no stale keys behind
+for name, mk in tpl.get("extraKnownMarketplaces", {}).items():
+    live["extraKnownMarketplaces"][name] = mk
+if dry:
+    print("[dry-run] would write %s" % out_path, file=sys.stderr)
+else:
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    json.dump(live, open(out_path, "w"), indent=2)
+    open(out_path, "a").write("\n")
+for name, mk in tpl.get("extraKnownMarketplaces", {}).items():
+    s = mk["source"]
+    print("mkt\t%s\t%s\t%s" % (name, s["source"], s.get("path") or s.get("repo") or s.get("url")))
+for pid, on in tpl.get("enabledPlugins", {}).items():
+    if on:
+        print("plugin\t%s" % pid)
+PY
+}
+
+# Resolve the on-disk skills directories of an enabled plugin from a
+# directory-source marketplace. Prints absolute skill dirs, one per line.
+plugin_skill_dirs() {
+  local mkt_dir="$1" entry="$2"
+  python3 - "$mkt_dir" "$entry" <<'PY'
+import json, os, sys, glob
+root, entry = sys.argv[1], sys.argv[2]
+mp = json.load(open(os.path.join(root, ".claude-plugin", "marketplace.json")))
+plugin_root = mp.get("metadata", {}).get("pluginRoot", ".")
+for e in mp.get("plugins", []):
+    if e.get("name") != entry: continue
+    src = e.get("source")
+    if not isinstance(src, str):
+        sys.exit(0)  # remote source: skills live in the plugin cache, not here
+    path = src if src.startswith("./") or src == "." else os.path.join(plugin_root, src)
+    pdir = os.path.normpath(os.path.join(root, path))
+    manifest = os.path.join(pdir, ".claude-plugin", "plugin.json")
+    dirs = []
+    if os.path.exists(manifest):
+        m = json.load(open(manifest))
+        for s in m.get("skills", []) or []:
+            dirs.append(os.path.normpath(os.path.join(pdir, s)))
+    if not dirs:
+        dirs = [os.path.join(pdir, "skills")]
+    for d in dirs:
+        for sk in sorted(glob.glob(os.path.join(d, "*", "SKILL.md"))):
+            print(os.path.dirname(sk))
+PY
+}
+
+# Symlink $1 at $2, replacing an older symlink but never a real file or dir.
+link_safe() {
+  if [ -e "$2" ] && [ ! -L "$2" ]; then say "$2 exists and is not a symlink — not replaced"; return 0; fi
+  run ln -sfn "$1" "$2"
+}
+
+# ---------------------------------------------------------------- bootstrap --
+bootstrap_profile() {
+  local p="$1" cfg; cfg="$(cfg_dir "$p")"
+  have_profile "$p" || die "unknown profile '$p' (no profiles/$p/CLAUDE.md)"
+  echo "== profile $p → $cfg"
+  run mkdir -p "$cfg/rules"
+  link_safe "$AGENTFILES/profiles/$p/CLAUDE.md" "$cfg/CLAUDE.md"
+  # rules: shared always-on + profile-local; prune our stale links
+  local f
+  for f in "$cfg"/rules/*; do
+    [ -L "$f" ] || continue
+    case "$(readlink "$f")" in "$AGENTFILES"/*) [ -e "$f" ] || run rm -f "$f" ;; esac
+  done
+  for f in "$AGENTFILES"/rules/*.md "$AGENTFILES/profiles/$p"/rules/*.md; do
+    [ -f "$f" ] || continue
+    link_safe "$f" "$cfg/rules/$(basename "$f")"
+  done
+  # settings
+  local rendered; rendered="$(AGENTFILES="$AGENTFILES" FORESTRIE_AGENTS="$FORESTRIE_AGENTS" AGENTFILES_HOME="$AGENTFILES_HOME" render_settings "$p" "$cfg")"
+  say "settings.json rendered"
+  # marketplaces + plugins
+  if [ "$NO_PLUGINS" = 0 ] && [ "$DRY" = 0 ]; then
+    while IFS=$'\t' read -r kind a b c; do
+      [ "$kind" = mkt ] || continue
+      case "$b" in
+        directory|file) pclaude "$p" plugin marketplace add "$c" >/dev/null 2>&1 && say "marketplace $a: added ($c)" || say "marketplace $a: present" ;;
+        github)         pclaude "$p" plugin marketplace add "$c" >/dev/null 2>&1 && say "marketplace $a: added ($c)" || say "marketplace $a: present" ;;
+        *)              say "marketplace $a: declared in settings ($b)" ;;
+      esac
+    done <<<"$rendered"
+    while IFS=$'\t' read -r kind id; do
+      [ "$kind" = plugin ] || continue
+      if pclaude "$p" plugin install "$id" >/dev/null 2>&1; then say "plugin $id: installed"; else say "plugin $id: present or unavailable (see doctor)"; fi
+    done <<<"$rendered"
+  else
+    say "plugins: skipped"
+  fi
+  # pi mirror: generated AGENTS.md = profile CLAUDE.md + always-on rules; skills links
+  local pid; pid="$(pi_dir "$p")"
+  run mkdir -p "$pid/skills"
+  if [ "$DRY" = 0 ]; then
+    # never write through a pre-existing symlink (older setups linked this file into agentfiles)
+    [ -L "$pid/AGENTS.md" ] && rm -f "$pid/AGENTS.md"
+    {
+      cat "$AGENTFILES/profiles/$p/CLAUDE.md"
+      printf '\n\n## Always-on rules (generated by agentfiles bootstrap; edit in agentfiles/rules)\n'
+      for f in "$AGENTFILES"/rules/*.md "$AGENTFILES/profiles/$p"/rules/*.md; do
+        [ -f "$f" ] || continue
+        grep -q '^paths:' "$f" && continue   # path-scoped rules have no pi equivalent
+        printf '\n---\n\n'; awk 'NR==1&&/^---$/{f=1;next} f&&/^---$/{f=0;next} !f' "$f"
+      done
+    } > "$pid/AGENTS.md"
+    for f in "$pid"/skills/*; do [ -L "$f" ] && [ ! -e "$f" ] && rm -f "$f"; done
+    while IFS=$'\t' read -r kind a b c; do
+      [ "$kind" = mkt ] && [ "$b" = directory ] || continue
+      while IFS=$'\t' read -r kind2 id; do
+        [ "$kind2" = plugin ] || continue
+        [ "${id##*@}" = "$a" ] || continue
+        plugin_skill_dirs "$c" "${id%%@*}" | while read -r sd; do
+          link_safe "$sd" "$pid/skills/$(basename "$sd")"
+        done
+      done <<<"$rendered"
+    done <<<"$rendered"
+    say "pi mirror: $pid (AGENTS.md generated, $(ls "$pid/skills" | wc -l | tr -d ' ') skill links)"
+  fi
+  # forestrie workspace router
+  if [ "$p" = forestrie ] && [ -f "$FORESTRIE_AGENTS/workspace/AGENTS.md" ]; then
+    local ws; ws="$(dirname "$FORESTRIE_AGENTS")/AGENTS.md"
+    if [ -e "$ws" ] && [ ! -L "$ws" ]; then say "workspace AGENTS.md exists as a real file at $ws — not replaced"; else run ln -sfn "$FORESTRIE_AGENTS/workspace/AGENTS.md" "$ws"; fi
+  fi
+}
+
+write_wrappers() {
+  run mkdir -p "$(dirname "$WRAPPERS")"
+  [ "$DRY" = 1 ] && { say "[dry-run] would write $WRAPPERS"; return; }
+  {
+    echo '# generated by `agentfiles bootstrap` — source from your shell rc. Do not edit.'
+    echo '# direnv sets CLAUDE_CONFIG_DIR per workspace; these wrappers pin a profile explicitly.'
+    for p in "$@"; do
+      printf 'claude-%s() { CLAUDE_CONFIG_DIR="$HOME/.claude-%s" command claude "$@"; }\n' "$p" "$p"
+      printf 'pi-%s() { PI_CODING_AGENT_DIR="$HOME/.pi-%s" command pi "$@"; }\n' "$p" "$p"
+    done
+    cat <<'EOS'
+claude() {
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then command claude "$@"; return; fi
+  case "${DOTFILES_ROLE:-personal-dev}" in work-dev) claude-justgames "$@" ;; *) claude-personal "$@" ;; esac
+}
+pi() {
+  if [ -n "${PI_CODING_AGENT_DIR:-}" ]; then command pi "$@"; return; fi
+  case "${DOTFILES_ROLE:-personal-dev}" in work-dev) pi-justgames "$@" ;; *) pi-personal "$@" ;; esac
+}
+# Same profile, local model (Ollama >= 0.14 speaks the Anthropic Messages API).
+claude-local() {
+  ANTHROPIC_BASE_URL="${OLLAMA_HOST:-http://localhost:11434}" ANTHROPIC_AUTH_TOKEN=ollama ANTHROPIC_API_KEY="" \
+  ANTHROPIC_DEFAULT_SONNET_MODEL="${LOCAL_MODEL:-qwen3-coder}" ANTHROPIC_DEFAULT_OPUS_MODEL="${LOCAL_MODEL:-qwen3-coder}" \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL="${LOCAL_SMALL_MODEL:-${LOCAL_MODEL:-qwen3-coder}}" claude "$@"
+}
+EOS
+    # keep legacy names working if the profile dirs exist
+    [ -d "$HOME/.claude-justgames" ] && ! printf '%s\n' "$@" | grep -qx justgames && \
+      printf 'claude-justgames() { CLAUDE_CONFIG_DIR="$HOME/.claude-justgames" command claude "$@"; }\npi-justgames() { PI_CODING_AGENT_DIR="$HOME/.pi-justgames" command pi "$@"; }\n'
+  } > "$WRAPPERS"
+  say "wrappers: $WRAPPERS (source it from your shell rc)"
+}
+
+envrc_hint() {
+  local p="$1" dir="$2"
+  local line1="export CLAUDE_CONFIG_DIR=\"\$HOME/.claude-$p\"" line2="export PI_CODING_AGENT_DIR=\"\$HOME/.pi-$p\""
+  [ -d "$dir" ] || return 0
+  if [ -f "$dir/.envrc" ] && grep -q "CLAUDE_CONFIG_DIR" "$dir/.envrc"; then say "$dir/.envrc already sets CLAUDE_CONFIG_DIR"; return; fi
+  if [ "$WRITE_ENVRC" = 1 ] && [ "$DRY" = 0 ]; then
+    printf '\n# agentfiles profile\n%s\n%s\n' "$line1" "$line2" >> "$dir/.envrc"; say "appended profile exports to $dir/.envrc (run: direnv allow $dir)"
+  else
+    say "add to $dir/.envrc:  $line1 ; $line2   (or rerun with --envrc)"
+  fi
+}
+
+cmd_bootstrap() {
+  local profiles=()
+  while [ $# -gt 0 ]; do case "$1" in --dry-run) DRY=1;; --no-plugins) NO_PLUGINS=1;; --envrc) WRITE_ENVRC=1;; -*) die "unknown flag $1";; *) profiles+=("$1");; esac; shift; done
+  if [ ${#profiles[@]} -eq 0 ]; then profiles=(personal forestrie); [ -d "$AGENTFILES_HOME" ] && profiles+=(home); fi
+  for p in "${profiles[@]}"; do bootstrap_profile "$p"; done
+  write_wrappers "${profiles[@]}"
+  echo "== direnv"
+  for p in "${profiles[@]}"; do
+    case "$p" in
+      personal)  envrc_hint personal "$HOME/Dev/personal" ;;
+      forestrie) envrc_hint forestrie "$HOME/Dev/personal/forestrie" ;;
+      home)      envrc_hint home "$HOME/Dev/personal/home" ;;
+      justgames) envrc_hint justgames "$HOME/Dev/justgames" ;;
+    esac
+  done
+  echo "== default ~/.claude"
+  if [ -f "$HOME/.claude/CLAUDE.md" ] && [ "$(grep -cv '^\s*$' "$HOME/.claude/CLAUDE.md")" -gt 3 ]; then
+    say "WARNING: ~/.claude/CLAUDE.md has content; it loads into EVERY profile (verified, plan 2610-01 Q2). Reduce it to the stub in harness/claude-code.md."
+  else say "ok (stub or absent)"; fi
+}
+
+# ------------------------------------------------------------------- doctor --
+doctor_profile() {
+  local p="$1" cfg; cfg="$(cfg_dir "$p")"
+  echo "== $p ($cfg)"
+  [ -d "$cfg" ] || { say "not bootstrapped"; return; }
+  if [ -L "$cfg/CLAUDE.md" ]; then say "CLAUDE.md -> $(readlink "$cfg/CLAUDE.md") ($(wc -l < "$cfg/CLAUDE.md" | tr -d ' ') lines)"; else say "CLAUDE.md: $([ -f "$cfg/CLAUDE.md" ] && echo 'real file (not managed)' || echo missing)"; fi
+  say "rules: $(ls "$cfg/rules" 2>/dev/null | tr '\n' ' ')"
+  python3 - "$cfg/settings.json" <<'PY' 2>/dev/null || say "settings.json: missing or invalid"
+import json,sys
+s=json.load(open(sys.argv[1]))
+print("  marketplaces:", ", ".join("%s(%s)"%(k,v.get("source",{}).get("source")) for k,v in s.get("extraKnownMarketplaces",{}).items()) or "none")
+print("  enabledPlugins:", ", ".join(k for k,v in s.get("enabledPlugins",{}).items() if v) or "none")
+print("  instructionFiles:", s.get("pluginConfigs",{}).get("cc-plugin-agents-md@builtin",{}).get("options",{}).get("instructionFiles","default"))
+PY
+  if command -v claude >/dev/null 2>&1; then { pclaude "$p" plugin list 2>/dev/null | sed 's/^/  /' | head -40; } || true; fi
+  local pid; pid="$(pi_dir "$p")"
+  if [ -d "$pid" ]; then say "pi: $pid ($(ls "$pid/skills" 2>/dev/null | wc -l | tr -d ' ') skills, AGENTS.md $([ -f "$pid/AGENTS.md" ] && echo present || echo missing))"; fi
+  return 0
+}
+
+doctor_repo() {
+  local repo="$1" srcdir="${2:-}"
+  echo "== repo $repo"
+  [ -f "$repo/AGENTS.md" ] && say "AGENTS.md: $(wc -l < "$repo/AGENTS.md" | tr -d ' ') lines" || say "AGENTS.md: missing"
+  say "rules: $(ls "$repo/.claude/rules" 2>/dev/null | tr '\n' ' ')"
+  say "skills (.agents): $(ls -d "$repo"/.agents/skills/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')"
+  say "skills (.claude): $(ls "$repo/.claude/skills" 2>/dev/null | tr '\n' ' ')"
+  local s; for s in "$repo"/.claude/skills/*; do [ -L "$s" ] && [ ! -e "$s" ] && say "BROKEN symlink: ${s#$repo/}"; done
+  [ -f "$repo/.claude/settings.json" ] && python3 - "$repo/.claude/settings.json" <<'PY2'
+import json,sys
+s=json.load(open(sys.argv[1]))
+print("  settings marketplaces:", ", ".join(s.get("extraKnownMarketplaces",{})) or "none")
+print("  settings enabledPlugins:", ", ".join(k for k,v in s.get("enabledPlugins",{}).items() if v) or "none")
+hooked = any("agentfiles:cloud-install" in h.get("command","") for g in s.get("hooks",{}).get("SessionStart",[]) for h in g.get("hooks",[]))
+print("  cloud install hook:", "present" if hooked else "MISSING (cloud sessions will not get the plugins; rerun sync)")
+PY2
+  local from="$repo/.agents/skills/.synced-from"
+  if [ ! -f "$from" ]; then say "synced-from: none (not synced by agentfiles)"; return; fi
+  local slug sha mf; slug="$(sed -n 's/^source=//p' "$from")"; sha="$(sed -n 's/^sha=//p' "$from")"; mf="$(sed -n 's/^manifest=//p' "$from")"
+  say "synced-from: $slug@${sha:0:12} manifest=$mf"
+  # Find a local checkout of the source: --source, else $FORESTRIE_AGENTS when its origin matches.
+  if [ -z "$srcdir" ] && [ "$(repo_slug "$FORESTRIE_AGENTS")" = "$slug" ]; then srcdir="$FORESTRIE_AGENTS"; fi
+  [ -n "$srcdir" ] && [ -f "$srcdir/$mf" ] || { say "no local checkout of $slug with $mf; pass --source <dir> to check content drift"; return; }
+  say "comparing content against $srcdir ($(git -C "$srcdir" rev-parse --short=12 HEAD 2>/dev/null))"
+  # Content, not SHA, decides drift: unrelated commits to the source move its SHA without changing what was synced.
+  local drift=0 kind x y d plan
+  plan="$(manifest_plan "$srcdir/$mf" "$srcdir")"
+  while read -r kind x y; do
+    case "$kind" in
+      rule)  d="$repo/.claude/rules/$y"
+             if [ ! -f "$d" ]; then say "DRIFT: missing .claude/rules/$y"; drift=1
+             elif ! cmp -s "$srcdir/$x" "$d"; then say "DRIFT: .claude/rules/$y differs from $x"; drift=1; fi ;;
+      skill) d="$repo/.agents/skills/$x"
+             if [ ! -d "$d" ]; then say "DRIFT: missing .agents/skills/$x"; drift=1
+             elif ! diff -rq "$srcdir/$y" "$d" >/dev/null 2>&1; then say "DRIFT: .agents/skills/$x differs from $y"; drift=1; fi
+             [ -e "$repo/.claude/skills/$x" ] || { say "DRIFT: missing .claude/skills/$x"; drift=1; } ;;
+    esac
+  done <<<"$plan"
+  # A gitignored layer passes the checks above on this machine but is absent from every clone.
+  local ign; ign="$(layer_ignored "$repo")"
+  [ -n "$ign" ] && say "DRIFT: gitignored, so never committed: $ign (narrow the .gitignore entry)"
+  [ "$drift" = 1 ] && say "rerun: agentfiles sync $repo --manifest $srcdir/$mf"
+  [ "$drift" = 0 ] && [ -z "$ign" ] && say "no drift: committed layer matches the source"
+  [ "$drift" = 1 ] || [ -n "$ign" ] && [ "${CI_MODE:-0}" = 1 ] && return 1
+  return 0
+}
+
+cmd_doctor() {
+  if [ "${1:-}" = --repo ]; then
+    shift; local repo="." src=""
+    while [ $# -gt 0 ]; do case "$1" in --source) src="$2"; shift;; --ci) CI_MODE=1;; *) repo="$1";; esac; shift; done
+    doctor_repo "$repo" "$src"; return
+  fi
+  local profiles=("$@"); [ ${#profiles[@]} -eq 0 ] && profiles=(personal forestrie home justgames)
+  for p in "${profiles[@]}"; do have_profile "$p" && doctor_profile "$p"; done
+  echo "== leaks"
+  if [ -f "$HOME/.claude/CLAUDE.md" ] && [ "$(grep -cv '^\s*$' "$HOME/.claude/CLAUDE.md")" -gt 3 ]; then say "WARNING: ~/.claude/CLAUDE.md has content and loads into every profile"; else say "~/.claude/CLAUDE.md: ok"; fi
+  [ -f "$WRAPPERS" ] && say "wrappers: $WRAPPERS" || say "wrappers: not written (run bootstrap)"
+}
+
+# --------------------------------------------------------------------- sync --
+# Manifest format (one directive per line, '#' comments):
+#   source <dir>                       # where skills and rules come from; a relative
+#                                      # path resolves against the manifest's directory
+#   agents <a,b,c>                     # skills-cli agent ids (default: claude-code,codex,cursor)
+#   skill <name> [...]                 # skills to vendor from source into .agents/skills
+#   rule <src-path> [dest-name]        # file copied into .claude/rules/ (src relative to source)
+#   marketplace <name> <owner/repo>    # .claude/settings.json extraKnownMarketplaces (GitHub source)
+#   plugin <plugin@marketplace>        # .claude/settings.json enabledPlugins (+ cloud install hook)
+
+# Resolve a manifest's 'source' to an absolute directory.
+manifest_source() {
+  local mf="$1" src; src="$(sed -n 's/^[[:space:]]*source[[:space:]]\{1,\}\([^#[:space:]]*\).*/\1/p' "$mf" | tail -1)"
+  [ -n "$src" ] || return 0
+  src="${src/#\~/$HOME}"
+  case "$src" in /*) ;; *) src="$(cd "$(dirname "$mf")" && cd "$src" 2>/dev/null && pwd)" || return 1 ;; esac
+  echo "$src"
+}
+
+# Layer paths that exist in <repo> but are gitignored there, space-separated (empty if none).
+layer_ignored() {
+  local repo="$1" p out=()
+  for p in AGENTS.md CLAUDE.md .claude/settings.json .claude/rules .agents/skills .claude/skills; do
+    [ -e "$repo/$p" ] || [ -L "$repo/$p" ] || continue
+    git -C "$repo" check-ignore -q --no-index "$p" 2>/dev/null && out+=("$p")
+  done
+  echo "${out[*]:-}"
+}
+
+# owner/repo from a checkout's origin remote (empty if none).
+repo_slug() { git -C "$1" remote get-url origin 2>/dev/null | sed -E 's#^(git@[^:]+:|https?://[^/]+/)##; s#\.git$##'; }
+
+# Print the manifest as normalised lines: 'rule <src> <dest>', 'skill <name> <dir-rel-to-source>',
+# 'agents <list>', 'marketplace <name> <repo>', 'plugin <id>'.
+manifest_plan() {
+  local mf="$1" src="$2" line kw a rest n d
+  while IFS= read -r line; do
+    line="${line%%#*}"; [ -z "${line// }" ] && continue
+    read -r kw a rest <<<"$line"
+    case "$kw" in
+      source) ;;
+      agents) echo "agents $a" ;;
+      rule)   echo "rule $a ${rest:-$(basename "$a")}" ;;
+      skill)  for n in $a $rest; do
+                d="$(cd "$src" && find . -path ./.git -prune -o -path ./incubator -prune -o -path ./node_modules -prune -o -type f -path "*/$n/SKILL.md" -print)"
+                [ -n "$d" ] || die "skill '$n' not found under $src"
+                [ "$(printf '%s\n' "$d" | wc -l | tr -d ' ')" = 1 ] || die "skill '$n' is ambiguous under $src: $(printf '%s ' $d)"
+                d="${d#./}"; echo "skill $n ${d%/SKILL.md}"
+              done ;;
+      marketplace) echo "marketplace $a $rest" ;;
+      plugin) echo "plugin $a" ;;
+      *) die "manifest $mf: unknown directive '$kw'" ;;
+    esac
+  done < "$mf"
+}
+
+cmd_sync() {
+  local repo="" manifest=""
+  while [ $# -gt 0 ]; do case "$1" in --manifest) manifest="$2"; shift;; --dry-run) DRY=1;; -*) die "unknown flag $1";; *) repo="$1";; esac; shift; done
+  [ -n "$repo" ] && [ -d "$repo" ] || die "usage: agentfiles sync <repo-dir> --manifest <file>"
+  [ -f "$manifest" ] || die "manifest not found: $manifest"
+  repo="$(cd "$repo" && pwd)"; manifest="$(cd "$(dirname "$manifest")" && pwd)/$(basename "$manifest")"
+  local source; source="$(manifest_source "$manifest")" || die "manifest: source dir not found"
+  [ -n "$source" ] && [ -d "$source" ] || die "manifest: 'source' must name a local directory"
+  local agents="claude-code,codex,cursor" skills=() markets=() plugins=() kind x y plan
+  plan="$(manifest_plan "$manifest" "$source")"
+  while read -r kind x y; do
+    case "$kind" in
+      agents) agents="$x" ;;
+      rule)   run mkdir -p "$repo/.claude/rules"; run cp "$source/$x" "$repo/.claude/rules/$y"; say "rule $x -> .claude/rules/$y" ;;
+      skill)  skills+=("$x") ;;
+      marketplace) markets+=("$x=$y") ;;
+      plugin) plugins+=("$x") ;;
+    esac
+  done <<<"$plan"
+  if [ ${#skills[@]} -gt 0 ]; then
+    # npx skills writes skills-lock.json with a machine-relative source path; .synced-from replaces it.
+    local had_lock=0; [ -e "$repo/skills-lock.json" ] && had_lock=1
+    # shellcheck disable=SC2086  # agent ids are word-split on purpose
+    ( cd "$repo" && run npx -y "$SKILLS_CLI" add "$source" -s "${skills[@]}" -a ${agents//,/ } -y )
+    [ "$had_lock" = 1 ] || run rm -f "$repo/skills-lock.json"
+    local s
+    for s in "${skills[@]}"; do
+      if [ -d "$repo/.agents/skills/$s" ] && [ ! -e "$repo/.claude/skills/$s" ] && [ ! -L "$repo/.claude/skills/$s" ]; then
+        run mkdir -p "$repo/.claude/skills"; run ln -s "../../.agents/skills/$s" "$repo/.claude/skills/$s"
+      fi
+    done
+    # Provenance, without machine-local paths or timestamps, so a re-sync with no content change is a no-op diff
+    # (apart from the source SHA).
+    local slug sha rel; slug="$(repo_slug "$source")"; sha="$(git -C "$source" rev-parse HEAD 2>/dev/null || echo unknown)"
+    rel="${manifest#"$(git -C "$source" rev-parse --show-toplevel 2>/dev/null || echo "$source")"/}"
+    [ "$DRY" = 0 ] && printf 'source=%s\nsha=%s\nmanifest=%s\n' "${slug:-$source}" "$sha" "$rel" > "$repo/.agents/skills/.synced-from"
+  fi
+  if [ ${#markets[@]} -gt 0 ] || [ ${#plugins[@]} -gt 0 ]; then
+    [ "$DRY" = 1 ] && say "[dry-run] merge .claude/settings.json: ${markets[*]} ${plugins[*]}" || {
+      mkdir -p "$repo/.claude"
+      python3 - "$repo/.claude/settings.json" "${markets[@]/#/m:}" "${plugins[@]/#/p:}" <<'PY2'
+import json, os, sys
+path = sys.argv[1]
+s = json.load(open(path)) if os.path.exists(path) else {}
+s.setdefault("$schema", "https://json.schemastore.org/claude-code-settings.json")
+for arg in sys.argv[2:]:
+    kind, val = arg.split(":", 1)
+    if kind == "m":
+        name, repo = val.split("=", 1)
+        s.setdefault("extraKnownMarketplaces", {})[name] = {"source": {"source": "github", "repo": repo}}
+    else:
+        s.setdefault("enabledPlugins", {})[val] = True
+# Cloud sessions never install plugins from the settings above (probed 2026-10-11), so a
+# SessionStart hook does it; CLAUDE_CODE_REMOTE keeps it out of terminal sessions.
+# Replace our own entry (tagged), keep any others.
+TAG = "# agentfiles:cloud-install"
+mk = s.get("extraKnownMarketplaces", {})
+steps = [f"claude plugin marketplace add {m['source']['repo']}" for m in mk.values() if m.get("source", {}).get("source") == "github"]
+steps += [f"claude plugin install {p}" for p, on in s.get("enabledPlugins", {}).items() if on]
+cmd = ('[ "$CLAUDE_CODE_REMOTE" = true ] || exit 0; ' + TAG + "\n"
+       + "".join(f"env -u CLAUDECODE {c} >/dev/null 2>&1 || echo 'cloud-install failed: {c}'\n" for c in steps)
+       + "exit 0")
+groups = [g for g in s.get("hooks", {}).get("SessionStart", [])
+          if not any(TAG in h.get("command", "") for h in g.get("hooks", []))]
+groups.append({"hooks": [{"type": "command", "command": cmd, "timeout": 180}]})
+s.setdefault("hooks", {})["SessionStart"] = groups
+open(path, "w").write(json.dumps(s, indent=2) + "\n")
+PY2
+      say "settings.json: ${markets[*]} ${plugins[*]} + cloud install hook"; }
+  fi
+  local ign; ign="$(layer_ignored "$repo")"
+  [ -n "$ign" ] && say "WARNING: gitignored in $repo, so git add will skip them: $ign (narrow the .gitignore entry)"
+  ( cd "$repo" && git status --short 2>/dev/null | sed 's/^/  /' )
+}
+
+# --------------------------------------------------------------------- link --
+cmd_link() {
+  local p="${1:-}" dir="${2:-.}"; have_profile "$p" || die "usage: agentfiles link <profile> [dir]"
+  link_safe "$AGENTFILES/profiles/$p/CLAUDE.md" "$dir/AGENTS.md"
+  link_safe AGENTS.md "$dir/CLAUDE.md"
+  say "$dir: AGENTS.md -> profiles/$p/CLAUDE.md, CLAUDE.md -> AGENTS.md"
+}
+
+case "${1:-}" in
+  bootstrap) shift; cmd_bootstrap "$@" ;;
+  doctor)    shift; cmd_doctor "$@" ;;
+  sync)      shift; cmd_sync "$@" ;;
+  link)      shift; cmd_link "$@" ;;
+  -h|--help|"") sed -n '2,23p' "$self" ;;
+  *) die "unknown command: $1" ;;
+esac

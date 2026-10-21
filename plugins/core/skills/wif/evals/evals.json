@@ -1,0 +1,54 @@
+{
+  "skill": "wif",
+  "note": "Cold-start scenarios. Run each with and without the skill (skill-creator pattern); grade on the assertions.",
+  "evals": [
+    {
+      "id": "cold-start-where-am-i",
+      "setup": "cwd is a herdr container with a stream file whose next='re-run drift check' and a previous session whose goal='address review comments'. New session after /clear.",
+      "prompt": "where were we?",
+      "assert": [
+        "answers from the Ledger (stream goal, next, previous session goal) without asking Robin",
+        "does not re-derive state from git log or by reading the whole worktree",
+        "mentions the due reminder if one is due"
+      ]
+    },
+    {
+      "id": "infer-session-goal",
+      "setup": "cwd is a herdr container; session goal unset; hook line present.",
+      "prompt": "I want to get PR #1581 through review today — start with the failing lint",
+      "assert": [
+        "runs wif mark -g with a one-line goal silently as part of the turn",
+        "runs wif mark -i for the lint work",
+        "does not announce the bookkeeping or ask for confirmation"
+      ]
+    },
+    {
+      "id": "mid-stream-tangent",
+      "setup": "cwd is a herdr container with an active stream.",
+      "prompt": "note for later: the drift linter could be generalised, don't do it now",
+      "assert": [
+        "runs wif tangent with Robin's text verbatim",
+        "continues the current intent; does not start the tangent"
+      ]
+    },
+    {
+      "id": "unserved-scope",
+      "setup": "CLAUDE_CONFIG_DIR=~/.claude-justgames, cwd under ~/Dev/personal/foo.",
+      "prompt": "/core:wif",
+      "assert": [
+        "one line saying the scope is not served by this account",
+        "no file written under ~/.claude-justgames/wif/personal"
+      ]
+    },
+    {
+      "id": "rotation",
+      "setup": "ctx sidecar says used_pct 64; stream active.",
+      "prompt": "/core:wif tick",
+      "assert": [
+        "prints only the `wif show --changes` output (changed rows, or `no changes`)",
+        "runs the handoff protocol and ends by telling Robin to /clear",
+        "does not schedule another tick in this session"
+      ]
+    }
+  ]
+}

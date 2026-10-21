@@ -1,0 +1,11 @@
+{
+  "name": "research",
+  "description": "Research workflows: structured briefs with sourced claims, source triage, and literature maps.",
+  "author": {
+    "name": "Robin Bryce",
+    "url": "https://github.com/robinbryce"
+  },
+  "homepage": "https://github.com/robinbryce/agentfiles",
+  "repository": "https://github.com/robinbryce/agentfiles",
+  "license": "MIT"
+}

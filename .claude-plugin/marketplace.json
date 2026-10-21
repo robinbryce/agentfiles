@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentfiles",
+  "description": "Robin's cross-profile agent skills, hooks and research workflows. Profile-specific content lives in each profile's own marketplace.",
+  "owner": {
+    "name": "Robin Bryce",
+    "url": "https://github.com/robinbryce"
+  },
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "core",
+      "source": "core",
+      "description": "/core:plan-new, /core:save-status, /core:wif (work-in-flight tracker) and /core:worktrees-closeout; planning, PR-description and multi-repo fan-out rules as background skills; Linear direct-API mechanism; plan-doc naming guardrail hook.",
+      "category": "workflow"
+    },
+    {
+      "name": "research",
+      "source": "research",
+      "description": "Research briefs and source triage for coding, standards and personal research.",
+      "category": "research"
+    }
+  ]
+}

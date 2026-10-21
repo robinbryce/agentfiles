@@ -1,87 +1,35 @@
-# agentfiles — agent bootstrap
+# agentfiles — for an agent editing this repository
 
-**For agents:** determine scope first, then load **selectively**. Do not
-bulk-read this repository, and never load more than one scope in a task
-unless the user explicitly asks to cross-reference.
+This repo is a **Claude Code plugin marketplace plus profile templates**. It is
+not loaded into sessions by reading this file; it is installed into
+`~/.claude-<profile>` by `bin/agentfiles bootstrap`. See
+[README.md](./README.md) for the model and
+[docs/plans/plan-2610-01-agent-config-reorg/](./docs/plans/plan-2610-01-agent-config-reorg/README.md)
+for the design.
 
-**For humans:** see [README.md](./README.md).
+## Layout
 
----
+| Path | What |
+|------|------|
+| `.claude-plugin/marketplace.json` | marketplace `agentfiles`; entries resolve under `plugins/` |
+| `plugins/<name>/` | one plugin: `.claude-plugin/plugin.json`, `skills/<skill>/SKILL.md`, optional `hooks/`, `agents/` |
+| `rules/*.md` | always-on rule files, symlinked into every profile's `rules/` (plugins cannot ship rules) |
+| `profiles/<p>/` | `CLAUDE.md` (≤ 40 lines), `settings.json` template, optional `rules/`; `AGENTS.md` → `CLAUDE.md` |
+| `bin/agentfiles` | `bootstrap`, `doctor`, `sync`, `link` |
+| `harness/` | short per-harness notes |
+| `incubator/` | drafts, never installed |
 
-## Loading order
+## Rules for changes
 
-1. **This file** — routing only (~2 min read)
-2. **Determine scope** — see table below; ask if ambiguous
-3. **One** [scopes/\<scope\>/AGENTS.md](./scopes/) — never more than one
-4. **Repo overlay** — the working project's own `AGENTS.md` / `forest/agents/AGENTS.md`
-5. **Workflow** — only the invoked [command](./workflow/commands/) or [skill](./workflow/skills/)
-
-**Precedence on conflict:** repo overlay → scope → common `workflow/` →
-vendored → incubator (opt-in).
-
----
-
-## Scope detection
-
-| Working on... | Scope | Router |
-|---|---|---|
-| `~/Dev/personal/forestrie/**` (canopy, arbor, univocity, mandate, forest-1, devdocs, product, forestrie-agents) | forestrie | [scopes/forestrie/AGENTS.md](./scopes/forestrie/AGENTS.md) |
-| `~/Dev/justgames/**` (Flip contracts, protocol deploy, JustGames/SentientDogs code) | justgames | [scopes/justgames/AGENTS.md](./scopes/justgames/AGENTS.md) |
-| Anything else — other personal projects, dotfiles, home automation | personal | [scopes/personal/AGENTS.md](./scopes/personal/AGENTS.md) |
-
-If the working directory doesn't clearly match a row above, ask which scope
-applies rather than guessing. **Never** load a second scope's `arc-context/`
-or `workflow/` in the same task without the user explicitly asking for it —
-that's the entire reason scopes exist.
-
----
-
-## Workflow index (cross-scope)
-
-### Commands (explicit invocation)
-
-See [workflow/commands/README.md](./workflow/commands/README.md).
-
-### Skills (on demand — read SKILL.md only when task matches)
-
-See [workflow/skills/README.md](./workflow/skills/README.md). For "what is in
-flight / what was this session for" questions, [`/wif`](./workflow/skills/wif/SKILL.md)
-reads the per-account Ledger rather than answering from recollection.
-
-### Rules (requestable — not auto-loaded unless repo configures alwaysApply)
-
-See [workflow/rules/README.md](./workflow/rules/README.md).
-
-**Always-on (load in every task, all scopes):**
-[workflow/rules/clickable-references.md](./workflow/rules/clickable-references.md)
-— render every file / line / PR / issue / commit reference as a clickable link
-(gitweb permalink for git content, absolute `path:line` for local-only).
-
-**Always-on in herdr task worktrees (`*/.worktrees-herdr/<task>/`):**
-[workflow/rules/herdr-session-handoff.md](./workflow/rules/herdr-session-handoff.md)
-— at clean completion points, proactively offer a "ready to clear and hand
-off" block (kickoff prompt, absolute memory/handoff paths, stay-vs-new-
-workspace advice).
-
-**Creating a plan / ADR / ARC?** Load
-[workflow/rules/planning.md](./workflow/rules/planning.md) and use
-[`/plan-new`](./workflow/commands/plan-new.md) — do not hand-number plan files.
-Scopes override the `plans_root` / `decisions_home` params below.
-
----
-
-## Context efficiency rules
-
-1. **Scope first, always** — determine scope before reading anything scope-specific
-2. **Link, don't restate** — point to authoritative docs; do not copy bodies into responses
-3. **Skills on demand** — read a skill only when its description matches the task
-4. **Commands on invoke** — user runs the command or pastes its content
-5. **Incubator is opt-in** — never load `incubator/` (root or scoped) unless the user names a path
-
----
-
-## Key external references
-
-| Topic | Where |
-|-------|-------|
-| Shared Forestrie team agent guidance | [forestrie-agents](https://github.com/forestrie/forestrie-agents) |
+- **A skill lives in the repo of the narrowest audience that needs it.** Team
+  content goes to forestrie-agents, private content to agentfiles-home.
+- Skill frontmatter follows the [Agent Skills spec](https://agentskills.io/specification):
+  `name` equals the directory name; `description` says what and when.
+  Background rules are skills with `user-invocable: false`; add `paths:` when
+  they only matter for some files.
+- A rule in `rules/` has at most a `paths:` frontmatter. Keep always-on rules
+  to a handful: each costs every session in every profile.
+- Reference scripts as `${CLAUDE_SKILL_DIR}/scripts/...` and hook scripts as
+  `${CLAUDE_PLUGIN_ROOT}/hooks/scripts/...`.
+- After any change: `claude plugin validate .` and `bin/agentfiles doctor`.
+- Plans for this repo use `/core:plan-new` into `docs/plans/`.
