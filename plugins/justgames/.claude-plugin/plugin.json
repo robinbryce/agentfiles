@@ -1,0 +1,11 @@
+{
+  "name": "justgames",
+  "description": "JustGames / SentientDogs skills for Robin's justgames profile (/justgames:review-pr-justgames). Enabled only in that profile.",
+  "author": {
+    "name": "Robin Bryce",
+    "url": "https://github.com/robinbryce"
+  },
+  "homepage": "https://github.com/robinbryce/agentfiles",
+  "repository": "https://github.com/robinbryce/agentfiles",
+  "license": "MIT"
+}

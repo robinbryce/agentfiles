@@ -23,6 +23,9 @@ for the design.
 
 - **A skill lives in the repo of the narrowest audience that needs it.** Team
   content goes to forestrie-agents, private content to agentfiles-home.
+  Robin's own justgames skills go to `plugins/justgames` here (enabled only
+  in the justgames profile); content the whole team should share goes to
+  just-agents.
 - Skill frontmatter follows the [Agent Skills spec](https://agentskills.io/specification):
   `name` equals the directory name; `description` says what and when.
   Background rules are skills with `user-invocable: false`; add `paths:` when

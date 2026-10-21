@@ -1,11 +1,11 @@
 # Profile: justgames
 
 This session runs in Robin's **justgames** profile (`~/.claude-justgames`):
-JustGames / SentientDogs work. Team conventions come from the
-[just-agents](https://github.com/SentientDogs/just-agents) marketplace once it
-is plugin-shaped; until then this profile is deliberately minimal and the old
-wrappers remain in use (see plan 2610-01, decisions). Nothing from the
-personal, forestrie or home profiles is installed here.
+JustGames / SentientDogs work. Robin's own justgames skills arrive as the
+`justgames` plugin from agentfiles (`/justgames:review-pr-justgames` for any
+PR review in a justgames repo), plus `core`. Team conventions come from the
+[just-agents](https://github.com/SentientDogs/just-agents) checkout. Nothing
+from the personal, forestrie or home profiles is installed here.
 
 ## Planning params
 

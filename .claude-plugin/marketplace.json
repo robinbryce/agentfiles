@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentfiles",
-  "description": "Robin's cross-profile agent skills, hooks and research workflows. Profile-specific content lives in each profile's own marketplace.",
+  "description": "Robin's cross-profile agent skills, hooks and research workflows, plus the justgames profile's own plugin. Other profile-specific content lives in each profile's own marketplace.",
   "owner": {
     "name": "Robin Bryce",
     "url": "https://github.com/robinbryce"
@@ -21,6 +21,12 @@
       "source": "research",
       "description": "Research briefs and source triage for coding, standards and personal research.",
       "category": "research"
+    },
+    {
+      "name": "justgames",
+      "source": "justgames",
+      "description": "JustGames / SentientDogs PR review (/justgames:review-pr-justgames). Enabled only in the justgames profile.",
+      "category": "workflow"
     }
   ]
 }
