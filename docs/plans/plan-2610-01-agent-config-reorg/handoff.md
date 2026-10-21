@@ -17,7 +17,7 @@
 - The July branch `robin/skills-as-slash-commands` is kept and merged first (Phase 0). **Done** (merge commit on this branch).
 - Robin's 2026-10-11 choices and Q2–Q5 answers: see [decisions.md](./decisions.md).
 
-**Phase 1 status (2026-10-11):** repo restructured (commit e56ee15); `~/agentfiles` switched to this branch; `bin/agentfiles bootstrap personal forestrie --envrc` run on Robin's machine (core + research installed in both profiles; forestrie-agents skipped until it is a marketplace); `~/.claude/CLAUDE.md` stubbed and its dangling hook/permissions removed; dotfiles `profiles/common/agents.sh` sources the generated wrappers; `.envrc` exports appended at `~/Dev/personal` and `~/Dev/personal/forestrie` (need `direnv allow`).
+**Phase 1 status (2026-10-11):** repo restructured (commit 3861172); `~/agentfiles` switched to this branch; `bin/agentfiles bootstrap personal forestrie --envrc` run on Robin's machine (core + research installed in both profiles; forestrie-agents skipped until it is a marketplace); `~/.claude/CLAUDE.md` stubbed and its dangling hook/permissions removed; dotfiles `profiles/common/agents.sh` sources the generated wrappers; `.envrc` exports appended at `~/Dev/personal` and `~/Dev/personal/forestrie` (need `direnv allow`).
 
 **Phase 2 status (2026-10-11):** PR 1 open as draft, [forestrie/forestrie-agents#8](https://github.com/forestrie/forestrie-agents/pull/8). Sandboxed bootstrap against it installs forestrie-core (21 skills, 1 hook) and mattpocock-skills (3 skills).
 
@@ -26,7 +26,7 @@
 - [forestrie/forestrie-agents#9](https://github.com/forestrie/forestrie-agents/pull/9) (squash 0e414ec): `arc-*` glossary skills, copy-safe rules-of-the-road, `sync/<repo>.manifest` ×8, YAML frontmatter fix. Review added: Go library links repointed from arbor's gitignored `services/_deps` to `forestrie/go-*`; agentfiles links pinned to a SHA.
 - [forestrie/forestrie-agents#10](https://github.com/forestrie/forestrie-agents/pull/10) (squash 797688a): `workspace/AGENTS.md`, AGENTS.md as org map + contributor guide, `harness/` cut to `claude-code.md` + `other-tools.md`. Review added: the three unmapped workspace directories.
 - [forestrie/canopy#268](https://github.com/forestrie/canopy/pull/268) (merge f61729a): the synced layer, re-synced from forestrie-agents main 797688a before merge. `/context` and path-scoped rules verified; `doctor --repo --ci` clean without `--source`.
-- `bin/agentfiles` sync/doctor fixes from the pilot: commit b20b48e. Details and deviations from 01-target-layout: [decisions.md](./decisions.md#phase-2-notes-prs-23-and-the-canopy-pilot-2026-10-11).
+- `bin/agentfiles` sync/doctor fixes from the pilot: commit b1688ad. Details and deviations from 01-target-layout: [decisions.md](./decisions.md#phase-2-notes-prs-23-and-the-canopy-pilot-2026-10-11).
 
 Worktrees removed.
 
@@ -40,7 +40,7 @@ Worktrees removed.
 [forest-1#42](https://github.com/forestrie/forest-1/pull/42),
 [arbor-flux#62](https://github.com/forestrie/arbor-flux/pull/62),
 [devdocs#219](https://github.com/forestrie/devdocs/pull/219).
-Worktrees at `~/Dev/personal/forestrie/.worktrees/<repo>-agent-layer-sync`. Repo-specific fixes: devdocs `.gitignore` (ignored all of `.claude/`), mandate `.prettierignore` (`prettier --check .` failed on the copies). `bin/agentfiles` now flags a gitignored layer (commit 952cbef). See [decisions.md](./decisions.md#phase-2-step-5-rollout-2026-10-11).
+Worktrees at `~/Dev/personal/forestrie/.worktrees/<repo>-agent-layer-sync`. Repo-specific fixes: devdocs `.gitignore` (ignored all of `.claude/`), mandate `.prettierignore` (`prettier --check .` failed on the copies). `bin/agentfiles` now flags a gitignored layer (commit e2c263f). See [decisions.md](./decisions.md#phase-2-step-5-rollout-2026-10-11).
 
 **Direction change (2026-10-11): pointer, not copies.** Robin dropped the CI drift job and the per-repo copies for public repos: forestrie-agents goes public so a committed `.claude/settings.json` marketplace pointer works without auth. Private repos wait. Source split stays. See [decisions.md](./decisions.md#rethinking-d4-pointer-not-copies-2026-10-11). Sensitivity review done (nothing confidential); the one fix is [forestrie/forestrie-agents#11](https://github.com/forestrie/forestrie-agents/pull/11) (draft): MIT notice for the vendored mattpocock/skills. Robin chose no license for forestrie-agents itself.
 

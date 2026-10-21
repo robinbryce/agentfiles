@@ -169,7 +169,7 @@ skills + rules, which works whatever the answer. Clean-up done.
 - **Repos can hide the layer.** devdocs ignored `.claude/` (added 2026-08-01
   for `.claude/worktrees/`); now only `.claude/worktrees/` and
   `.claude/settings.local.json`. `sync` warns and `doctor --repo` reports
-  drift when a layer path is gitignored (agentfiles 952cbef), since a local
+  drift when a layer path is gitignored (agentfiles e2c263f), since a local
   doctor run otherwise passes while every clone lacks the files.
 - **Repo formatters must skip the copies.** mandate's `prettier --check .`
   failed on them; `.prettierignore` now lists `.agents/` and `.claude/`.
