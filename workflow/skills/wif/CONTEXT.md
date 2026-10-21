@@ -12,7 +12,7 @@ One Claude Code config dir: an agentfiles profile `~/.claude-<profile>`
 (justgames, personal, forestrie, home), named after the profile; the
 unprofiled `~/.claude` counts as personal. An Account owns exactly one Ledger
 root.
-_Avoid_: profile, login, config
+_Avoid_: login, config; say profile only for the agentfiles config dir an Account is
 
 **Scope**:
 The agentfiles routing unit derived from the working directory (`justgames`,
