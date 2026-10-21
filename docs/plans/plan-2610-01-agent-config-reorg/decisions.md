@@ -10,7 +10,7 @@ accepted as written.
 |-------|----------|
 | Home profile root | `~/Dev/personal/home`. Its `.envrc` exports `CLAUDE_CONFIG_DIR=~/.claude-home` and overrides the `~/Dev/personal/.envrc` (personal profile) above it. |
 | Home marketplace | New **private** repo `robinbryce/agentfiles-home`, cloned to `~/agentfiles-home`. |
-| justgames | Left as is on the old wrappers and scope content. Not migrated in Phases 1–3. |
+| justgames | Left as is on the old wrappers and scope content. Not migrated in Phases 1–3. **Superseded 2026-10-21:** Robin's justgames skills ship as the public `justgames@agentfiles` plugin (`plugins/justgames/`), enabled only in the justgames profile, and the profile is bootstrapped like the others. |
 | claude.ai account skills | Cross-profile core set (`planning`, `pr-descriptions`, `clickable-references`, `save-status`) **plus** the non-sensitive home admin procedures. Sensitive home content stays plugin-only. |
 | Q1 probe location | A throwaway branch of `robinbryce/draft-bryce-cose-receipts-mmr-profile`. |
 
