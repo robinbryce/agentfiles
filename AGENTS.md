@@ -61,6 +61,10 @@ See [workflow/rules/README.md](./workflow/rules/README.md).
 off" block (kickoff prompt, absolute memory/handoff paths, stay-vs-new-
 workspace advice).
 
+**Lost track of what is in flight, the session goal, or the last prompt's
+intent?** Run [`/wif`](./workflow/skills/wif/SKILL.md) — it reads the per-account
+Ledger; never answer "where are we" from recollection.
+
 **Creating a plan / ADR / ARC?** Load
 [workflow/rules/planning.md](./workflow/rules/planning.md) and use
 [`/plan-new`](./workflow/commands/plan-new.md) — do not hand-number plan files.

@@ -23,7 +23,7 @@ after every merge; fire when the natural next step is "start fresh".
    and naming any skill/workflow to use (e.g. grill-with-docs).
 3. **Absolute path references** for everything the next session needs:
    - the workspace memory index
-     (`~/.claude-personal/projects/<sanitized-cwd>/memory/MEMORY.md`)
+     (`$CLAUDE_CONFIG_DIR/projects/<sanitized-cwd>/memory/MEMORY.md`)
    - any handoff/plan docs (worktree-absolute paths)
    - tracker links (Linear issue URLs)
    - 2–4 key code anchors (absolute paths) for the next task
