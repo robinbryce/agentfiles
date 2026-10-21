@@ -13,6 +13,9 @@ class ScopeAccountTests(WifCase):
             self.assertEqual(paths.account(), "personal")
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.home / ".claude")}):
             self.assertEqual(paths.account(), "personal")
+        for p in ("forestrie", "home"):
+            with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.home / f".claude-{p}")}):
+                self.assertEqual(paths.account(), p)
 
     def test_empty_config_dir_env_falls_back_to_home(self):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": ""}):
@@ -37,6 +40,7 @@ class ScopeAccountTests(WifCase):
     def test_scope_of_mirrors_router_table(self):
         self.assertEqual(paths.scope_of(self.home / "Dev/justgames/code/x"), "justgames")
         self.assertEqual(paths.scope_of(self.home / "Dev/personal/forestrie/canopy"), "forestrie")
+        self.assertEqual(paths.scope_of(self.home / "Dev/personal/home/tax"), "home")
         self.assertEqual(paths.scope_of(self.home / "Dev/personal/other"), "personal")
         self.assertEqual(paths.scope_of(self.home), "personal")
         self.assertEqual(paths.scope_of(Path("/tmp/justgames")), "personal")   # prefix, not substring
@@ -44,7 +48,16 @@ class ScopeAccountTests(WifCase):
     def test_account_serves(self):
         self.assertTrue(paths.account_serves("justgames", "justgames"))
         self.assertFalse(paths.account_serves("justgames", "personal"))
+        self.assertTrue(paths.account_serves("forestrie", "forestrie"))
+        self.assertTrue(paths.account_serves("home", "home"))
+        self.assertFalse(paths.account_serves("forestrie", "personal"))
+        # personal stands in for a profile this machine does not have, and only then
         self.assertTrue(paths.account_serves("personal", "forestrie"))
+        self.assertTrue(paths.account_serves("personal", "home"))
+        self.assertFalse(paths.account_serves("personal", "justgames"))
+        (self.home / ".claude-forestrie").mkdir()
+        self.assertFalse(paths.account_serves("personal", "forestrie"))
+        self.assertTrue(paths.account_serves("personal", "home"))
         with mock.patch.dict(os.environ, {"WIF_ACCOUNT_SCOPES": "a b"}):
             self.assertTrue(paths.account_serves("anything", "b"))
             self.assertFalse(paths.account_serves("justgames", "justgames"))

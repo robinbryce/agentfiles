@@ -23,8 +23,11 @@ def config_dir() -> Path:
 
 
 def account(cfg: Path | None = None) -> str:
+    """~/.claude-<profile> -> <profile>; the unprofiled ~/.claude counts as personal."""
     name = (cfg or config_dir()).name
-    return {".claude-justgames": "justgames", ".claude-personal": "personal", ".claude": "personal"}.get(name, name)
+    if name == ".claude":
+        return "personal"
+    return name[len(".claude-"):] if name.startswith(".claude-") and len(name) > len(".claude-") else name
 
 
 def known_scopes() -> tuple[str, ...]:
@@ -36,7 +39,10 @@ def account_serves(acct: str, scope: str) -> bool:
     raw = os.environ.get("WIF_ACCOUNT_SCOPES")
     if raw:
         return scope in raw.split()
-    return (acct, scope) in {("justgames", "justgames"), ("personal", "personal"), ("personal", "forestrie")}
+    if acct == scope:
+        return True
+    # personal stands in for a forestrie or home profile not set up on this machine
+    return acct == "personal" and scope in ("forestrie", "home") and not (home() / f".claude-{scope}").is_dir()
 
 
 def scope_root(scope: str) -> Path | None:
@@ -45,7 +51,7 @@ def scope_root(scope: str) -> Path | None:
         return Path(override)
     h = home()
     return {"justgames": h / "Dev/justgames/code", "forestrie": h / "Dev/personal/forestrie",
-            "personal": h / "Dev/personal"}.get(scope)
+            "home": h / "Dev/personal/home", "personal": h / "Dev/personal"}.get(scope)
 
 
 def scope_of(path: Path) -> str:
@@ -60,6 +66,8 @@ def scope_of(path: Path) -> str:
             return False
     if under(h / "Dev/personal/forestrie"):
         return "forestrie"
+    if under(h / "Dev/personal/home"):
+        return "home"
     if under(h / "Dev/justgames"):
         return "justgames"
     return "personal"

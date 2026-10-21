@@ -266,7 +266,10 @@ def sessions(args: list[str], out=None) -> int:
     ctx = paths.resolve()
     want = want or ctx.id
     sd = ctx.ledger / "sessions"
-    if not sd.is_dir():
+    try:
+        if not sd.is_dir():
+            return 0
+    except OSError:
         return 0
     def mtime(f: Path) -> float:
         try:

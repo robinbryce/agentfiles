@@ -62,10 +62,28 @@ class InstallTests(WifCase):
         self.assertEqual(rc, 1); self.assertIn("not valid JSON", err)
         self.assertEqual((d / "settings.json").read_text(), "{bad")
 
-    def test_default_dirs_are_both_accounts(self):
+    def test_default_dirs_are_existing_profiles(self):
+        (self.home / ".claude-personal").mkdir(); (self.home / ".claude-forestrie").mkdir()
         rc, out, err = self.inst("--bin", str(self.base / "bin"))
-        self.assertIn(str(self.home / ".claude-justgames" / "settings.json"), out)
-        self.assertIn(str(self.home / ".claude-personal" / "settings.json"), out)
+        for p in ("justgames", "personal", "forestrie"):
+            self.assertIn(str(self.home / f".claude-{p}" / "settings.json"), out)
+        self.assertNotIn(".claude-home", out)
+
+    def test_no_profile_dirs_is_an_error(self):
+        self.cfg.rmdir()
+        rc, out, err = self.inst("--bin", str(self.base / "bin"))
+        self.assertEqual(rc, 1); self.assertIn("--config-dir", err)
+
+    def test_hooks_from_another_checkout_are_replaced(self):
+        old = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "/old/wif/scripts/wif hook"},
+                                             {"type": "command", "command": "mine"}]}]},
+               "statusLine": {"type": "command", "command": "/old/wif/scripts/wif statusline"}}
+        d = self.settings("F", old)
+        self.inst("--apply", "--config-dir", str(d), "--bin", str(self.base / "bin"))
+        cmds = [x["command"] for ev in self.read(d)["hooks"].values() for g in ev for x in g["hooks"]]
+        self.assertNotIn("/old/wif/scripts/wif hook", cmds); self.assertIn("mine", cmds)
+        self.assertEqual(sum(c.endswith("/scripts/wif hook") for c in cmds), 4)
+        self.assertNotIn("/old/", self.read(d)["statusLine"]["command"])
 
     def test_unknown_arg(self):
         rc, out, err = self.inst("--nope")

@@ -1,21 +1,24 @@
 # wif — work in flight
 
 The language of the `wif` skill: a tracker for the many concurrent workstreams
-Robin runs across two Claude accounts and several herdr worktrees. It exists so
+Robin runs across several Claude profiles and herdr worktrees. It exists so
 a session can always answer "which stream am I in, what is this session for,
 what was the last prompt for, and where does that sit in the stream".
 
 ## Language
 
 **Account**:
-One Claude Code identity (justgames or personal). An Account owns exactly one
-Ledger root.
-_Avoid_: profile, login, config
+One Claude Code config dir: an agentfiles profile `~/.claude-<profile>`
+(justgames, personal, forestrie, home), named after the profile; the
+unprofiled `~/.claude` counts as personal. An Account owns exactly one Ledger
+root.
+_Avoid_: login, config; say profile only for the agentfiles config dir an Account is
 
 **Scope**:
 The agentfiles routing unit derived from the working directory (`justgames`,
-`forestrie`, `personal`). An Account serves one or more Scopes; a Scope is
-never served by two Accounts.
+`forestrie`, `home`, `personal`). Each Account serves the Scope of its own
+name; personal also serves forestrie and home on a machine without those
+profiles. A Scope is never served by two Accounts.
 _Avoid_: project, workspace, environment
 
 **Ledger**:

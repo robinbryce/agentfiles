@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -77,7 +78,7 @@ class WifCase(unittest.TestCase):
         return c
 
     def memory_dir(self, key: str, files: int = 1) -> Path:
-        san = str(self.root).replace("/", "-").replace(".", "-")
+        san = re.sub(r"[^a-zA-Z0-9]", "-", str(self.root))   # Claude Code's sanitizer
         md = self.cfg / "projects" / f"{san}--worktrees-herdr-{key}" / "memory"
         md.mkdir(parents=True, exist_ok=True)
         for i in range(files):
