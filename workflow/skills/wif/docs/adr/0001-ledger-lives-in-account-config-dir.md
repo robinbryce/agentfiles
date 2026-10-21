@@ -13,3 +13,10 @@ Ledger for free, and a mismatched account simply records nothing. Consequence:
 the Ledger is machine-local and unversioned; durable facts still belong in the
 in-repo conventions (plan `handoff.md`, `/save-status`, auto memory) that the
 Stream file points at.
+
+Update 2026-10-21: agentfiles now splits the personal account into profiles
+(`~/.claude-personal`, `~/.claude-forestrie`, `~/.claude-home`). Each profile
+is an Account for `wif`'s purposes and serves the Scope of its own name, so the
+forestrie Ledger lives under `~/.claude-forestrie`. Personal keeps serving
+forestrie and home only on a machine where those profiles do not exist, so
+one Scope still never has two Ledgers.

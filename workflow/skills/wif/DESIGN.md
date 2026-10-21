@@ -13,7 +13,7 @@ listed so they can be changed deliberately rather than rediscovered.
 | 3 | Stream status | `active \| parked \| blocked \| landed \| closed`; scan may *propose* `landed?`, nothing proposes closed, only Robin sets parked | plan vocabulary; open/closed |
 | 4 | Session state | one JSON file per session id; stream file holds only durable state; handoff folds session into stream | inline in stream file; no intent ring |
 | 5 | Intent capture | inferred by default: hooks record prompt/outcome first lines mechanically, the model records an `intent` when a prompt starts new work; `wif mark` is the override | explicit-only; prompt-type classifier hook (deferred) |
-| 6 | Hook install | permanent in both accounts' `settings.json` via `wif install` (diff first); hooks no-op fast when no Backing resolves | skill-frontmatter hooks (session-only); per-task settings |
+| 6 | Hook install | permanent in every profile's `settings.json` via `wif install` (diff first); hooks no-op fast when no Backing resolves | skill-frontmatter hooks (session-only); per-task settings |
 | 7 | Account/scope mismatch | warn and record nothing; a Ledger write never crosses accounts | hard refuse; record anyway |
 | 8 | Dashboard surface | terminal (`wif show` as the skill's instructed first step) + statusline; artifact deferred to phase 4 | artifact first; dynamic `!` injection (aborts the skill when denied) |
 

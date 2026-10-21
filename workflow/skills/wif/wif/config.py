@@ -4,7 +4,9 @@ import os
 
 STATUSES = ("active", "parked", "blocked", "landed", "closed")
 NOTE_KINDS = ("followup", "tangent", "reminder")
-DEFAULT_SCOPES = ("justgames", "forestrie", "personal")
+DEFAULT_SCOPES = ("justgames", "forestrie", "home", "personal")
+# agentfiles profiles; each is a config dir ~/.claude-<profile> and serves the Scope of the same name
+PROFILES = ("justgames", "personal", "forestrie", "home")
 
 
 def _int(name: str, default: int) -> int:

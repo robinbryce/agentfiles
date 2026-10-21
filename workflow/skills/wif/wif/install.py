@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import paths
+from . import config, paths
 
 
 def entry_point() -> Path:
@@ -25,6 +25,11 @@ def patch_for(ep: Path) -> dict:
                       "SessionEnd": hk(5)}}
 
 
+def is_wif_hook(cmd, hook_cmd: str) -> bool:
+    """This checkout's hook, or one installed from another checkout of wif."""
+    return isinstance(cmd, str) and (cmd == hook_cmd or cmd == "wif hook" or cmd.endswith("/scripts/wif hook"))
+
+
 def strip_wif(settings: dict, hook_cmd: str) -> dict:
     out = copy.deepcopy(settings)
     hooks = out.get("hooks")
@@ -36,7 +41,7 @@ def strip_wif(settings: dict, hook_cmd: str) -> dict:
             if not isinstance(g, dict):
                 continue
             inner = [x for x in (g.get("hooks") if isinstance(g.get("hooks"), list) else [])
-                     if not (isinstance(x, dict) and x.get("command") == hook_cmd)]
+                     if not (isinstance(x, dict) and is_wif_hook(x.get("command"), hook_cmd))]
             if inner:
                 g2 = dict(g); g2["hooks"] = inner; kept.append(g2)
         if kept:
@@ -89,7 +94,9 @@ def main(args: list[str], out=None, err=None) -> int:
             print(f"wif: unknown arg {a}", file=err); return 1
     if not dirs:
         h = paths.home()
-        dirs = [h / ".claude-justgames", h / ".claude-personal"]
+        dirs = [h / f".claude-{p}" for p in config.PROFILES if (h / f".claude-{p}").is_dir()]
+        if not dirs:
+            print("wif: no ~/.claude-<profile> config dirs found; pass --config-dir", file=err); return 1
     ep = entry_point()
     rc = 0
     for d in dirs:

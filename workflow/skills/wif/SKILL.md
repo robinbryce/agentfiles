@@ -1,8 +1,8 @@
 ---
 name: wif
-description: Work-in-flight tracker for Robin's many concurrent workstreams across herdr worktrees and two Claude accounts. Answers "which stream am I in, what is this session for, what was the last prompt for, where does it sit in the stream, and what else is open" from an on-disk Ledger kept per account and scope. Use when Robin asks where things stand, what is in flight, what the current goal or next step is, to set a session goal, to note a followup / tangent / reminder mid-stream, to hand off or clear a session, to adopt or park a worktree, or runs it under /loop as a tick. Also use when a session starts in a herdr container and the goal is unclear.
+description: Work-in-flight tracker for Robin's many concurrent workstreams across herdr worktrees and Claude profiles (justgames, personal, forestrie, home). Answers "which stream am I in, what is this session for, what was the last prompt for, where does it sit in the stream, and what else is open" from an on-disk Ledger kept per account and scope. Use when Robin asks where things stand, what is in flight, what the current goal or next step is, to set a session goal, to note a followup / tangent / reminder mid-stream, to hand off or clear a session, to adopt or park a worktree, or runs it under /loop as a tick. Also use when a session starts in a herdr container and the goal is unclear.
 argument-hint: "[status|start|mark|note|tangent|remind|scan|tick|handoff|adopt|install|where]"
-allowed-tools: Bash(wif *) Bash(/Users/robin/agentfiles/workflow/skills/wif/scripts/wif *) Bash(git *) Bash(gh pr *) Bash(ls *) Bash(cat *) Read Grep Glob
+allowed-tools: Bash(wif *) Bash(*/skills/wif/scripts/wif *) Bash(git *) Bash(gh pr *) Bash(ls *) Bash(cat *) Read Grep Glob
 ---
 
 # wif — work in flight
@@ -17,7 +17,7 @@ allowed-tools: Bash(wif *) Bash(/Users/robin/agentfiles/workflow/skills/wif/scri
 /wif handoff                  land the plane: fold session → stream, write kickoff, advise /clear
 /wif adopt <task> [-s parked] create a stream for an untracked container
 /wif where                    what account/scope/stream this directory resolves to
-/wif install [--apply]        merge hooks + statusline into both accounts' settings.json
+/wif install [--apply]        merge hooks + statusline into every profile's settings.json
 ```
 
 Glossary: [CONTEXT.md](./CONTEXT.md). Decisions: [DESIGN.md](./DESIGN.md).
@@ -26,7 +26,7 @@ Dashboard spec: [references/dashboard.md](./references/dashboard.md).
 Handoff protocol: [references/handoff-protocol.md](./references/handoff-protocol.md).
 
 CLI: `wif` (linked into `~/.local/bin` by install; entry point
-`/Users/robin/agentfiles/workflow/skills/wif/scripts/wif`, code in `wif/`,
+`scripts/wif` in this skill's directory, code in `wif/`,
 Python 3.9+ stdlib only). `wif help` lists every subcommand and its flags.
 
 ## 0. First action, every invocation
