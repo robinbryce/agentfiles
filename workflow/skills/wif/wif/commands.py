@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import config, paths
 from .ledger import (Stream, ctx_file, load_json, now_iso, ring_last, safe_sid, session_ensure,
-                     session_file, session_save, today)
+                     session_file, session_save, stream_lock, today)
 
 
 class WifError(Exception):
@@ -85,10 +85,10 @@ def adopt(args: list[str], out=None) -> int:
     cwd = None
     if target and target != ".":
         root = base.root
-        if Path(target).is_dir():
+        if root and (root / paths.HERDR_DIR / target).is_dir() and "/" not in target:
+            cwd = str(root / paths.HERDR_DIR / target)        # a container name wins
+        elif Path(target).is_dir():
             cwd = target
-        elif root and (root / paths.HERDR_DIR / target).is_dir():
-            cwd = str(root / paths.HERDR_DIR / target)
         else:
             raise WifError(f"no container '{target}' under {root}/{paths.HERDR_DIR}")
     ctx = paths.resolve(cwd, scope or None)
@@ -97,28 +97,29 @@ def adopt(args: list[str], out=None) -> int:
     if ctx.kind == "none":
         raise WifError("no backing here (not a herdr container, not a git repo)")
     paths.ledger_init(ctx.scope, ctx.config_dir)
-    created = False
-    if not ctx.stream_file.exists() and ctx.archive_file.exists():
-        os.replace(ctx.archive_file, ctx.stream_file)
-        print("re-opened from archive", file=out)
-    if ctx.stream_file.exists():
-        s = Stream.load(ctx.stream_file)
-    else:
-        s = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path), status or "active")
-        created = True
-    if goal: s.set("goal", goal)
-    if parent: s.set("parent", parent)
-    if nxt: s.set("next", nxt)
-    if status:
-        s.set("status", status)
-    elif not created and s.get("status") == "closed":
-        s.set("status", "active")
-    s.set("updated", today())
-    s.save()
-    if s.get("status") == "closed":
-        _archive(ctx, out)
-    else:
-        print(str(ctx.stream_file), file=out)
+    with stream_lock(ctx.stream_file):
+        created = False
+        if not ctx.stream_file.exists() and ctx.archive_file.exists():
+            os.replace(ctx.archive_file, ctx.stream_file)
+            print("re-opened from archive", file=out)
+        if ctx.stream_file.exists():
+            s = Stream.load(ctx.stream_file)
+        else:
+            s = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path), status or "active")
+            created = True
+        if goal: s.set("goal", goal)
+        if parent: s.set("parent", parent)
+        if nxt: s.set("next", nxt)
+        if status:
+            s.set("status", status)
+        elif not created and s.get("status") == "closed":
+            s.set("status", "active")
+        s.set("updated", today())
+        s.save()
+        if s.get("status") == "closed":
+            _archive(ctx, out)
+        else:
+            print(str(ctx.stream_file), file=out)
     return 0
 
 
@@ -143,13 +144,14 @@ def mark(args: list[str], out=None) -> int:
     if status and status not in config.STATUSES:
         raise WifError("bad status (" + "|".join(config.STATUSES) + ")")
     ctx = _ctx_for_write()
-    s = _stream_for_write(ctx)
-    if status: s.set("status", status)
-    if pos: s.set("position", pos)
-    if nxt: s.set("next", nxt)
-    if done: s.section_append("Now", f"- done {today()}: {done}"); s.set("updated", today())
-    if status or pos or nxt or done:
-        s.save()
+    with stream_lock(ctx.stream_file):
+        s = _stream_for_write(ctx)
+        if status: s.set("status", status)
+        if pos: s.set("position", pos)
+        if nxt: s.set("next", nxt)
+        if done: s.section_append("Now", f"- done {today()}: {done}"); s.set("updated", today())
+        if status or pos or nxt or done:
+            s.save()
     if goal or intent:
         sid = sid or s.get("last_session")
         if not sid:
@@ -182,7 +184,10 @@ def _due_from(when: str) -> str:
     if when == "landed":
         return "landed"
     if when.startswith("+") and when.endswith("d") and when[1:-1].isdigit():
-        return (dt.date.today() + dt.timedelta(days=int(when[1:-1]))).isoformat()
+        try:
+            return (dt.date.today() + dt.timedelta(days=int(when[1:-1]))).isoformat()
+        except OverflowError:
+            raise WifError("remind: that many days is not a date")
     try:
         return dt.date.fromisoformat(when).isoformat()
     except ValueError:
@@ -197,11 +202,12 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
         if not needle:
             raise WifError("--done needs a substring")
         ctx = _ctx_for_write()
-        s = _stream_for_write(ctx)
-        removed = s.section_remove("Notes", needle)
-        if removed is None:
-            raise WifError(f"no note on {ctx.id} contains '{needle}'")
-        s.set("updated", today()); s.save()
+        with stream_lock(ctx.stream_file):
+            s = _stream_for_write(ctx)
+            removed = s.section_remove("Notes", needle)
+            if removed is None:
+                raise WifError(f"no note on {ctx.id} contains '{needle}'")
+            s.set("updated", today()); s.save()
         print(f"removed from {ctx.id}: {removed}", file=out)
         return 0
     due = ""
@@ -213,10 +219,11 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
     if not text:
         raise WifError("note text required")
     ctx = _ctx_for_write()
-    s = _stream_for_write(ctx)
     tag = f"[{kind}{' due=' + due if due else ''}]"
-    s.section_append("Notes", f"- {tag} {today()} {text}")
-    s.set("updated", today()); s.save()
+    with stream_lock(ctx.stream_file):
+        s = _stream_for_write(ctx)
+        s.section_append("Notes", f"- {tag} {today()} {text}")
+        s.set("updated", today()); s.save()
     print(f"noted on {ctx.id}: {tag} {text}", file=out)
     return 0
 
@@ -261,8 +268,12 @@ def sessions(args: list[str], out=None) -> int:
     sd = ctx.ledger / "sessions"
     if not sd.is_dir():
         return 0
-    files = sorted((f for f in sd.glob("*.json") if not f.name.endswith(".ctx.json")),
-                   key=lambda f: f.stat().st_mtime, reverse=True)
+    def mtime(f: Path) -> float:
+        try:
+            return f.stat().st_mtime
+        except OSError:
+            return 0.0
+    files = sorted((f for f in sd.glob("*.json") if not f.name.endswith(".ctx.json")), key=mtime, reverse=True)
     shown = 0
     for f in files:
         s = load_json(f, None)

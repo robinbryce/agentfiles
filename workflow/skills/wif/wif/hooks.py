@@ -7,7 +7,7 @@ import sys
 
 from . import config, paths
 from .ledger import (Stream, first_line, now_iso, ring_last, session_ensure, session_file,
-                     session_prev_for, session_save, load_json, safe_sid)
+                     session_prev_for, session_save, load_json, safe_sid, stream_lock)
 
 
 def _ctx_line(stream: Stream, sess: dict, sid: str) -> str:
@@ -43,8 +43,10 @@ def handle(event: dict) -> dict | None:
     ctx = paths.resolve(cwd)
     if not ctx.bindable():
         return None
+    # Only the first prompt creates a stream; other events need one to exist.
+    if ev != "UserPromptSubmit" and not ctx.stream_file.exists():
+        return None
     paths.ledger_init(ctx.scope, ctx.config_dir)
-    stream = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path))
     led = ctx.ledger
 
     if ev == "UserPromptSubmit":
@@ -55,11 +57,14 @@ def handle(event: dict) -> dict | None:
             ring.append({"t": now_iso(), "prompt": first, "intent": None, "pinned": False, "outcome": None})
             del ring[:-config.ring()]
             session_save(led, sess)
-        if stream.get("last_session") != sid:
-            stream.set("last_session", sid, touch=False)
-            stream.save()
+        with stream_lock(ctx.stream_file):             # RMW of last_session vs. other sessions' writes
+            stream = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path))
+            if stream.get("last_session") != sid:
+                stream.set("last_session", sid, touch=False)
+                stream.save()
         return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
                                        "additionalContext": _ctx_line(stream, sess, sid)}}
+    stream = Stream.load(ctx.stream_file)
 
     if ev == "Stop":
         sess = load_json(session_file(led, sid), None)
@@ -75,6 +80,10 @@ def handle(event: dict) -> dict | None:
     if ev == "SessionStart":
         src = event.get("source") or "startup"
         sess = session_ensure(led, sid, ctx.id, ctx.scope)
+        if src != "compact" and sess.get("ended"):      # a resumed session is live again
+            sess["ended"] = None
+            sess.pop("end_reason", None)
+            session_save(led, sess)
         prev = None if src == "compact" else session_prev_for(led, stream, exclude=sid)
         body = [f"[wif] session {src} on stream {ctx.id} ({stream.get('status')})",
                 f"goal: {stream.get('goal')}", f"next: {stream.get('next')}", f"position: {stream.get('position')}"]
@@ -115,7 +124,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         out = handle(event)
         if out:
-            print(json.dumps(out, ensure_ascii=False))
-    except Exception:
+            sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\n")
+            sys.stdout.flush()
+    except BaseException:                      # never let a hook fail loudly
         pass
     return 0

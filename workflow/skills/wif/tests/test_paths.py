@@ -14,6 +14,22 @@ class ScopeAccountTests(WifCase):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.home / ".claude")}):
             self.assertEqual(paths.account(), "personal")
 
+    def test_empty_config_dir_env_falls_back_to_home(self):
+        with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": ""}):
+            self.assertEqual(paths.config_dir(), self.home / ".claude")
+            self.assertEqual(paths.account(), "personal")
+
+    def test_task_name_is_nfc_normalised(self):
+        import unicodedata
+        nfd = unicodedata.normalize("NFD", "café")
+        c = self.container(nfd)
+        self.assertEqual(paths.backing_of(c)[1], unicodedata.normalize("NFC", "café"))
+
+    def test_config_tunables_fall_back_on_junk(self):
+        from wif import config
+        with mock.patch.dict(os.environ, {"WIF_RING": "lots", "WIF_STALE_DAYS": ""}):
+            self.assertEqual((config.ring(), config.stale_days()), (10, 14))
+
     def test_relative_config_dir_is_made_absolute(self):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": "rel-cfg"}):
             self.assertTrue(paths.config_dir().is_absolute())

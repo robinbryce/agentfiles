@@ -1,6 +1,8 @@
 import contextlib
 import json
 import os
+import shutil
+import subprocess
 import time
 from unittest import mock
 
@@ -9,9 +11,12 @@ from wif.ledger import Stream
 from .base import WifCase
 
 
+REAL_RUN = proc.run          # captured before any patching
+
+
 def fake_run(gh_rc=0, gh_out="[]", herdr_out=None):
     """Intercept gh / herdr; pass git through to the real subprocess."""
-    real = proc.run
+    real = REAL_RUN
     def _run(args, cwd=None, timeout=20):
         if args[0] == "gh":
             return gh_rc, gh_out
@@ -24,9 +29,8 @@ def fake_run(gh_rc=0, gh_out="[]", herdr_out=None):
 class ScanTests(WifCase):
     def setUp(self):
         super().setUp()
-        p = mock.patch("wif.proc.run", fake_run()); p.start(); self.addCleanup(p.stop)
-        self._cd = contextlib.chdir(self.root); self._cd.__enter__()
-        self.addCleanup(self._cd.__exit__, None, None, None)
+        self.patch_run(fake_run())
+        self.cd(self.root)
 
     def index(self, *args):
         rc, out, err = self.capture(scan.main, list(args))
@@ -51,7 +55,7 @@ class ScanTests(WifCase):
         self.assertIn("no-remote", t["two"]["flags"])
         self.assertEqual(t["two"]["ahead"], None)
         self.assertEqual(idx["unbound_memory"], [])
-        self.assertEqual(t["empty"]["last_activity_ts"] > 0, True)
+        self.assertGreater(t["empty"]["last_activity_ts"], 0)
 
     def test_root_that_is_itself_a_repo_does_not_make_containers_direct(self):
         self.git_repo(self.root)
@@ -120,7 +124,6 @@ class ScanTests(WifCase):
 
     def test_herdr_join_stale_sessions_prune_and_flags(self):
         c = self.container("eng-5")
-        import subprocess
         subprocess.run(["git", "-C", str(c / "repo-a"), "commit", "-q", "--allow-empty", "-m", "old"], check=True,
                        env={**os.environ, "GIT_COMMITTER_DATE": "2020-01-01T00:00:00", "GIT_AUTHOR_DATE": "2020-01-01T00:00:00"})
         ws = json.dumps({"result": {"workspaces": [{"label": "ENG-5", "agent_status": "idle"}]}})
@@ -144,6 +147,30 @@ class ScanTests(WifCase):
         (self.ledger / "streams").mkdir(parents=True); (self.ledger / "streams" / "junk.md").write_text("no frontmatter")
         self.assertEqual(len(self.index()["containers"]), 1)
 
+    def test_sanitizer_matches_claude_code_and_binds_odd_names(self):
+        self.assertEqual(scan.sanitize("/a/b.c_d e"), "-a-b-c-d-e")
+        self.container("eng_2407 x"); self.container("eng")
+        self.memory_dir("eng-2407-x-repo-a"); self.memory_dir("eng-repo-a")
+        t = self.by_task(self.index())
+        self.assertEqual(len(t["eng_2407 x"]["memory"]), 1)
+        self.assertEqual(len(t["eng"]["memory"]), 1)
+
+    def test_vanished_container_mid_scan_is_tolerated(self):
+        self.container("gone"); self.container("stays")
+        real_facts = scan.git_facts
+        def facts(repo):
+            if repo.name == "repo-a" and "gone" in str(repo):
+                shutil.rmtree(self.cont_root / "gone")
+            return real_facts(repo)
+        with mock.patch("wif.scan.git_facts", facts):
+            idx = self.index()
+        self.assertIn("stays", self.by_task(idx))
+
+    def test_scope_flag_served_path(self):
+        self.container("eng-8")
+        rc, out, err = self.capture(scan.main, ["--scope", "justgames", "--quiet"])
+        self.assertEqual(rc, 0); self.assertTrue((self.ledger / "index.json").exists())
+
     def test_scope_flag_validation_and_unserved(self):
         rc, out, err = self.capture(scan.main, ["--scope", "bogus"])
         self.assertEqual(rc, 1); self.assertIn("unknown scope", err)
@@ -162,10 +189,9 @@ class ScanTests(WifCase):
 class ShowTests(WifCase):
     def setUp(self):
         super().setUp()
-        p = mock.patch("wif.proc.run", fake_run()); p.start(); self.addCleanup(p.stop)
+        self.patch_run(fake_run())
         self.c = self.container("eng-1")
-        self._cd = contextlib.chdir(self.c); self._cd.__enter__()
-        self.addCleanup(self._cd.__exit__, None, None, None)
+        self.cd(self.c)
 
     def scan(self):
         self.capture(scan.main, ["--quiet"])
@@ -200,19 +226,38 @@ class ShowTests(WifCase):
         brief = self.show("--brief", "--session", "s1")
         self.assertIn("due:", brief); self.assertFalse(any(l.startswith("streams") for l in brief))
 
-    def test_budget_and_overflow_lines(self):
-        for i in range(30):
+    def test_budget_cuts_streams_table_and_all_lifts_it(self):
+        for i in range(45):
             c = self.container(f"t{i:02d}")
-            if i < 20:
-                Stream.create(self.ledger / "streams" / f"t{i:02d}.md", f"t{i:02d}", "justgames", "herdr", str(c))
+            s = Stream.create(self.ledger / "streams" / f"t{i:02d}.md", f"t{i:02d}", "justgames", "herdr", str(c))
+            if i < 6:
+                s.section_append("Notes", "- [reminder due=2000-01-01] 2000-01-01 due"); s.section_append("Notes", "- [tangent] 2000-01-01 t"); s.save()
+        for i in range(10):
+            self.container(f"u{i}")
+        self.memory_dir("zzz-unbound")
         self.scan()
         lines = self.show()
-        self.assertLessEqual(len(lines), 40)
-        self.assertTrue(any("more (wif show --all)" in l for l in lines))
+        self.assertEqual(len(lines), 40)
+        cut = [i for i, l in enumerate(lines) if l.startswith("  … ") and "more (wif show --all)" in l]
+        streams_hdr = next(i for i, l in enumerate(lines) if l.startswith("streams ("))
+        untracked_hdr = next(i for i, l in enumerate(lines) if l.startswith("untracked containers"))
+        self.assertTrue(any(streams_hdr < i < untracked_hdr for i in cut), "streams table was not the section cut")
         full = self.show("--all")
-        self.assertGreater(len(full), len(lines))
+        self.assertGreater(len(full), 40)
         self.assertFalse(any("more (wif show --all)" in l for l in full))
-        self.assertTrue(any(l.startswith("  t19 ") for l in full))
+        self.assertTrue(any(l.startswith("  t44 ") for l in full))
+
+    def test_changes_over_fifteen_and_header_extras(self):
+        for i in range(18):
+            self.container(f"c{i:02d}")
+        self.scan(); self.show("--changes")
+        for i in range(18):
+            r = self.cont_root / f"c{i:02d}" / "repo-a"; (r / "f").write_text("x"); self.git(r, "add", "f")
+        self.scan()
+        lines = self.show("--changes")
+        self.assertTrue(any(l.startswith("changed (18):") for l in lines)); self.assertIn("  … 3 more", lines)
+        idx = ledger.load_json(self.ledger / "index.json", {}); idx["pr_failures"] = ["a/b"]; ledger.dump_json(self.ledger / "index.json", idx)
+        self.assertIn("gh failed ×1", self.show()[0])
 
     def test_changes_baseline_nochange_changed_removed(self):
         self.container("other"); self.scan()
@@ -221,7 +266,7 @@ class ShowTests(WifCase):
         (self.c / "repo-a" / "f").write_text("x"); self.git(self.c / "repo-a", "add", "f"); self.scan()
         lines = self.show("--changes")
         self.assertTrue(any(l.startswith("changed (1):") for l in lines)); self.assertTrue(any("eng-1" in l and "dirty" in l for l in lines))
-        import shutil; shutil.rmtree(self.cont_root / "other"); self.scan()
+        shutil.rmtree(self.cont_root / "other"); self.scan()
         self.assertTrue(any(l.startswith("removed (1): other") for l in self.show("--changes")))
 
     def test_due_reminder_does_not_block_no_changes(self):

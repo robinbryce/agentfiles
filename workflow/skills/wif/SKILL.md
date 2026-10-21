@@ -27,7 +27,7 @@ Handoff protocol: [references/handoff-protocol.md](./references/handoff-protocol
 
 CLI: `wif` (linked into `~/.local/bin` by install; entry point
 `/Users/robin/agentfiles/workflow/skills/wif/scripts/wif`, code in `wif/`,
-Python 3.11+ stdlib only). `wif help` lists every subcommand and its flags.
+Python 3.9+ stdlib only). `wif help` lists every subcommand and its flags.
 
 ## 0. First action, every invocation
 
@@ -51,9 +51,9 @@ the dashboard.
 - **Scan and show never mutate streams.** Scan rebuilds `index.json`, prunes
   old session files and proposes flags (`stale`, `dirty`, `unpushed`,
   `unpublished`, `no-remote`, `landed?`, `over-cap`, `bad-status`). Streams
-  are written only by `mark`, `adopt`, `note` and the hook's create-on-first-
-  prompt. A closed (archived) stream is never recreated by hooks; `wif adopt`
-  re-opens it.
+  are written only by `mark`, `adopt`, `note` and the hook on the first
+  prompt in a container (no other hook event creates one). A closed
+  (archived) stream is never recreated by hooks; `wif adopt` re-opens it.
 - **Keep it short.** Dashboard ≤ 40 lines, stream file ≤ 120 lines, kickoff ≤ 25.
 
 ## 2. Inference duties (every session in a stream, with or without /wif)

@@ -1,6 +1,7 @@
 """Account, Scope and Backing resolution. Pure functions of env + filesystem."""
 from __future__ import annotations
 import os
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -85,12 +86,12 @@ def backing_of(cwd: Path) -> tuple[str, str, Path | None]:
     if HERDR_DIR in parts:
         i = parts.index(HERDR_DIR)
         if i + 1 < len(parts):
-            task = parts[i + 1]
+            task = unicodedata.normalize("NFC", parts[i + 1])
             return "herdr", task, Path(*parts[: i + 2])
-    rc, top = proc.git(str(phys), "rev-parse", "--show-toplevel")
+    rc, top = proc.git(str(phys), "rev-parse", "--show-toplevel", timeout=3)
     if rc != 0 or not top:
         return "none", "", None
-    rc, common = proc.git(str(phys), "rev-parse", "--git-common-dir")
+    rc, common = proc.git(str(phys), "rev-parse", "--git-common-dir", timeout=3)
     if rc != 0 or not common:
         return "none", "", None
     cpath = Path(common)
@@ -104,10 +105,10 @@ def backing_of(cwd: Path) -> tuple[str, str, Path | None]:
         repo = Path(top).name                       # submodule checkout
     else:
         repo = cpath.parent.name
-    rc, branch = proc.git(str(phys), "symbolic-ref", "--short", "-q", "HEAD")
+    rc, branch = proc.git(str(phys), "symbolic-ref", "--short", "-q", "HEAD", timeout=3)
     if rc != 0 or not branch:
         branch = "detached"
-    sid = f"{repo}--{branch.replace('/', '-').replace(' ', '-')}"
+    sid = unicodedata.normalize("NFC", f"{repo}--{branch.replace('/', '-').replace(' ', '-')}")
     return "repo", sid, Path(top)
 
 

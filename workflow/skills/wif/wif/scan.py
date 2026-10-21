@@ -92,7 +92,8 @@ def herdr_workspaces() -> dict:
 
 
 def sanitize(p: str) -> str:
-    return re.sub(r"[/.]", "-", p)
+    """Claude Code's project-dir sanitizer: every non-alphanumeric byte -> '-'."""
+    return re.sub(r"[^a-zA-Z0-9]", "-", p)
 
 
 def prune_sessions(ledger: Path, now: float) -> int:
@@ -148,7 +149,7 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
         d["file"] = str(sf); d["notes"] = s.notes(); d["_lines"] = s.line_count
         try:
             d["_updated_ts"] = time.mktime(time.strptime(d.get("updated", ""), "%Y-%m-%d"))
-        except ValueError:
+        except (ValueError, OverflowError):
             d["_updated_ts"] = 0
         streams[d.get("id") or sf.stem] = d
 
@@ -184,6 +185,8 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
             except OSError:
                 entries = []
             repos, other = [], []
+            if not path.is_dir():
+                continue
             if is_worktree_root(path):
                 repos.append(git_facts(path)); shape = "direct"
             else:
@@ -215,7 +218,11 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
     for c in containers:
         task, repos = c["task"], c["repos"]
         last_commit = max((r["last_commit_ts"] for r in repos), default=0)
-        last_ts = last_commit if repos else int(Path(c["path"]).stat().st_mtime)
+        try:
+            dir_ts = int(Path(c["path"]).stat().st_mtime)
+        except OSError:                     # container vanished mid-scan
+            dir_ts = 0
+        last_ts = last_commit if repos else dir_ts
         dirty = sum(max(r["dirty"], 0) for r in repos)
         ahead_known = bool(repos) and all(r["ahead"] is not None for r in repos)
         ahead = sum(r["ahead"] or 0 for r in repos)

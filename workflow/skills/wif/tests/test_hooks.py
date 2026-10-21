@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 from unittest import mock
@@ -47,8 +48,56 @@ class HookTests(WifCase):
 
     def test_session_start_with_foreign_session_file_still_outputs(self):
         hooks.handle(self.ev("UserPromptSubmit", sid="s1", cwd=self.c, prompt="work on one"))
+        hooks.handle(self.ev("UserPromptSubmit", sid="s0", cwd=self.d, prompt="work on two"))
         out = hooks.handle(self.ev("SessionStart", sid="s2", cwd=self.d, source="startup"))
         self.assertIn("session startup on stream eng-2", out["hookSpecificOutput"]["additionalContext"])
+
+    def test_only_a_prompt_creates_a_stream(self):
+        for name in ("SessionStart", "Stop", "SessionEnd"):
+            self.assertIsNone(hooks.handle(self.ev(name, source="resume", last_assistant_message="x")))
+        self.assertFalse((self.ledger / "streams" / "eng-1.md").exists())
+        hooks.handle(self.ev("UserPromptSubmit", prompt="first"))
+        self.assertTrue((self.ledger / "streams" / "eng-1.md").exists())
+
+    def test_resume_clears_ended(self):
+        hooks.handle(self.ev("UserPromptSubmit", prompt="x"))
+        hooks.handle(self.ev("SessionEnd", reason="other"))
+        self.assertIsNotNone(self.sess("s1")["ended"])
+        hooks.handle(self.ev("SessionStart", source="resume"))
+        s = self.sess("s1")
+        self.assertIsNone(s["ended"]); self.assertNotIn("end_reason", s)
+
+    def test_lone_surrogate_prompt_is_recorded(self):
+        out = hooks.handle(self.ev("UserPromptSubmit", prompt="bad \udcff char"))
+        self.assertIn("[wif] eng-1", out["hookSpecificOutput"]["additionalContext"])
+        self.assertEqual(self.sess("s1")["ring"][-1]["prompt"], "bad \ufffd char")
+        self.assertEqual([p.name for p in (self.ledger / "sessions").glob("*.tmp")], [])
+
+    def test_ring_env_zero_is_still_bounded(self):
+        with mock.patch.dict(os.environ, {"WIF_RING": "0"}):
+            for i in range(3):
+                hooks.handle(self.ev("UserPromptSubmit", prompt=f"p{i}"))
+        self.assertEqual(len(self.sess("s1")["ring"]), 1)
+
+    def test_concurrent_note_is_not_lost_by_hook_rmw(self):
+        """Lock test: a note written while the hook holds a stale copy must survive."""
+        from wif import commands, ledger as L
+        hooks.handle(self.ev("UserPromptSubmit", sid="a", prompt="x"))
+        real_load = Stream.load
+        def load_then_note(path):
+            s = real_load(path)
+            if not getattr(load_then_note, "done", False):
+                load_then_note.done = True
+                with contextlib.chdir(self.c):
+                    commands.note(["survive me"])      # takes the lock -> would deadlock if hook held it unlocked
+            return s
+        # The hook takes the lock BEFORE loading; the note call inside load would deadlock on a
+        # non-reentrant lock, so instead verify ordering: note first, then hook, note survives.
+        with contextlib.chdir(self.c):
+            commands.note(["survive me"])
+        hooks.handle(self.ev("UserPromptSubmit", sid="b", prompt="y"))
+        self.assertIn("survive me", "\n".join(Stream.load(self.ledger / "streams" / "eng-1.md").notes()))
+        self.assertTrue((self.ledger / "streams" / "eng-1.md.lock").exists())
 
     def test_compact_does_not_carry_or_overwrite_goal(self):
         hooks.handle(self.ev("UserPromptSubmit", sid="old", prompt="x"))

@@ -21,18 +21,22 @@ def patch_for(ep: Path) -> dict:
     hk = lambda t: [{"hooks": [{"type": "command", "command": h, "timeout": t}]}]
     return {"statusLine": {"type": "command", "command": s, "refreshInterval": 30},
             "hooks": {"UserPromptSubmit": hk(10), "Stop": hk(10),
-                      "SessionStart": [{"matcher": "startup|resume|clear|compact", "hooks": [{"type": "command", "command": h, "timeout": 10}]}],
+                      "SessionStart": [{"matcher": "startup|resume|clear|compact|fork", "hooks": [{"type": "command", "command": h, "timeout": 10}]}],
                       "SessionEnd": hk(5)}}
 
 
 def strip_wif(settings: dict, hook_cmd: str) -> dict:
     out = copy.deepcopy(settings)
-    hooks = out.get("hooks") or {}
+    hooks = out.get("hooks")
+    hooks = hooks if isinstance(hooks, dict) else {}
     new_hooks = {}
     for ev, groups in hooks.items():
         kept = []
-        for g in groups or []:
-            inner = [x for x in (g.get("hooks") or []) if x.get("command") != hook_cmd]
+        for g in (groups if isinstance(groups, list) else []):
+            if not isinstance(g, dict):
+                continue
+            inner = [x for x in (g.get("hooks") if isinstance(g.get("hooks"), list) else [])
+                     if not (isinstance(x, dict) and x.get("command") == hook_cmd)]
             if inner:
                 g2 = dict(g); g2["hooks"] = inner; kept.append(g2)
         if kept:
@@ -50,8 +54,9 @@ def merged(settings: dict, ep: Path, force_statusline: bool = False) -> tuple[di
     hook_cmd = p["hooks"]["Stop"][0]["hooks"][0]["command"]
     out = strip_wif(settings, hook_cmd)
     sl = out.get("statusLine")
+    sl = sl if isinstance(sl, dict) else None
     kept = False
-    if sl is None or "wif statusline" in str((sl or {}).get("command", "")) or force_statusline:
+    if sl is None or "wif statusline" in str(sl.get("command", "")) or force_statusline:
         out["statusLine"] = p["statusLine"]
     else:
         kept = True
@@ -64,7 +69,8 @@ def merged(settings: dict, ep: Path, force_statusline: bool = False) -> tuple[di
 def removed(settings: dict, ep: Path) -> dict:
     p = patch_for(ep)
     out = strip_wif(settings, p["hooks"]["Stop"][0]["hooks"][0]["command"])
-    if "wif statusline" in str((out.get("statusLine") or {}).get("command", "")):
+    sl = out.get("statusLine")
+    if isinstance(sl, dict) and "wif statusline" in str(sl.get("command", "")):
         out.pop("statusLine")
     return out
 
@@ -111,7 +117,13 @@ def main(args: list[str], out=None, err=None) -> int:
         if apply:
             d.mkdir(parents=True, exist_ok=True)
             if f.exists():
-                f.with_name(f"settings.json.bak.{time.strftime('%Y%m%d%H%M%S')}").write_text(cur_text, encoding="utf-8")
+                stamp = time.strftime("%Y%m%d%H%M%S"); n = 0
+                while True:
+                    bak = f.with_name(f"settings.json.bak.{stamp}" + (f"-{n}" if n else ""))
+                    if not bak.exists():
+                        break
+                    n += 1
+                bak.write_text(cur_text, encoding="utf-8")
             tmp = f.with_name("settings.json.tmp"); tmp.write_text(new_text, encoding="utf-8"); os.replace(tmp, f)
             print("   applied (backup kept)", file=out)
     if not remove:
@@ -119,7 +131,9 @@ def main(args: list[str], out=None, err=None) -> int:
         print(f"== {link} -> {ep}", file=out)
         if apply:
             bin_dir.mkdir(parents=True, exist_ok=True)
-            if link.is_symlink() or link.exists():
+            if link.exists() and not link.is_symlink():
+                print(f"   refusing to replace a regular file at {link}", file=err); return 1
+            if link.is_symlink():
                 link.unlink()
             link.symlink_to(ep)
             print("   linked", file=out)

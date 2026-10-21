@@ -14,7 +14,7 @@ def _int(name: str, default: int) -> int:
         return default
 
 
-def ring() -> int: return _int("WIF_RING", 10)
+def ring() -> int: return max(1, _int("WIF_RING", 10))
 def stream_cap() -> int: return _int("WIF_STREAM_CAP", 120)
 def stale_days() -> int: return _int("WIF_STALE_DAYS", 14)
 def rotate_pct() -> int: return _int("WIF_ROTATE_PCT", 60)

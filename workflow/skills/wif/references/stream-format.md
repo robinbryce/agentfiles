@@ -58,13 +58,18 @@ Rules
  "ring":[{"t":"…","prompt":"first line of prompt","intent":"model-inferred or pinned","pinned":false,"outcome":"first line of reply"}]}
 ```
 
-`ring` keeps the last 10. A sidecar `<session_id>.ctx.json` is written by the
-statusline: `{"used_pct":63,"model":"Fable","cost_usd":1.5,"t":"…","stream":"<id>"}`.
+`ring` keeps the last 10. `ended` and `end_reason` are set by SessionEnd and
+cleared again when the session resumes. A sidecar `<session_id>.ctx.json` is
+written by the statusline whenever the cwd is bindable:
+`{"used_pct":63,"model":"Fable","cost_usd":1.5,"t":"…","stream":"<id>"}`.
+A `<id>.md.lock` file next to each stream is the advisory write lock.
 
 ## Index
 
 `index.json` is derived by `wif scan` and never hand-edited. Per container:
-task, path, shape (`normal|direct|docs|norepos|empty`), repos (branch, dirty,
-ahead/behind, last commit), memory dirs, herdr workspace status, cached PRs,
-stream status, and flags (`stale`, `dirty`, `unpushed`, `landed?`, `over-cap`).
-Plus `orphan_streams` (stream file, no container) and `unbound_memory`.
+task, path, shape (`normal|direct|docs|norepos|empty|repo`), repos (branch,
+dirty, ahead/behind, remote ref, last commit, origin), memory dirs, herdr
+workspace status, cached PRs, stream status, and flags (`stale`, `dirty`,
+`unpushed`, `unpublished`, `no-remote`, `landed?`, `over-cap`, `bad-status`).
+Plus `orphan_streams` (stream file whose backing is gone), `unbound_memory`,
+`pr_failures` and `pruned_sessions`.

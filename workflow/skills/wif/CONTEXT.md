@@ -110,8 +110,8 @@ _Avoid_: poll, heartbeat, iteration
 
 **Flag**:
 A fact about a Stream or Container that tooling can observe (stale, dirty,
-unpushed, unpublished, landed?, over-cap). A Flag is evidence for a Status
-change, never a Status.
+unpushed, unpublished, no-remote, landed?, over-cap, bad-status). A Flag is
+evidence for a Status change, never a Status.
 _Avoid_: warning, badge, state
 
 **Note**:

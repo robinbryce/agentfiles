@@ -1,14 +1,18 @@
 """Stream files (markdown + flat quoted frontmatter) and session JSON files."""
 from __future__ import annotations
+import contextlib
+import datetime as dt
+import fcntl
 import json
 import os
 import re
+import tempfile
 import time
 from pathlib import Path
 
 from . import config
 
-FM_RE = re.compile(r'^([a-z_]+): (.*)$')
+FM_RE = re.compile(r'^([a-z_]+):(?: (.*))?$')
 STREAM_KEYS = ("id", "scope", "status", "goal", "next", "position", "parent", "backing",
                "issue", "prs", "handoff_doc", "last_session", "created", "updated")
 TEMPLATE_BODY = """## Now
@@ -26,13 +30,37 @@ def now_iso() -> str:
 
 
 def today() -> str:
-    return time.strftime("%Y-%m-%d", time.gmtime())
+    """Local calendar date: what a reminder or a date stamp means to Robin."""
+    return dt.date.today().isoformat()
 
 
 def atomic_write(path: Path, text: str) -> None:
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    """Write via a private temp file in the same directory, then rename.
+    Concurrent writers never share a temp name; a failed write leaves nothing."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+@contextlib.contextmanager
+def stream_lock(path: Path):
+    """Exclusive advisory lock for a load → mutate → save of one stream file.
+    Hooks and commands take it; readers (scan, show, statusline) do not."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = path.with_name(path.name + ".lock")
+    with open(lock, "a+") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 def load_json(path: Path, default):
@@ -62,7 +90,8 @@ def unquote(v: str) -> str:
 
 
 def first_line(text: str, width: int = 120) -> str:
-    for ln in (text or "").replace("\r", "").replace("\0", "").split("\n"):
+    text = (text or "").encode("utf-8", "replace").decode("utf-8")   # lone surrogates -> U+FFFD
+    for ln in text.replace("\r", "").replace("\0", "").split("\n"):
         if ln.strip():
             return ln.strip()[:width]
     return ""
@@ -77,18 +106,17 @@ class Stream:
     # ---- IO
     @classmethod
     def load(cls, path: Path) -> "Stream":
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")          # tolerate a BOM
         lines = text.split("\n")
         fm: dict[str, str] = {}
         body = text
-        if lines and lines[0] == "---":
-            for i, ln in enumerate(lines[1:], start=1):
-                if ln == "---":
-                    body = "\n".join(lines[i + 1:])
-                    break
+        if lines and lines[0] == "---" and "---" in lines[1:]:
+            end = lines.index("---", 1)
+            for ln in lines[1:end]:
                 m = FM_RE.match(ln)
                 if m:
-                    fm[m.group(1)] = unquote(m.group(2))
+                    fm[m.group(1)] = unquote(m.group(2) or "")
+            body = "\n".join(lines[end + 1:])
         return cls(path, fm, body)
 
     @classmethod
@@ -121,15 +149,26 @@ class Stream:
 
     # ---- sections
     def section(self, name: str, keep_comments: bool = False) -> list[str]:
-        out, on = [], False
+        out, on, in_comment = [], False, False
         for ln in self.body.split("\n"):
             if ln == f"## {name}":
                 on = True
                 continue
             if on and ln.startswith("## "):
                 break
-            if on and ln and (keep_comments or not ln.startswith("<!--")):
+            if not on or not ln:
+                continue
+            if keep_comments:
                 out.append(ln)
+                continue
+            if in_comment:                       # inside a multi-line <!-- ... -->
+                if "-->" in ln:
+                    in_comment = False
+                continue
+            if ln.lstrip().startswith("<!--"):
+                in_comment = "-->" not in ln
+                continue
+            out.append(ln)
         return out
 
     def section_append(self, name: str, line: str) -> None:
@@ -159,6 +198,8 @@ class Stream:
         self.body = "\n".join(out)
 
     def section_remove(self, name: str, needle: str) -> str | None:
+        """Remove the first list item (`- [kind] date text`) whose text contains
+        <needle>. Tags and comments are never matched."""
         lines = self.body.split("\n")
         out, insec, removed = [], False, None
         for ln in lines:
@@ -168,7 +209,7 @@ class Stream:
                 continue
             if insec and ln.startswith("## "):
                 insec = False
-            if insec and removed is None and needle in ln:
+            if insec and removed is None and ln.startswith("- ") and needle in item_text(ln):
                 removed = ln
                 continue
             out.append(ln)
@@ -197,6 +238,13 @@ class Stream:
 
     def notes(self) -> list[str]:
         return self.section("Notes")
+
+
+def item_text(ln: str) -> str:
+    """`- [kind due=x] 2026-01-01 text` -> `2026-01-01 text`; plain items unchanged."""
+    if ln.startswith("- ["):
+        return ln.split("] ", 1)[-1]
+    return ln[2:] if ln.startswith("- ") else ln
 
 
 # ---- sessions ---------------------------------------------------------------

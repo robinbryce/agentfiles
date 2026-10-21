@@ -31,11 +31,16 @@ class WifCase(unittest.TestCase):
         env = {"HOME": str(self.home), "CLAUDE_CONFIG_DIR": str(self.cfg), "PATH": os.environ.get("PATH", ""),
                "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
                "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
-               "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8", "TMPDIR": str(self.base / "tmp")}
-        (self.base / "tmp").mkdir(exist_ok=True)
-        p = mock.patch.dict(os.environ, env, clear=True)
-        p.start()
-        self.addCleanup(p.stop)
+               "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8",
+               "GIT_CEILING_DIRECTORIES": str(self.base.parent)}   # never walk up into a real repo
+        self.enterContext(mock.patch.dict(os.environ, env, clear=True))
+
+    def cd(self, path: Path) -> None:
+        """chdir for the rest of the test; restored on cleanup even on failure."""
+        self.enterContext(contextlib.chdir(path))
+
+    def patch_run(self, fake) -> None:
+        self.enterContext(mock.patch("wif.proc.run", fake))
 
     # ---- helpers
     @property

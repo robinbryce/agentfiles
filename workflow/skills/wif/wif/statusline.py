@@ -43,7 +43,8 @@ def render(data: dict, columns: int = 120, write_sidecar: bool = True) -> list[s
     rot = config.rotate_pct()
     if not ctx.bindable():
         return [f"{DIM}[{acct}]{RST} {model} · {_col(pct)}{pct}%{RST} ctx · {os.path.basename(cwd.rstrip('/')) or cwd}"]
-    if write_sidecar and safe_sid(sid) and (ctx.ledger / "sessions").is_dir():
+    if write_sidecar and safe_sid(sid):
+        paths.ledger_init(ctx.scope, ctx.config_dir)
         dump_json(ctx_file(ctx.ledger, sid), {"used_pct": pct, "model": model, "cost_usd": cost, "t": now_iso(), "stream": ctx.id})
     st = g = n = p = ""
     if ctx.stream_file and ctx.stream_file.exists():

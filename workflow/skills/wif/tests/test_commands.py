@@ -13,9 +13,7 @@ class CommandTests(WifCase):
     def setUp(self):
         super().setUp()
         self.c = self.container("eng-1")
-        self._cd = contextlib.chdir(self.c)
-        self._cd.__enter__()
-        self.addCleanup(self._cd.__exit__, None, None, None)
+        self.cd(self.c)
 
     def stream(self):
         return Stream.load(self.ledger / "streams" / "eng-1.md")
@@ -123,6 +121,23 @@ class CommandTests(WifCase):
         self.capture(commands.note, ["line one\nline two"])
         self.assertEqual(self.stream().notes()[0].split(" ", 3)[-1], "line one line two")
 
+    def test_adopt_prefers_container_name_over_local_dir(self):
+        (self.c / "docs").mkdir(); self.container("docs")
+        rc, out, _ = self.capture(commands.adopt, ["docs"])
+        self.assertTrue(out.strip().endswith("/docs.md"))
+        self.assertFalse((self.ledger / "streams" / "eng-1.md").exists())
+
+    def test_remind_overflow_and_done_matches_text_only(self):
+        with self.assertRaises(WifError): commands.note(["+99999999d", "x"], "reminder")
+        self.capture(commands.note, ["landed", "ship it"], "reminder")
+        with self.assertRaises(WifError): commands.note(["--done", "YYYY"])
+        rc, out, _ = self.capture(commands.note, ["--done", "ship"])
+        self.assertIn("ship it", out)
+
+    def test_where_outside_git_text(self):
+        rc, out, _ = self.capture(commands.where, [str(self.home)])
+        self.assertIn("backing: none", out)
+
     # ---- ctx / sessions
     def test_ctx_reads_sidecar(self):
         rc, out, _ = self.capture(commands.ctx_cmd, ["--session", "s1"])
@@ -139,6 +154,8 @@ class CommandTests(WifCase):
         for sid, st in (("a", "eng-1"), ("b", "eng-1"), ("c", "other")):
             s = ledger.session_ensure(self.ledger, sid, st, "justgames"); s["goal"] = sid.upper(); ledger.session_save(self.ledger, s)
         ledger.session_file(self.ledger, "bad").write_text("{")
+        with mock.patch("pathlib.Path.stat", side_effect=OSError("gone")):
+            self.assertEqual(self.capture(commands.sessions, [])[0], 0)
         rc, out, _ = self.capture(commands.sessions, [])
         self.assertEqual(sorted(l.split()[0] for l in out.splitlines()), ["a", "b"])
         rc, out, _ = self.capture(commands.sessions, ["other", "-n", "1"])
