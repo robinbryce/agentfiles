@@ -15,7 +15,7 @@ listed so they can be changed deliberately rather than rediscovered.
 | 5 | Intent capture | inferred by default: hooks record prompt/outcome first lines mechanically, the model records an `intent` when a prompt starts new work; `wif mark` is the override | explicit-only; prompt-type classifier hook (deferred) |
 | 6 | Hook install | permanent in both accounts' `settings.json` via `wif install` (diff first); hooks no-op fast when no Backing resolves | skill-frontmatter hooks (session-only); per-task settings |
 | 7 | Account/scope mismatch | warn and record nothing; a Ledger write never crosses accounts | hard refuse; record anyway |
-| 8 | Dashboard surface | terminal (`/wif` dynamic injection) + statusline; artifact deferred to phase 4 | artifact first |
+| 8 | Dashboard surface | terminal (`wif show` as the skill's instructed first step) + statusline; artifact deferred to phase 4 | artifact first; dynamic `!` injection (aborts the skill when denied) |
 
 ## Routine defaults (changeable)
 
@@ -24,10 +24,21 @@ listed so they can be changed deliberately rather than rediscovered.
   Keeps the Ledger free of noise from `$HOME` or throwaway sessions.
 - Scan never creates Stream files. Containers without one are shown as
   *untracked* with age/dirty/PR facts; `wif adopt` (or the first prompt in the
-  container) creates the file.
+  container) creates the file. Scan may propose `landed?`; nothing proposes
+  `closed`.
+- Closed streams (archived) are not recorded by hooks: a session that keeps
+  running in a closed container writes nothing until `wif adopt` re-opens it.
+  (Ruling 2026-10-21, after review found the hook resurrecting closed streams.)
 - Intent ring length 10. Stream file cap 120 lines (over-cap is a dashboard flag).
-- Stale: no git activity, no session, for 14 days → flag `stale` (not a status).
-- Landed proposal: every PR for the task MERGED and no dirty/unpushed work.
+- Stale: no commit, session or stream update for 14 days and nothing dirty →
+  flag `stale` (not a status).
+- Landed proposal: every PR for the task MERGED, nothing dirty or unpushed, and
+  a verifiable remote ref (upstream or `origin/<branch>`) for every repo. A
+  branch that was never pushed (`unpublished`) can never be proposed landed.
+- Session files: ended sessions older than 30 days and orphaned ctx sidecars
+  are pruned by scan. Tunables (`WIF_RING`, `WIF_STREAM_CAP`, `WIF_STALE_DAYS`,
+  `WIF_ROTATE_PCT`, `WIF_PR_TTL`, `WIF_SESSION_KEEP_DAYS`) live in
+  `scripts/wif-lib.sh` and are exported to the Python subcommands.
 - Rotation: at `context_window.used_percentage >= 60` the tick / dashboard says
   "hand off now"; the number comes from the statusline dump, not a guess.
 - PR lookups (`gh`) are opt-in (`--prs`) and cached 6h; git facts always.
@@ -53,6 +64,14 @@ listed so they can be changed deliberately rather than rediscovered.
   instructed first step, not an injection.
 - `allowed-tools` grants are per-turn and do not apply in `-p` default mode;
   interactive sessions under Robin's autoMode are the real target.
+- Only 20 of 114 real worktree repos have an upstream or `origin/<branch>`;
+  herdr task branches are usually never pushed, so `unpushed` is mostly
+  unknowable and `unpublished` is the common state.
+- Adversarial review 2026-10-21 (two blind reviewers) fixed: SessionStart
+  silent failure on foreign session files, compact overwriting the session
+  goal, install truncating settings.json, awk `-v` escape mangling, spaces in
+  task names, submodule ids, gh failures cached as empty, memory-dir binding
+  by longest task prefix, `--changes` semantics, line budget, off-by-one caps.
 
 ## Sources
 

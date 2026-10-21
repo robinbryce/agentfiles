@@ -16,8 +16,8 @@ Order matters; each step is cheap on its own.
 3. **Set the pointers.** `wif mark -n "<next action>" -p "<slice n/m — what>"`
    and, if it changed, `-s blocked|landed|active`.
 4. **Fold the session.** Promote any ring intent that is still open into a
-   `[followup]` note; delete notes that were acted on. Tangents stay until
-   promoted or rejected.
+   `[followup]` note (`wif note`); remove notes that were acted on
+   (`wif note --done`). Tangents stay until promoted or rejected.
 5. **Durable text goes to the convention, not the Ledger.** In order of
    preference: the plan dir's `handoff.md` → `/save-status` → auto memory
    (`MEMORY.md` index + topic file). Set `handoff_doc` to the absolute path.
@@ -31,5 +31,6 @@ Order matters; each step is cheap on its own.
    place when the next work fits this container (the hook carries the goal
    forward); a new `herdr-task` only when the repo set changes, with the
    memory-bridge line from the herdr rule.
-8. `wif mark -s landed` only when every PR is merged or explicitly parked and
-   nothing is dirty or unpushed (the `landed?` flag is the evidence).
+8. `wif mark -s landed` only when the `landed?` flag shows (every PR merged,
+   nothing dirty or unpushed, remote ref verifiable) or every PR is explicitly
+   parked.

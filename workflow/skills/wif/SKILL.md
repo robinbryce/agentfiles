@@ -26,8 +26,8 @@ Dashboard spec: [references/dashboard.md](./references/dashboard.md).
 Handoff protocol: [references/handoff-protocol.md](./references/handoff-protocol.md).
 
 CLI: `wif` (linked into `~/.local/bin` by install; source
-`/Users/robin/agentfiles/workflow/skills/wif/scripts/wif`). Every subcommand
-prints its own `--help` via `wif help`.
+`/Users/robin/agentfiles/workflow/skills/wif/scripts/wif`). `wif help` lists
+every subcommand and its flags.
 
 ## 0. First action, every invocation
 
@@ -48,8 +48,12 @@ the dashboard.
 - **Reuse conventions, don't invent.** Durable handoff text goes where it
   already goes: a plan dir's `handoff.md`, `/save-status`, auto memory. The
   stream file *points* at those; it does not duplicate them.
-- **Scan never mutates streams.** It rebuilds `index.json` and proposes flags
-  (`stale`, `landed?`, `over-cap`). Only `mark`/`adopt`/`handoff` write streams.
+- **Scan and show never mutate streams.** Scan rebuilds `index.json`, prunes
+  old session files and proposes flags (`stale`, `dirty`, `unpushed`,
+  `unpublished`, `no-remote`, `landed?`, `over-cap`, `bad-status`). Streams
+  are written only by `mark`, `adopt`, `note` and the hook's create-on-first-
+  prompt. A closed (archived) stream is never recreated by hooks; `wif adopt`
+  re-opens it.
 - **Keep it short.** Dashboard ≤ 40 lines, stream file ≤ 120 lines, kickoff ≤ 25.
 
 ## 2. Inference duties (every session in a stream, with or without /wif)
@@ -66,6 +70,8 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
   `wif mark -p "<slice n/m — what>" -n "<next action>"`.
 - Robin says "remind me", "followup", "tangent", "note that", "park that
   thought" → the matching `wif note|tangent|remind` command, verbatim text.
+- A note has been acted on (followup became the intent, reminder fired,
+  tangent promoted or rejected) → `wif note --done "<substring>"`.
 
 ## 3. `/wif` and `/wif status`
 
@@ -88,7 +94,9 @@ suggest `-p <parent>` so the two stay linked.
    tell Robin to `/clear`; do not keep ticking in a session past 60%.
 4. Schedule the next wake: 20–30 min idle; sooner only if a due reminder or a
    CI/PR state you are explicitly waiting on changes faster. Mark `noop` when
-   the output was "no changes".
+   the last line was `no changes` (a due reminder in the header does not make
+   a tick non-noop; it repeats until acted on). The first tick only records a
+   baseline.
 
 ## 6. `/wif handoff`
 
@@ -98,7 +106,9 @@ Summary: update `## Now` (goal / approach / done / failing, ≤ 20 lines) and
 durable facts to the existing convention and set `handoff_doc`; update auto
 memory; print the kickoff and the stay-vs-new-workspace advice from
 [herdr-session-handoff](../../rules/herdr-session-handoff.md). Then
-`wif mark -s landed` only if every PR is merged or explicitly parked.
+`wif mark -s landed` only when the `landed?` flag shows (every PR merged,
+nothing dirty or unpushed, remote ref verifiable) or every PR is explicitly
+parked.
 
 ## 7. `/wif adopt`, `/wif install`, `/wif where`
 
@@ -106,4 +116,5 @@ Pass-throughs to the CLI. `install` without `--apply` is a dry run that
 prints the settings diff; run it that way first and show Robin the diff.
 Removing a worktree is `/worktrees-closeout`'s job. Before it runs, from
 inside the container, `wif mark -s closed` (moves the stream file to
-`archive/`); after removal the container no longer resolves.
+`archive/`, and hooks stop recording there until `wif adopt`); after removal
+the container no longer resolves.

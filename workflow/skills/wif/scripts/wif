@@ -3,6 +3,7 @@
 set -u
 HERE="$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd -P)"
 [ -f "$HERE/wif-lib.sh" ] || HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+. "$HERE/wif-lib.sh"            # exports the tunables for the Python subcommands
 cmd=${1:-show}; shift || true
 case "$cmd" in
   show|scan|adopt|mark|note|tangent|remind|ctx|hook|statusline|install|where|sessions)
@@ -16,7 +17,7 @@ wif <command> [args]
   scan [--prs] [--scope S]          rebuild index.json from disk (read-only elsewhere)
   adopt <task> [-s status] [-g goal] [-p parent]   create a stream for a container
   mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--session ID]
-  note "<text>"        followup for this stream
+  note "<text>"        followup for this stream;  note --done "<substring>" removes a note
   tangent "<text>"     candidate for a new stream (discovered-from this one)
   remind <when> "<text>"   when = YYYY-MM-DD | +Nd | landed
   ctx [--session ID]   context % from the statusline dump (for rotation)

@@ -17,14 +17,23 @@ candidates (N):                         (tangents awaiting promotion)
   ← <stream>: <text>
 untracked containers (N; wif adopt <task> [-s parked]):
   task   age   shape   dirty   herdr:<agent_status>   flags   (8 by recency; --all for everything)
+  (backing missing: a, b)              (streams whose container/checkout is gone)
 unbound memory (N): task(files), …
 ```
 
-- `--brief`: header block only (first 5 lines). Used by the statusline-adjacent
-  "where am I" injection in SKILL.md.
+- `--brief`: header block plus due reminders only.
 - `--changes`: header + due + only containers whose (stream status, dirty,
-  ahead, flags, PR states) changed since the previous `--changes` call; prints
-  `no changes` otherwise. This is the `/loop` tick output.
+  ahead, flags, PR states) changed since the previous `--changes` call, plus
+  removed containers; last line `no changes` otherwise. The first call records
+  a baseline and says so. This is the `/loop` tick output.
+- Line budget: 40 lines total. The streams table takes whatever the other
+  sections leave (minimum 4 rows) and ends with `… N more` when cut; `--all`
+  lifts every cap.
+- Flags: `stale` (no commit, session or stream update for 14 days and nothing
+  dirty), `dirty`, `unpushed` (ahead of the remote ref), `unpublished` (origin
+  exists, branch never pushed), `no-remote` (a repo without origin), `landed?`
+  (every PR MERGED, nothing dirty/unpushed, remote ref verifiable), `over-cap`
+  (stream file over 120 lines), `bad-status` (status outside the vocabulary).
 - `age` is time since the newest commit across the container's repos, or the
   newest session on the stream, whichever is later.
 - Statusline (3 lines, event-driven + 30s refresh):

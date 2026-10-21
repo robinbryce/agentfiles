@@ -17,6 +17,7 @@ backing: "herdr:/abs/path/.worktrees-herdr/<task>"   # or repo:/abs/path
 issue: "https://linear.app/..."           # optional
 prs: "#1581"                              # optional, free text; scan keeps the real list in index.json
 handoff_doc: "/abs/path/docs/plans/plan-2610-03-x/handoff.md"   # where durable handoff text lives
+last_session: "<session id>"              # hook-maintained; the handoff carry-forward source
 created: "2026-10-21"
 updated: "2026-10-21"
 ---
@@ -38,10 +39,14 @@ failing: …
 
 Rules
 - `Now` is rewritten at each handoff and should shrink or hold. Growth is drift.
-- `Notes` lines are removed when acted on (a followup that became an intent,
-  a tangent that became a stream via `wif adopt`/`start`, a reminder that fired).
-- `Handoff` is the only section the SessionStart hook injects in full (30 lines max).
-- Closing: set `status: "closed"` and move the file to `../archive/`.
+- `Notes` lines are removed with `wif note --done "<substring>"` when acted on
+  (a followup that became an intent, a tangent that became a stream via
+  `wif adopt`/`start`, a reminder that fired).
+- The SessionStart hook injects `Handoff` (30 lines max) and `Now` (20 lines max).
+- Closing: `wif mark -s closed` moves the file to `../archive/`; hooks then
+  ignore the container until `wif adopt` re-opens it.
+- Values are double-quoted with `\` and `"` escaped; newlines are flattened
+  to spaces. Keep every value on one line.
 
 ## Session file
 

@@ -45,7 +45,7 @@
       "setup": "ctx sidecar says used_pct 64; stream active.",
       "prompt": "/wif tick",
       "assert": [
-        "prints only changed rows",
+        "prints only the `wif show --changes` output (changed rows, or `no changes`)",
         "runs the handoff protocol and ends by telling Robin to /clear",
         "does not schedule another tick in this session"
       ]

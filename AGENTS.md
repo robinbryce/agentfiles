@@ -44,7 +44,9 @@ See [workflow/commands/README.md](./workflow/commands/README.md).
 
 ### Skills (on demand — read SKILL.md only when task matches)
 
-See [workflow/skills/README.md](./workflow/skills/README.md).
+See [workflow/skills/README.md](./workflow/skills/README.md). For "what is in
+flight / what was this session for" questions, [`/wif`](./workflow/skills/wif/SKILL.md)
+reads the per-account Ledger rather than answering from recollection.
 
 ### Rules (requestable — not auto-loaded unless repo configures alwaysApply)
 
@@ -60,10 +62,6 @@ See [workflow/rules/README.md](./workflow/rules/README.md).
 — at clean completion points, proactively offer a "ready to clear and hand
 off" block (kickoff prompt, absolute memory/handoff paths, stay-vs-new-
 workspace advice).
-
-**Lost track of what is in flight, the session goal, or the last prompt's
-intent?** Run [`/wif`](./workflow/skills/wif/SKILL.md) — it reads the per-account
-Ledger; never answer "where are we" from recollection.
 
 **Creating a plan / ADR / ARC?** Load
 [workflow/rules/planning.md](./workflow/rules/planning.md) and use
