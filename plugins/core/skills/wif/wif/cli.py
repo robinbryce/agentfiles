@@ -7,10 +7,12 @@ from .commands import WifError
 
 HELP = """wif <command> [args]
   show [--brief|--changes|--json|--all] [--session ID]   dashboard for the current scope (default)
+  ls [--archived] [--json]          every stream and container in scope, with paths
   where [--json] [dir]              what stream/scope/account a directory resolves to
   scan [--prs] [--scope S] [--quiet] [--json]   rebuild index.json from disk (read-only elsewhere)
   adopt <task|.|path> [-s status] [-g goal] [-p parent] [-n next] [--scope S]   create/re-open a stream
   mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--done text] [--session ID]
+                                    [--stream ID [--scope S]]   target a stream by id from anywhere
   note "<text>"                     followup for this stream;  note --done "<substring>" removes one
   tangent "<text>"                  candidate for a new stream (discovered-from this one)
   remind <when> "<text>"            when = YYYY-MM-DD | +Nd | landed
@@ -33,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
             from . import __version__
             print(__version__); return 0
         if cmd == "show": return show.main(argv)
+        if cmd == "ls": return show.ls(argv)
         if cmd == "where": return commands.where(argv)
         if cmd == "scan": return scan.main(argv)
         if cmd == "adopt": return commands.adopt(argv)

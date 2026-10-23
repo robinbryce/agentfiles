@@ -44,7 +44,9 @@ Rules
   `wif adopt`/`start`, a reminder that fired).
 - The SessionStart hook injects `Handoff` (30 lines max) and `Now` (20 lines max).
 - Closing: `wif mark -s closed` moves the file to `../archive/`; hooks then
-  ignore the container until `wif adopt` re-opens it.
+  ignore the container until `wif adopt` re-opens it. From outside the
+  container (or once its backing is gone), name it:
+  `wif mark --stream <id> [--scope S] -s closed`.
 - Values are double-quoted with `\` and `"` escaped; newlines are flattened
   to spaces. Keep every value on one line.
 

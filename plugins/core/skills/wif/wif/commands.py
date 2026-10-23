@@ -1,5 +1,6 @@
 """Small CLI verbs: where, adopt, mark, note/tangent/remind, ctx, sessions."""
 from __future__ import annotations
+import dataclasses
 import datetime as dt
 import json
 import os
@@ -22,6 +23,23 @@ def _ctx_for_write(cwd: str | None = None) -> paths.Ctx:
     if ctx.kind == "none":
         raise WifError("no backing here (not a herdr container, not a git repo)")
     paths.ledger_init(ctx.scope, ctx.config_dir)
+    return ctx
+
+
+def _ctx_for_stream(stream_id: str, scope: str = "") -> paths.Ctx:
+    """Address an existing stream by id from any cwd (its backing may be gone)."""
+    if not safe_sid(stream_id):
+        raise WifError("bad stream id")
+    if scope and scope not in paths.known_scopes():
+        raise WifError(f"unknown scope '{scope}'")
+    ctx = paths.resolve(None, scope or None)
+    if not ctx.served:
+        raise WifError(f"scope {ctx.scope} is not served by account {ctx.account} — pass --scope")
+    ctx = dataclasses.replace(ctx, id=stream_id, stream_file=ctx.ledger / "streams" / f"{stream_id}.md")
+    if not ctx.stream_file.exists():
+        if ctx.archive_file.exists():
+            raise WifError(f"stream {stream_id} is closed (archived)")
+        raise WifError(f"no stream {stream_id} in scope {ctx.scope}")
     return ctx
 
 
@@ -128,10 +146,12 @@ def adopt(args: list[str], out=None) -> int:
 def mark(args: list[str], out=None) -> int:
     out = out or sys.stdout
     sid = os.environ.get("CLAUDE_SESSION_ID", "")
-    goal = intent = pos = nxt = status = done = ""
+    goal = intent = pos = nxt = status = done = stream_id = scope = ""
     it = iter(args)
     for a in it:
-        if a == "-g": goal = next(it, "")
+        if a == "--stream": stream_id = next(it, "")
+        elif a == "--scope": scope = next(it, "")
+        elif a == "-g": goal = next(it, "")
         elif a == "-i": intent = next(it, "")
         elif a == "-p": pos = next(it, "")
         elif a == "-n": nxt = next(it, "")
@@ -143,7 +163,9 @@ def mark(args: list[str], out=None) -> int:
         raise WifError("bad session id")
     if status and status not in config.STATUSES:
         raise WifError("bad status (" + "|".join(config.STATUSES) + ")")
-    ctx = _ctx_for_write()
+    if scope and not stream_id:
+        raise WifError("--scope needs --stream")
+    ctx = _ctx_for_stream(stream_id, scope) if stream_id else _ctx_for_write()
     with stream_lock(ctx.stream_file):
         s = _stream_for_write(ctx)
         if status: s.set("status", status)

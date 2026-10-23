@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from . import config, paths
-from .ledger import dump_json, load_json
+from .ledger import Stream, dump_json, load_json
 
 ORDER = {"active": 0, "blocked": 1, "landed": 2, "parked": 3, "closed": 9}
 
@@ -170,4 +170,47 @@ def main(args: list[str], out=None) -> int:
         print("\n".join(render(ctx, idx, args, sid)), file=out)
     except Exception as e:
         print(f"wif show: failed: {e!r} — run `wif scan`", file=out)
+    return 0
+
+
+def ls_rows(ctx: paths.Ctx, idx: dict, archived: bool = False) -> list[dict]:
+    """One row per container or stream id: status, goal, where it lives on disk."""
+    streams = idx.get("streams") or {}
+    rows: dict[str, dict] = {}
+    for c in idx.get("containers") or []:
+        s = streams.get(c["task"]) or {}
+        rows[c["task"]] = {"id": c["task"], "status": c.get("stream") or "untracked", "goal": s.get("goal", ""),
+                           "path": c.get("path", ""), "backing": "present"}
+    for k, s in streams.items():
+        if k not in rows:
+            rows[k] = {"id": k, "status": s.get("status", ""), "goal": s.get("goal", ""),
+                       "path": (s.get("backing") or "").partition(":")[2], "backing": "missing"}
+    if archived:
+        for f in sorted((ctx.ledger / "archive").glob("*.md")):
+            if f.stem not in rows:
+                s = Stream.load(f)
+                rows[f.stem] = {"id": f.stem, "status": "closed", "goal": s.get("goal"),
+                                "path": (s.get("backing") or "").partition(":")[2], "backing": "archived"}
+    return sorted(rows.values(), key=lambda r: (ORDER.get(r["status"], 8 if r["status"] == "untracked" else 5), r["id"]))
+
+
+def ls(args: list[str], out=None) -> int:
+    """`wif ls [--archived] [--json]`: flat list of every stream and container in scope."""
+    out = out or sys.stdout
+    ctx = paths.resolve()
+    if not ctx.served:
+        print(f"wif: scope {ctx.scope} is not served by account {ctx.account} — nothing to list", file=out); return 0
+    idx = load_json(ctx.ledger / "index.json", None)
+    if not isinstance(idx, dict) or "containers" not in idx:
+        print(f"wif: no usable index for scope {ctx.scope} — run `wif scan`", file=out); return 0
+    rows = ls_rows(ctx, idx, "--archived" in args)
+    if "--json" in args:
+        print(json.dumps(rows), file=out); return 0
+    root = str(ctx.root or "")
+    print(f"{'id':<34} {'status':<9} {'backing':<8} {'path':<44} goal", file=out)
+    for r in rows:
+        path = r["path"]
+        if root and path.startswith(root + "/"):
+            path = path[len(root) + 1:]
+        print(f"{trim(r['id'], 34):<34} {r['status']:<9} {r['backing']:<8} {trim(path, 44):<44} {trim(r['goal'], 60)}", file=out)
     return 0

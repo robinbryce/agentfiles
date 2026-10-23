@@ -117,7 +117,8 @@ prints the settings diff; run it that way first and show Robin the diff.
 Run `install` from the agentfiles checkout
 (`~/agentfiles/plugins/core/skills/wif/scripts/wif install`), never from the
 plugin cache: the cache path changes on every plugin update.
-Removing a worktree is `/core:worktrees-closeout`'s job. Before it runs, from
-inside the container, `wif mark -s closed` (moves the stream file to
-`archive/`, and hooks stop recording there until `wif adopt`); after removal
-the container no longer resolves.
+Removing a worktree is `/core:worktrees-closeout`'s job. Close its stream
+with `wif mark -s closed` inside the container, or from anywhere with
+`wif mark --stream <id> [--scope S] -s closed` (also the fix for a
+`backing missing` stream). Either moves the stream file to `archive/`, and
+hooks stop recording there until `wif adopt`.

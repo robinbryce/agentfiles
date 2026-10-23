@@ -99,6 +99,25 @@ class CommandTests(WifCase):
         with self.assertRaises(WifError): commands.mark(["-n", "x"])
         with self.assertRaises(WifError): commands.note(["x"])
 
+    def test_mark_by_stream_id_from_anywhere(self):
+        self.capture(commands.adopt, ["."])
+        gone = self.container("eng-2"); self.capture(commands.adopt, ["eng-2"])
+        import shutil; shutil.rmtree(gone)                        # backing missing
+        with contextlib.chdir(self.home):
+            with self.assertRaises(WifError): commands.mark(["-n", "x"])       # no backing at ~
+            self.capture(commands.mark, ["--stream", "eng-1", "--scope", "justgames", "-n", "far"])
+            self.assertEqual(self.stream().get("next"), "far")
+            rc, out, _ = self.capture(commands.mark, ["--stream", "eng-2", "--scope", "justgames", "-s", "closed"])
+            self.assertIn("archived", out)
+            self.assertTrue((self.ledger / "archive" / "eng-2.md").exists())
+            with self.assertRaises(WifError): commands.mark(["--stream", "eng-2", "--scope", "justgames", "-n", "x"])
+            with self.assertRaises(WifError): commands.mark(["--stream", "nope", "--scope", "justgames", "-n", "x"])
+            with self.assertRaises(WifError): commands.mark(["--stream", "../x", "--scope", "justgames"])
+            with self.assertRaises(WifError): commands.mark(["--stream", "eng-1", "--scope", "bogus"])
+            with self.assertRaises(WifError): commands.mark(["--scope", "justgames", "-n", "x"])
+        self.capture(commands.mark, ["--stream", "eng-1", "-n", "near"])  # scope from cwd
+        self.assertEqual(self.stream().get("next"), "near")
+
     # ---- notes
     def test_note_kinds_and_done(self):
         self.capture(commands.note, ["check hockey"], "followup")

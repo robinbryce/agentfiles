@@ -201,6 +201,24 @@ class ShowTests(WifCase):
         self.assertEqual(rc, 0)
         return out.rstrip("\n").split("\n")
 
+    def test_ls_lists_containers_streams_and_archive(self):
+        self.container("eng-2")
+        Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c)).save()
+        Stream.create(self.ledger / "streams" / "gone.md", "gone", "justgames", "herdr", str(self.cont_root / "gone")).save()
+        a = Stream.create(self.ledger / "archive" / "old.md", "old", "justgames", "herdr", str(self.cont_root / "old"))
+        a.set("status", "closed"); a.set("goal", "OG"); a.save()
+        self.scan()
+        rc, out, _ = self.capture(show.ls, ["--json"])
+        rows = {r["id"]: r for r in json.loads(out)}
+        self.assertEqual({k: (r["status"], r["backing"]) for k, r in rows.items()},
+                         {"eng-1": ("active", "present"), "gone": ("active", "missing"), "eng-2": ("untracked", "present")})
+        rc, out, _ = self.capture(show.ls, ["--archived", "--json"])
+        self.assertEqual([r for r in json.loads(out) if r["id"] == "old"][0]["goal"], "OG")
+        rc, out, _ = self.capture(show.ls, [])
+        lines = out.splitlines()
+        self.assertTrue(lines[0].startswith("id")); self.assertTrue(lines[-1].startswith("eng-2"))
+        self.assertIn(".worktrees-herdr/eng-1", out); self.assertNotIn(str(self.root) + "/", out)
+
     def test_no_index_and_truncated_index(self):
         self.assertIn("run `wif scan`", self.show()[0])
         (self.ledger).mkdir(parents=True, exist_ok=True); (self.ledger / "index.json").write_text('{"cont')
