@@ -241,8 +241,32 @@ class ShowTests(WifCase):
         self.assertFalse(any("future" in l for l in lines))
         self.assertTrue(any(l.startswith("candidates (1)") for l in lines))
         self.assertTrue(any("← eng-1: 2000-01-01 side idea" in l for l in lines))
+        self.assertIn("  last → task: side-idea (derived; pin with wif tangent --as <task> --for \"<substring>\")", lines)
+        self.assertIn("    1. herdr-task side-idea repo-a", lines)
+        self.assertIn("    2. wif adopt side-idea -p eng-1", lines)
         brief = self.show("--brief", "--session", "s1")
         self.assertIn("due:", brief); self.assertFalse(any(l.startswith("streams") for l in brief))
+
+    def test_last_tangent_newest_date_current_stream_tiebreak_and_container_states(self):
+        c2 = self.container("eng-2")
+        s1 = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c))
+        s2 = Stream.create(self.ledger / "streams" / "eng-2.md", "eng-2", "justgames", "herdr", str(c2))
+        s2.section_append("Notes", "- [tangent as=newer-one] 2001-01-01 newer on the other stream"); s2.save()
+        s1.section_append("Notes", "- [tangent as=older-one] 2000-01-01 older here"); s1.save()
+        self.scan()
+        lines = self.show()
+        self.assertIn("  last → task: newer-one", lines)                      # newest date wins over current stream
+        self.assertIn("    2. wif adopt newer-one -p eng-2", lines)
+        s1.section_append("Notes", "- [tangent as=same-day] 2001-01-01 same day, current stream"); s1.save()
+        self.scan()
+        self.assertIn("  last → task: same-day", self.show())                # tie → current stream
+        # container for the task already there: untracked, then tracked
+        self.container("same-day")
+        self.scan()
+        self.assertIn("    wif adopt same-day -p eng-1   (container exists, untracked)", self.show())
+        Stream.create(self.ledger / "streams" / "same-day.md", "same-day", "justgames", "herdr", str(self.cont_root / "same-day"))
+        self.scan()
+        self.assertTrue(any(l.startswith("    wif adopt same-day: already a stream (active)") and 'wif note --done "same day, current"' in l for l in self.show()))
 
     def test_budget_cuts_streams_table_and_all_lifts_it(self):
         for i in range(45):

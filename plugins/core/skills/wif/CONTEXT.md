@@ -129,7 +129,9 @@ Intent. The default kind.
 
 **Tangent**:
 A Note about work that does *not* belong to this Stream: a candidate for a new
-Stream, recorded with the Stream it was discovered from.
+Stream, recorded with the Stream it was discovered from and with the Task
+name it would become (the Container to create with `herdr-task`, then
+`wif adopt`).
 _Avoid_: side quest, spin-off, idea
 
 **Reminder**:

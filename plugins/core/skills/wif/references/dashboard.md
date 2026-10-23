@@ -16,6 +16,9 @@ streams (N):
   (backing missing: a, b)              (streams whose container/checkout is gone)
 candidates (N):                         (tangents awaiting promotion)
   ← <stream>: <text>
+  last → task: <task> [(derived; pin with wif tangent --as <task> --for "<substring>")]
+    1. herdr-task <task> <collection|repos>   (parent stream's repo set; omitted when the container exists)
+    2. wif adopt <task> -p <parent>           (or: already a stream (<status>) — wif note --done "...")
 untracked containers (N; wif adopt <task> [-s parked]):
   task   age   shape   dirty   herdr:<agent_status>   flags   (8 by recency; --all for everything)
 unbound memory (N): task(files), …
@@ -29,6 +32,11 @@ unbound memory (N): task(files), …
 - Line budget: 40 lines total. The streams table takes whatever the other
   sections leave (minimum 4 rows) and ends with `… N more` when cut; `--all`
   lifts every cap.
+- `last →` is the newest tangent by date (ties: the current stream, then file
+  order). Its task name is the `as=` pin on the note, else derived from the
+  text (`<issue>-` prefix + first content words, ≤ 40 chars). The `herdr-task`
+  repos are the parent container's; a `HERDR_REPOS_<X>` collection whose set
+  matches exactly is named instead (`oracle`).
 - Flags: `stale` (no commit, session or stream update for 14 days and nothing
   dirty), `dirty`, `unpushed` (ahead of the remote ref), `unpublished` (origin
   exists, branch never pushed), `no-remote` (a repo without origin), `landed?`

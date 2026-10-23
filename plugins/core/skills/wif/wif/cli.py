@@ -14,7 +14,9 @@ HELP = """wif <command> [args]
   mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--done text] [--session ID]
                                     [--stream ID [--scope S]]   target a stream by id from anywhere
   note "<text>"                     followup for this stream;  note --done "<substring>" removes one
-  tangent "<text>"                  candidate for a new stream (discovered-from this one)
+  tangent [--as <task>] "<text>"    candidate for a new stream (discovered-from this one); --as pins the
+                                    container/task name (lowercase kebab) it becomes, else one is derived
+  tangent --as <task> --for "<substring>"   re-pin the name of a recorded tangent
   remind <when> "<text>"            when = YYYY-MM-DD | +Nd | landed
   ctx [--session ID] [--json]       context % from the statusline dump (for rotation)
   sessions [stream] [-n N]          recent sessions and their goals/intents

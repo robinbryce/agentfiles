@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import config, paths
+from . import config, paths, tangents
 from .ledger import (Stream, ctx_file, load_json, now_iso, ring_last, safe_sid, session_ensure,
                      session_file, session_save, stream_lock, today)
 
@@ -232,22 +232,71 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
             s.set("updated", today()); s.save()
         print(f"removed from {ctx.id}: {removed}", file=out)
         return 0
-    due = ""
+    due = task = for_ = ""
     if kind == "reminder":
         if not args:
             raise WifError("remind needs <when>: YYYY-MM-DD | +Nd | landed")
         due = _due_from(args.pop(0))
+    if kind == "tangent":
+        rest = []
+        it = iter(args)
+        for a in it:
+            if a == "--as": task = next(it, "")
+            elif a == "--for": for_ = next(it, "")
+            else: rest.append(a)
+        args = rest
+        if task and not tangents.TASK_RE.match(task):
+            raise WifError(f"--as '{task}': task name must be lowercase kebab-case (a-z, 0-9, single dashes)")
+        if for_ and not task:
+            raise WifError("--for needs --as <task>")
     text = " ".join(args).strip()
+    if for_:                                   # re-pin the name of a recorded tangent
+        if text:
+            raise WifError("--for takes no text; it renames the tangent containing <substring>")
+        ctx = _ctx_for_write()
+        with stream_lock(ctx.stream_file):
+            s = _stream_for_write(ctx)
+            hit = s.section_edit("Notes", for_, lambda ln: _retag_tangent(ln, task))
+            if hit is None or hit[0] == hit[1]:
+                raise WifError(f"no tangent on {ctx.id} contains '{for_}'")
+            s.set("updated", today()); s.save()
+        print(f"renamed on {ctx.id}: {hit[1]}", file=out)
+        p = tangents.parse(hit[1]) or {"text": ""}
+        _tangent_tail(ctx, task, p["text"], out)
+        return 0
     if not text:
         raise WifError("note text required")
     ctx = _ctx_for_write()
-    tag = f"[{kind}{' due=' + due if due else ''}]"
+    if kind == "tangent":
+        task = task or tangents.derive(text)
+    tag = f"[{kind}{' due=' + due if due else ''}{' as=' + task if task else ''}]"
     with stream_lock(ctx.stream_file):
         s = _stream_for_write(ctx)
         s.section_append("Notes", f"- {tag} {today()} {text}")
         s.set("updated", today()); s.save()
     print(f"noted on {ctx.id}: {tag} {text}", file=out)
+    if kind == "tangent":
+        _tangent_tail(ctx, task, text, out)
     return 0
+
+
+def _retag_tangent(ln: str, task: str) -> str:
+    p = tangents.parse(ln)
+    if p is None:
+        return ln
+    return f"- [tangent as={task}] " + (p["date"] + " " if p["date"] else "") + p["text"]
+
+
+def _tangent_tail(ctx: paths.Ctx, task: str, text: str, out) -> None:
+    """What makes this tangent a stream: the container name for `wif adopt`,
+    and the `herdr-task` line that creates it with this stream's repo set."""
+    exists = None
+    if ctx.root and (ctx.root / paths.HERDR_DIR / task).is_dir():
+        st = ctx.ledger / "streams" / f"{task}.md"
+        exists = {"stream": Stream.load(st).get("status") if st.exists() else None}
+    print(f"  task: {task}", file=out)
+    for ln in tangents.recommend(task, ctx.id, tangents.container_repos(ctx.path if ctx.kind == "herdr" else None), exists, text):
+        print(f"    {ln}", file=out)
 
 
 # ---- ctx / sessions -----------------------------------------------------------
