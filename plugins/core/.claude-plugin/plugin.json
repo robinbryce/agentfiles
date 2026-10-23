@@ -7,6 +7,5 @@
   },
   "homepage": "https://github.com/robinbryce/agentfiles",
   "repository": "https://github.com/robinbryce/agentfiles",
-  "license": "MIT",
-  "hooks": "./hooks/hooks.json"
+  "license": "MIT"
 }
