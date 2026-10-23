@@ -31,6 +31,14 @@ listed so they can be changed deliberately rather than rediscovered.
 - Closed streams (archived) are not recorded by hooks: a session that keeps
   running in a closed container writes nothing until `wif adopt` re-opens it.
   (Ruling 2026-10-21, after review found the hook resurrecting closed streams.)
+- Tangent → task name: a tangent note carries `as=<task>` — pinned by the
+  model (`wif tangent --as`, the skill tells it to always name) or derived by
+  the CLI (`<issue>-` + first content words, 40 chars; a fallback, not a
+  naming authority). The dashboard's `last →` block prints the `herdr-task`
+  then `wif adopt` steps for the newest tangent, using the parent container's
+  repo set (or the matching `HERDR_REPOS_*` collection), and collapses to the
+  remaining step when the container already exists. Ruling 2026-10-22: Robin
+  wanted the adopt name and the herdr-task context visible, not re-derived.
 - Intent ring length 10. Stream file cap 120 lines (over-cap is a dashboard flag).
 - Stale: no commit, session or stream update for 14 days and nothing dirty →
   flag `stale` (not a status).

@@ -127,7 +127,7 @@ class CommandTests(WifCase):
         notes = self.stream().notes()
         self.assertEqual(len(notes), 4)
         self.assertTrue(notes[0].startswith("- [followup] "))
-        self.assertTrue(notes[1].startswith("- [tangent] "))
+        self.assertTrue(notes[1].startswith("- [tangent as=tangent] "))      # every word was a stopword
         self.assertIn("[reminder due=20", notes[2]); self.assertIn("[reminder due=landed]", notes[3])
         rc, out, _ = self.capture(commands.note, ["--done", "hockey"])
         self.assertIn("removed", out)
@@ -135,6 +135,40 @@ class CommandTests(WifCase):
         with self.assertRaises(WifError): commands.note(["--done", "zzz"])
         with self.assertRaises(WifError): commands.note(["soon", "x"], "reminder")
         with self.assertRaises(WifError): commands.note([""])
+
+    def test_tangent_task_name_pinned_derived_and_renamed(self):
+        rc, out, _ = self.capture(commands.note, ["ENG-2486 generic drift-report linter could be its own stream"], "tangent")
+        self.assertIn("[tangent as=eng-2486-generic-drift-report-linter] ", out)
+        self.assertIn("  task: eng-2486-generic-drift-report-linter\n", out)
+        self.assertIn("    1. herdr-task eng-2486-generic-drift-report-linter repo-a\n", out)
+        self.assertIn("    2. wif adopt eng-2486-generic-drift-report-linter -p eng-1\n", out)
+        rc, out, _ = self.capture(commands.note, ["--as", "drift-linter", "a second idea"], "tangent")
+        self.assertIn("[tangent as=drift-linter] ", out)
+        with self.assertRaises(WifError): commands.note(["--as", "Drift_Linter", "x"], "tangent")
+        with self.assertRaises(WifError): commands.note(["--for", "second"], "tangent")
+        with self.assertRaises(WifError): commands.note(["--as", "x", "--for", "second", "text"], "tangent")
+        with self.assertRaises(WifError): commands.note(["--as", "x", "--for", "nope"], "tangent")
+        rc, out, _ = self.capture(commands.note, ["--as", "eng-2486-drift-linter", "--for", "generic drift"], "tangent")
+        self.assertIn("renamed on eng-1: - [tangent as=eng-2486-drift-linter] ", out)
+        notes = self.stream().notes()
+        self.assertEqual(len(notes), 2)
+        self.assertTrue(notes[0].startswith("- [tangent as=eng-2486-drift-linter] "))      # renamed in place
+        self.assertTrue(notes[0].endswith(" ENG-2486 generic drift-report linter could be its own stream"))
+        self.assertTrue(notes[1].startswith("- [tangent as=drift-linter] "))
+        # --done still matches on text, never on the tag
+        rc, out, _ = self.capture(commands.note, ["--done", "second idea"])
+        self.assertEqual(len(self.stream().notes()), 1)
+
+    def test_tangent_tail_uses_collection_and_existing_container(self):
+        self.container("repo-b-task", repos=("repo-b",))
+        with mock.patch.dict(os.environ, {"HERDR_REPOS_ONE": "repo-a", "HERDR_REPOS_A_B": "repo-a repo-b"}):
+            rc, out, _ = self.capture(commands.note, ["--as", "fresh-idea", "x"], "tangent")
+        self.assertIn("    1. herdr-task fresh-idea one\n", out)
+        rc, out, _ = self.capture(commands.note, ["--as", "repo-b-task", "already made"], "tangent")
+        self.assertIn("wif adopt repo-b-task -p eng-1   (container exists, untracked)", out)
+        Stream.create(self.ledger / "streams" / "repo-b-task.md", "repo-b-task", "justgames", "herdr", str(self.cont_root / "repo-b-task"), "parked")
+        rc, out, _ = self.capture(commands.note, ["--as", "repo-b-task", "made and adopted"], "tangent")
+        self.assertIn("already a stream (parked)", out); self.assertIn('wif note --done "made and adopted"', out)
 
     def test_note_newline_flattened(self):
         self.capture(commands.note, ["line one\nline two"])

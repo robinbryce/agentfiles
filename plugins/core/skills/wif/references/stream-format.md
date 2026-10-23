@@ -28,7 +28,7 @@ done: …
 failing: …
 ## Notes
 - [followup] 2026-10-21 check hockey CMS rows after merge
-- [tangent] 2026-10-21 generic drift-report linter could be its own stream
+- [tangent as=drift-report-linter] 2026-10-21 generic drift-report linter could be its own stream
 - [reminder due=2026-10-23] 2026-10-21 ping reviewer
 - [reminder due=landed] 2026-10-21 close ENG-2486 in Linear
 ## Handoff
@@ -38,6 +38,10 @@ failing: …
 ```
 
 Rules
+- A tangent carries `as=<task>`: the herdr container / stream name it becomes
+  (`wif tangent --as`, else derived from the text at record time; re-pin with
+  `wif tangent --as <task> --for "<substring>"`). A bare `[tangent]` from
+  before this field is still read; its name is derived at show time.
 - `Now` is rewritten at each handoff and should shrink or hold. Growth is drift.
 - `Notes` lines are removed with `wif note --done "<substring>"` when acted on
   (a followup that became an intent, a tangent that became a stream via

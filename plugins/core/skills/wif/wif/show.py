@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import config, paths
+from . import config, paths, tangents
 from .ledger import Stream, dump_json, load_json
 
 ORDER = {"active": 0, "blocked": 1, "landed": 2, "parked": 3, "closed": 9}
@@ -39,6 +39,22 @@ def due_notes(streams: dict, today: str) -> list[tuple[str, str]]:
             due = ln[len("- [reminder due="):].split("]", 1)[0]
             if (due == "landed" and s.get("status") in ("landed", "closed")) or (due != "landed" and due <= today):
                 out.append((sid, ln))
+    return out
+
+
+def last_tangent_lines(streams: dict, cont: dict, cur: str) -> list[str]:
+    """`last → task: <name>` for the newest tangent, then the command(s) that
+    make it a stream: `wif adopt <name>` once a container exists, else the
+    `herdr-task` line first (repo set of the stream it was discovered from)."""
+    hit = tangents.last(streams, cur)
+    if not hit:
+        return []
+    parent, p = hit
+    task = tangents.task_of(p)
+    repos = [r.get("name") for r in (cont.get(parent) or {}).get("repos") or [] if isinstance(r, dict) and r.get("name")]
+    rec = tangents.recommend(task, parent, repos, cont.get(task), p.get("text", ""))
+    out = [f"  last → task: {task}" + ("" if p.get("as") else " (derived; pin with wif tangent --as <task> --for \"<substring>\")")]
+    out.extend(f"    {trim(ln, 110)}" for ln in rec)
     return out
 
 
@@ -111,13 +127,14 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
         return lines
 
     tail: list[str] = []
-    tang = [(k, ln) for k, s in streams.items() for ln in (s.get("notes") or []) if ln.startswith("- [tangent]")]
+    tang = [(k, ln) for k, s in streams.items() for ln in (s.get("notes") or []) if tangents.parse(ln)]
     if tang:
         tail.append(f"candidates ({len(tang)}):")
         for k, ln in tang[:4]:
             tail.append(f"  ← {k}: {trim(note_text(ln), 70)}")
         if len(tang) > 4:
             tail.append(f"  … {len(tang) - 4} more")
+        tail.extend(last_tangent_lines(streams, cont, cur))
     un = sorted([c for c in cont.values() if not c.get("stream")], key=lambda c: -(c.get("last_activity_ts") or 0))
     lim = len(un) if "--all" in args else 8
     if un:

@@ -12,6 +12,7 @@ allowed-tools: Bash(wif *) Bash(*/skills/wif/scripts/wif *) Bash(git *) Bash(gh 
 /core:wif start "<session goal>"   bind this session to the stream here; set its goal
 /core:wif mark ...                 override an inferred goal/intent; set position/next/status
 /core:wif note|tangent|remind ...  capture a side thought without acting on it
+                                   (tangent --as <task>: the container name it becomes)
 /core:wif scan [--prs]             rebuild the index from disk (gh lookups opt-in, cached 6h)
 /core:wif tick                     loop body: scan, print only what changed, check rotation
 /core:wif handoff                  land the plane: fold session → stream, write kickoff, advise /clear
@@ -70,6 +71,13 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
   `wif mark -p "<slice n/m — what>" -n "<next action>"`.
 - Robin says "remind me", "followup", "tangent", "note that", "park that
   thought" → the matching `wif note|tangent|remind` command, verbatim text.
+  For a tangent always pass `--as <task>`: the name of the herdr container
+  (and so the stream) it would become — lowercase kebab-case, ≤ 40 chars,
+  `eng-NNNN-<two-or-three words>` when a Linear issue is named, else
+  `<topic>-<subject>-<kind>` like the existing containers
+  (`basketball-la-lakers-alias`, `pr-1643-rotd-rr`). You name better than the
+  CLI's stopword fallback; pick it from the meaning, not the words. Relay the
+  command's `task:` tail (the `herdr-task` / `wif adopt` steps) in your reply.
 - A note has been acted on (followup became the intent, reminder fired,
   tangent promoted or rejected) → `wif note --done "<substring>"`.
 
@@ -78,6 +86,16 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
 Print nothing beyond the dashboard unless something needs Robin's decision:
 due reminders, `landed?` proposals, `over-cap` streams, or a stream without a
 goal. For each, one line with the command that resolves it.
+
+When `candidates` shows a `last → task:` line, add one short block after the
+dashboard recommending the context to create: the `herdr-task <task> <repos>`
+line from the dashboard (the repo set is the parent stream's; a
+`HERDR_REPOS_*` collection name is used when one matches exactly — say if a
+different set fits the tangent better), then `wif adopt <task> -p <parent>`,
+then `wif note --done "<substring>"` on the parent once adopted. If the name is
+marked `derived`, propose a better one in the convention above and give the
+`wif tangent --as <task> --for "<substring>"` line that pins it. If the
+container already exists, say so and give only the step that remains.
 
 ## 4. `/core:wif start "<goal>"`
 
