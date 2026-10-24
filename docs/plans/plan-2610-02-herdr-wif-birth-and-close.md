@@ -68,7 +68,7 @@ herdr-task-done eng-2700-thing
 Slices are ordered so each is useful alone. C1 goes first because A's footer
 and the dashboard text both describe what adopt now does.
 
-### Slice C1 — `wif adopt` finishes the tangent (agentfiles) — IMPLEMENTED 2026-10-24 (branch `plan-2610-02-c1`)
+### Slice C1 — `wif adopt` finishes the tangent (agentfiles) — MERGED 2026-10-24 (robinbryce/agentfiles#7, 938a716)
 
 Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
 `wif/ledger.py` (`Stream.section`), `tests/test_commands.py`.
@@ -105,7 +105,16 @@ Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
    ruling, `references/dashboard.md`, `references/stream-format.md` (adopt
    removes the note; Handoff may be seeded).
 
-### Slice A — `herdr-task` births the stream and says what to do next (dotfiles)
+### Slice A — `herdr-task` births the stream and says what to do next (dotfiles) — IMPLEMENTED 2026-10-24 (draft PR robinbryce/dotfiles#1, branch `plan-2610-02-a`)
+
+*As built:* verified offline against a stub `herdr` and a temp wif ledger
+(all seven items below); the live herdr-session smoke in item 7 is still
+to do by hand. Two extras landed with it: `git worktree add` is created
+`--no-track` so a task branch never tracks `origin/main`, and a
+pre-existing `herdr-dispatch` bug (`die()` inside `$(…)` only exited the
+subshell, so a missing tab fell through to an empty submit) is fixed. The
+wif recommendation keeps the `&&` form (not herdr-task flags); both
+forms work once this slice lands.
 
 File: `bin/herdr-task.sh`; docs: `docs/README-herdr.md` (herdr-task section
 and the conventions table).
@@ -154,19 +163,77 @@ and the conventions table).
    has a short worktree list) inside the justgames herdr session, with and
    without `-g/-p`, and a re-run to confirm adopt is idempotent.
 
-### Slice B — closeout closes the stream (dotfiles)
+### Slice B — closeout completes from inside the session (dotfiles + agentfiles) — IMPLEMENTED 2026-10-24 (draft PRs robinbryce/dotfiles#2 + robinbryce/agentfiles#8)
 
-Files: `bin/herdr-task-done.sh`, `bin/herdr-task-force-clean.sh`.
+*As built:* all of B1–B6 as specified; verified offline with the stub
+`herdr` serving agents from a file (all six item-7 scenarios pass); the
+live run from a real pane is still to do. One finding on the way: a plain
+`( nohup … & )` leaves the forked subshell holding the caller's
+stdout/stderr, so an agent's piped invocation blocked for the reaper's
+whole wait — the reaper is now daemonised with perl's double fork + setsid
+(fallback `exec nohup … &`) and the in-session run returns in 0s. The
+process also `cd`s to the scope root before anything else, so it never sits
+in a directory it may delete.
 
-1. In herdr-task-done, after the workspace step and only when the task dir was
-   actually removed (nothing kept) or `--workspace-only` was passed by
-   force-clean: `wif mark --stream "$TASK" -s closed` with cwd = `$ROOT`.
-   "no stream" and "already closed" are notes, not failures; `--dry-run`
-   prints `would close stream`. Honour `--no-wif`.
-2. force-clean needs no change beyond passing `--no-wif` through; it already
-   execs task-done `--workspace-only`.
-3. Verify with the Slice A throwaway task: stream file moves to `archive/`,
-   `wif show` loses the `backing missing` line for it.
+Files: `bin/herdr-task-done.sh`, `bin/herdr-task-force-clean.sh`,
+`docs/README-herdr.md` (dotfiles); `plugins/core/skills/worktrees-closeout/SKILL.md`
+(agentfiles).
+
+**Problem (2026-10-24, `just-agents-1`).** A session cannot close itself out:
+`git worktree remove` happily deletes the directory the session stands in
+(exit 0, shell left with no cwd) and `herdr workspace close` kills the pane
+running the command. An outside run cannot finish either: it sees "3 commits
+ahead, no MERGED PR" and refuses, because the evidence that made it safe
+(the commits were byte-identical to the head of open PR just-agents#35) lived
+only in the session. The confidence is inside; the destruction must happen
+outside. **Design: approve inside, reap outside.**
+
+1. **B1 remote-reachability rule.** A worktree whose HEAD is reachable from
+   any pushed remote branch (`git branch -r --contains <head>` after the
+   fetch) is removable even with no MERGED PR: the content is on origin. An
+   OPEN PR on the branch still blocks. This alone would have removed
+   `just-agents-1`. Applies to detached HEADs too.
+2. **B2 live-agent guard.** A worktree whose path is the cwd of a live herdr
+   agent (`herdr agent list`) is kept with reason "live agent <name>", and
+   the workspace is not closed while any live agent remains in the container.
+   Removing a worktree under a running session breaks it; this is a new
+   safety check, not overridable by `--approve`. `--force` (used by
+   force-clean) still closes, with a warning naming the agents.
+3. **B3 approval marker.** `herdr-task-done <task> --approve "<evidence>"`
+   runs the discovery and, for every worktree kept *only* for the
+   unmerged-commits class of reason, records `{repo: HEAD sha}` plus the
+   evidence, session id and timestamp in `<task-dir>/.closeout.json`. It
+   changes nothing else. A plain run then removes such a worktree when the
+   marker's sha equals the current HEAD (a later commit re-blocks). Dirty
+   trees, open PRs and live agents are never overridden. The marker is
+   removed with the task dir (treated as generated).
+4. **B4 detached final step.** When the run's own cwd is under the task dir
+   (the in-session case), everything else is done now; the worktree hosting
+   the session, the task dir, the stream close and the workspace close are
+   handed to a detached reaper (`nohup` + `setsid` via perl, cwd = scope
+   root) that polls `herdr agent list` until no agent remains in the
+   container (timeout 2h), then re-runs `herdr-task-done <task> --reap`.
+   Log: `~/.local/state/herdr-task/<task>.reap.log`. The in-session message
+   ends with "exit this session; the rest is swept when it is gone".
+5. **B5 stream close** (the original Slice B): `wif mark --stream <task>
+   -s closed` from the scope root once the task dir is gone, or on
+   `--workspace-only` from force-clean; "no stream" / "already closed" are
+   notes; `--no-wif` skips; dry run says `would close stream`.
+6. **B6 skill.** `worktrees-closeout` §0 gains the remote-reachability
+   condition; §3 says: when the only blockers are unmerged commits with
+   concrete evidence, run `herdr-task-done <task> --approve "<evidence>"` then
+   `herdr-task-done <task>`; when inside the container expect the deferred
+   message and tell Robin to exit the session. Live agents are reported, not
+   fought.
+7. Verify with the stub `herdr` (agents with a cwd under the container):
+   remote-reachable branch removed with no marker; live agent keeps worktree
+   and workspace from outside; `--approve` then plain run removes an
+   unmerged-but-approved worktree and refuses after a new commit; in-session
+   run defers and the reaper completes once the stub agent disappears;
+   stream archived. Then the live smoke from a real pane.
+
+*Follow-up, not in this slice:* `wif tick` sweeps containers that carry a
+marker and have no live agent, so a forgotten approval still lands.
 
 ### Slice D — scope env and agent kickoff
 
