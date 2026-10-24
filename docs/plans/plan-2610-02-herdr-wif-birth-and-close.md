@@ -68,7 +68,7 @@ herdr-task-done eng-2700-thing
 Slices are ordered so each is useful alone. C1 goes first because A's footer
 and the dashboard text both describe what adopt now does.
 
-### Slice C1 — `wif adopt` finishes the tangent (agentfiles) — IMPLEMENTED 2026-10-24 (branch `plan-2610-02-c1`)
+### Slice C1 — `wif adopt` finishes the tangent (agentfiles) — MERGED 2026-10-24 (robinbryce/agentfiles#7, 938a716)
 
 Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
 `wif/ledger.py` (`Stream.section`), `tests/test_commands.py`.
@@ -105,7 +105,16 @@ Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
    ruling, `references/dashboard.md`, `references/stream-format.md` (adopt
    removes the note; Handoff may be seeded).
 
-### Slice A — `herdr-task` births the stream and says what to do next (dotfiles)
+### Slice A — `herdr-task` births the stream and says what to do next (dotfiles) — IMPLEMENTED 2026-10-24 (draft PR robinbryce/dotfiles#1, branch `plan-2610-02-a`)
+
+*As built:* verified offline against a stub `herdr` and a temp wif ledger
+(all seven items below); the live herdr-session smoke in item 7 is still
+to do by hand. Two extras landed with it: `git worktree add` is created
+`--no-track` so a task branch never tracks `origin/main`, and a
+pre-existing `herdr-dispatch` bug (`die()` inside `$(…)` only exited the
+subshell, so a missing tab fell through to an empty submit) is fixed. The
+wif recommendation keeps the `&&` form (not herdr-task flags); both
+forms work once this slice lands.
 
 File: `bin/herdr-task.sh`; docs: `docs/README-herdr.md` (herdr-task section
 and the conventions table).
