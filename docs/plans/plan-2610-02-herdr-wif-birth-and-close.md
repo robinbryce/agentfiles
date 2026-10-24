@@ -116,6 +116,19 @@ subshell, so a missing tab fell through to an empty submit) is fixed. The
 wif recommendation keeps the `&&` form (not herdr-task flags); both
 forms work once this slice lands.
 
+*Live smoke finding (2026-10-24, A8 launchers):* `just-claude` in a fresh
+container did not bind to the wif stream — it exec'd a bare `claude` under
+`~/.claude`, where no wif hooks live and the justgames scope is not served.
+Fix, per plan-2610-01 D1/D7: the generated `~/.config/agentfiles/wrappers.sh`
+is the one source of launchers (robinbryce/agentfiles#9) — `claude-<profile>`
+sets `CLAUDE_CONFIG_DIR` *and* turns `SKILLS_PATH` into `--plugin-dir`; the
+bare `claude` router picks the profile from direnv, else the directory's
+scope root; `agentfiles wrappers` regenerates. dotfiles `agents.sh` sources
+it (old functions = fallback), `just-claude` is a shim that does the same
+selection and names the launcher, and `herdr-task`'s footer prints
+`claude-<profile>` for the container's scope (on dotfiles#1). After merging
+both: `agentfiles wrappers`, then a new pane.
+
 File: `bin/herdr-task.sh`; docs: `docs/README-herdr.md` (herdr-task section
 and the conventions table).
 
