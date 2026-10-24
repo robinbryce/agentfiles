@@ -163,7 +163,17 @@ and the conventions table).
    has a short worktree list) inside the justgames herdr session, with and
    without `-g/-p`, and a re-run to confirm adopt is idempotent.
 
-### Slice B — closeout completes from inside the session (dotfiles + agentfiles)
+### Slice B — closeout completes from inside the session (dotfiles + agentfiles) — IMPLEMENTED 2026-10-24 (draft PRs robinbryce/dotfiles#2 + robinbryce/agentfiles#8)
+
+*As built:* all of B1–B6 as specified; verified offline with the stub
+`herdr` serving agents from a file (all six item-7 scenarios pass); the
+live run from a real pane is still to do. One finding on the way: a plain
+`( nohup … & )` leaves the forked subshell holding the caller's
+stdout/stderr, so an agent's piped invocation blocked for the reaper's
+whole wait — the reaper is now daemonised with perl's double fork + setsid
+(fallback `exec nohup … &`) and the in-session run returns in 0s. The
+process also `cd`s to the scope root before anything else, so it never sits
+in a directory it may delete.
 
 Files: `bin/herdr-task-done.sh`, `bin/herdr-task-force-clean.sh`,
 `docs/README-herdr.md` (dotfiles); `plugins/core/skills/worktrees-closeout/SKILL.md`
