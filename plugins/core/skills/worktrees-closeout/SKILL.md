@@ -30,9 +30,21 @@ Never skip to part 3.
   oracle is GitHub: a MERGED PR whose `headRefOid` is the worktree's HEAD, or a
   patch-identity check against the default branch for anything beyond that.
 - Work is removable only when **all** hold: clean tree, no OPEN PR has the
-  branch as head, and HEAD is level with `origin/<default>` **or** is the
-  `headRefOid` of a MERGED PR **or** every extra commit is patch-identical to
-  something already on `origin/<default>`. Anything else is kept and reported.
+  branch as head, no live herdr agent is working in the worktree, and HEAD is
+  level with `origin/<default>` **or** is the `headRefOid` of a MERGED PR
+  **or** is reachable from any pushed remote branch (`git branch -r
+  --contains HEAD`; the content is on origin whatever the branch is called)
+  **or** every extra commit is patch-identical to something already on
+  `origin/<default>`. Anything else is kept and reported — but see
+  **approval** in §3: evidence you establish here that git cannot check
+  (the commits are byte-identical to another branch's open PR, say) is
+  recorded with `herdr-task-done --approve` so the removal can still happen.
+- **Running inside the container is the normal case**, not a problem. A
+  session cannot delete the directory it stands in or close its own pane, so
+  `herdr-task-done` does everything else now and defers its own worktree,
+  the task dir, the wif stream and the workspace to a detached reaper that
+  waits for the session's agent to exit. Expect its output to end with
+  "EXIT THIS SESSION" and tell Robin exactly that.
 - One context, all repos ([multi-repo-fanout](../multi-repo-fanout/SKILL.md)):
   cross-repo facts (a PR in repo A that supersedes a branch in repo B) are only
   visible with every sibling loaded. Do not fan out the assessment.
@@ -63,6 +75,8 @@ git -C "$wt" log --oneline "origin/$base..HEAD"                    # the candida
 git -C "$wt" log --oneline '@{u}..HEAD' 2>/dev/null               # unpushed
 gh pr list -R <owner/repo> --head "$branch" --state all --json number,state,title,url,headRefOid,mergedAt,mergeCommit
 git ls-remote --heads origin "$branch"                            # does the remote branch still exist
+git -C "$wt" branch -r --contains HEAD                            # on origin under ANY name? then removable
+herdr agent list | jq -r '.result.agents[] | select(.cwd|test("<task>")) | "\(.name) \(.agent_status) \(.cwd)"'   # live agents
 ```
 
 Record for each worktree: repo, branch, HEAD, dirty files, stashes, unpushed
@@ -80,8 +94,13 @@ Also list every non-directory / non-repo entry in the container.
   the `+` ones (`git show --stat`) and judge.
 - **open** — an OPEN PR has this branch as head. Not closeable; say so and
   stop for that repo (optionally report the PR's review / CI state).
-- **never raised** — ahead > 0 with no PR at all. Treat the commits as
-  residual local changes (below).
+- **never raised** — ahead > 0 with no PR at all. If HEAD is reachable from a
+  pushed remote branch the content is on origin: verdict **on origin**,
+  removable. Otherwise treat the commits as residual local changes (below).
+- **superseded by another branch** — the commits are byte-identical to (or
+  patch-identical to) commits on another branch that has its own PR, typically
+  because `herdr-task` branched from a checkout sitting on that branch. Cite
+  the PR and SHA; this is exactly what `--approve` is for.
 - **detached / foreign** — detached HEAD or branch not named for the task.
   Report; do not infer intent.
 
@@ -116,9 +135,19 @@ Order of preference:
 1. **herdr task** (container is `…/.worktrees-herdr/<task>`): run
    `herdr-task-done <task> --dry-run`, compare its kept/removed list with your
    own verdicts — they must agree; if they do not, say which is wrong and why
-   before proceeding — then `herdr-task-done <task>` (add `--keep-branches`
-   if asked). It removes worktrees, deletes task branches under the same safety
-   rule as §0, drops the empty task dir, and closes the herdr workspace.
+   before proceeding. **Approval:** when the only disagreement is a worktree
+   the script keeps for "commit(s) ahead … with no MERGED PR" and your §2
+   verdict is **superseded by another branch** (or otherwise provably on a
+   remote), record the evidence first:
+   `herdr-task-done <task> --approve "<PR number + SHA, or the git cherry output>"`.
+   Never approve on belief; the string must name the PR/SHA a reader can
+   check. Then `herdr-task-done <task>` (add `--keep-branches` if asked). It
+   removes worktrees, deletes task branches under the same safety rule as §0,
+   drops the empty task dir, archives the wif stream, and closes the herdr
+   workspace — or, when run from inside the container, defers its own
+   worktree and the workspace to the detached reaper and says so. A live
+   agent in another worktree is reported and left alone; do not try to kill
+   it.
 2. **Plain container**: for each worktree that passed §0, from its main checkout
    `git worktree remove "$wt"`, `git branch -D "$branch"` (skip with
    `--keep-branches`), `git worktree prune`; then `rmdir` the container when it
@@ -145,6 +174,9 @@ Lead with the verdict: closed out, or closed out except N kept. Then:
 - salvage steps still to run, each as a runnable command
 - anything the user must decide (an open PR, a never-raised branch, a kept
   worktree)
+- when the run was deferred: the one line "exit this session; the reaper
+  finishes the closeout" and the reaper log path
+  (`~/.local/state/herdr-task/<task>.reap.log`)
 - the absolute path of every worktree touched and of the container
 
 Keep the merged-evidence concrete: PR number + `headRefOid`, or the
