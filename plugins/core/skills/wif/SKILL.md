@@ -88,14 +88,18 @@ due reminders, `landed?` proposals, `over-cap` streams, or a stream without a
 goal. For each, one line with the command that resolves it.
 
 When `candidates` shows a `last → task:` line, add one short block after the
-dashboard recommending the context to create: the `herdr-task <task> <repos>`
-line from the dashboard (the repo set is the parent stream's; a
-`HERDR_REPOS_*` collection name is used when one matches exactly — say if a
-different set fits the tangent better), then `wif adopt <task> -p <parent>`,
-then `wif note --done "<substring>"` on the parent once adopted. If the name is
-marked `derived`, propose a better one in the convention above and give the
+dashboard recommending the context to create: the one-line
+`herdr-task <task> <repos> && wif adopt <task> -g "<text>"` command from the
+dashboard (the repo set is the parent stream's; a `HERDR_REPOS_*` collection
+name is used when one matches exactly — say if a different set fits the
+tangent better). Nothing else is needed: `wif adopt <task>` clears the
+`[tangent as=<task>]` note on the stream it was discovered from, records that
+stream as `parent`, takes the tangent text as the goal unless `-g` is given,
+and seeds `## Handoff` (objective, parent pointers, memory bridge) for the
+first session's SessionStart hook. If the name is marked `derived`, propose a
+better one in the convention above and give the
 `wif tangent --as <task> --for "<substring>"` line that pins it. If the
-container already exists, say so and give only the step that remains.
+container already exists, say so and give only the `wif adopt` step.
 
 ## 4. `/core:wif start "<goal>"`
 

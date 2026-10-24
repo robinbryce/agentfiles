@@ -200,6 +200,10 @@ class Stream:
     def section_remove(self, name: str, needle: str) -> str | None:
         """Remove the first list item (`- [kind] date text`) whose text contains
         <needle>. Tags and comments are never matched."""
+        return self.section_remove_if(name, lambda ln: needle in item_text(ln))
+
+    def section_remove_if(self, name: str, pred) -> str | None:
+        """Remove the first list item in section <name> for which pred(line) holds."""
         lines = self.body.split("\n")
         out, insec, removed = [], False, None
         for ln in lines:
@@ -209,7 +213,7 @@ class Stream:
                 continue
             if insec and ln.startswith("## "):
                 insec = False
-            if insec and removed is None and ln.startswith("- ") and needle in item_text(ln):
+            if insec and removed is None and ln.startswith("- ") and pred(ln):
                 removed = ln
                 continue
             out.append(ln)

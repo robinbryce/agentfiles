@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import config, paths, tangents
+from . import config, paths, scan, tangents
 from .ledger import (Stream, ctx_file, load_json, now_iso, ring_last, safe_sid, session_ensure,
                      session_file, session_save, stream_lock, today)
 
@@ -125,13 +125,26 @@ def adopt(args: list[str], out=None) -> int:
         else:
             s = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path), status or "active")
             created = True
+        # The tangent this container was promoted from: clear it on the stream it
+        # was discovered from, and let that stream stand in for -p / -g when they
+        # were not given. Exact `as=<task>` match only (a derived name is a
+        # fallback, never an authority).
+        origin = _clear_tangent(ctx, out)
+        if origin and not parent:
+            parent = origin["parent"]
         if goal: s.set("goal", goal)
+        elif origin and not s.get("goal"): s.set("goal", origin["text"])
         if parent: s.set("parent", parent)
         if nxt: s.set("next", nxt)
         if status:
             s.set("status", status)
         elif not created and s.get("status") == "closed":
             s.set("status", "active")
+        if not s.section("Handoff"):
+            seed = _handoff_seed(ctx, s, origin, parent)
+            if seed:
+                s.set_section("Handoff", seed)
+                print(f"seeded ## Handoff ({len(seed)} lines; injected by the SessionStart hook)", file=out)
         s.set("updated", today())
         s.save()
         if s.get("status") == "closed":
@@ -139,6 +152,61 @@ def adopt(args: list[str], out=None) -> int:
         else:
             print(str(ctx.stream_file), file=out)
     return 0
+
+
+def _clear_tangent(ctx: paths.Ctx, out) -> dict | None:
+    """Remove the first `[tangent as=<ctx.id>]` note found on any other open stream
+    in scope. -> {"parent": <stream id>, "text": <note text>} or None."""
+    sd = ctx.ledger / "streams"
+    try:
+        files = sorted(sd.glob("*.md"))
+    except OSError:
+        return None
+    for f in files:
+        if f == ctx.stream_file:
+            continue
+        with stream_lock(f):
+            if not f.exists():
+                continue
+            ps = Stream.load(f)
+            hit = ps.section_remove_if("Notes", lambda ln: (tangents.parse(ln) or {}).get("as") == ctx.id)
+            if hit is None:
+                continue
+            ps.set("updated", today()); ps.save()
+        text = (tangents.parse(hit) or {}).get("text", "")
+        print(f"cleared tangent on {ps.get('id') or f.stem}: {text}", file=out)
+        return {"parent": ps.get("id") or f.stem, "text": text}
+    return None
+
+
+MEMORY_BRIDGE = ("Read {md}/MEMORY.md and the memories it indexes, then re-save what's still "
+                 "relevant to this workspace's own memory.")
+
+
+def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -> list[str]:
+    """First-session kickoff for a stream born from a tangent or under a parent
+    stream: objective, where it came from, the parent's pointers and the
+    memory bridge. Empty when neither applies (nothing to say yet)."""
+    pf = (ctx.ledger / "streams" / f"{parent}.md") if parent and safe_sid(parent) else None
+    if not origin and not (pf and pf.exists()):
+        return []
+    lines = [f"objective: {origin['text'] if origin else (s.get('goal') or '-')}"]
+    if pf and pf.exists():
+        ps = Stream.load(pf)
+        bpath = ps.get("backing").split(":", 1)[-1]
+        lines.append(f"{'discovered from' if origin else 'parent'}: {parent}" + (f" ({bpath})" if bpath else ""))
+        if ps.get("goal"):
+            lines.append(f"parent goal: {ps.get('goal')}")
+        if ps.get("handoff_doc"):
+            lines.append(f"parent handoff: {ps.get('handoff_doc')}")
+        if bpath:
+            md = ctx.config_dir / "projects" / scan.sanitize(bpath) / "memory"
+            if (md / "MEMORY.md").is_file():
+                lines.append("memory bridge: " + MEMORY_BRIDGE.format(md=md))
+    elif parent:
+        lines.append(f"{'discovered from' if origin else 'parent'}: {parent}")
+    lines.append("re-invoke: /core:wif")
+    return lines
 
 
 # ---- mark --------------------------------------------------------------------

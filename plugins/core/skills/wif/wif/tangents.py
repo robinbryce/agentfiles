@@ -91,15 +91,35 @@ def done_needle(text: str) -> str:
     return " ".join(words[:3]) if words else text[:16]
 
 
+def shell_quote(text: str) -> str:
+    """Double-quote <text> for a copy-pasteable shell line."""
+    return '"' + (text or "").replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace("`", "\\`") + '"'
+
+
 def recommend(task: str, parent: str, parent_repos: list[str], container: dict | None, text: str = "") -> list[str]:
-    """Dashboard / command tail for one tangent: what to run to make it a stream.
-    <container> is the index entry for a container named <task>, if one exists."""
+    """Dashboard / command tail for one tangent: the ONE command that makes it a
+    stream. `wif adopt <task>` clears the `[tangent as=<task>]` note on the
+    stream it was discovered from and inherits that stream as parent, so no
+    `wif note --done` step is needed. <container> is the index entry for a
+    container named <task>, if one exists."""
     if container and container.get("stream"):
-        return [f"wif adopt {task}: already a stream ({container['stream']}) — close the note: "
-                f"wif note --done \"{done_needle(text)}\""]
-    adopt = f"wif adopt {task} -p {parent}"
+        return [f"wif adopt {task}   (already a stream ({container['stream']}); re-adopting clears this note)"]
     if container:
-        return [f"{adopt}   (container exists, untracked)"]
+        return [f"wif adopt {task}   (container exists, untracked)"]
     coll = collection_for(parent_repos)
     repos = coll or (" ".join(parent_repos) if parent_repos else "<repo>...")
-    return [f"1. herdr-task {task} {repos}", f"2. {adopt}"]
+    goal = f" -g {shell_quote(goal_text(text))}" if text else ""
+    return [f"herdr-task {task} {repos} && wif adopt {task}{goal}"]
+
+
+GOAL_MAX = 72
+
+
+def goal_text(text: str, limit: int = GOAL_MAX) -> str:
+    """The tangent text as a one-line goal: cut at a word boundary under <limit>
+    chars, with no ellipsis, so the printed command stays valid shell."""
+    t = " ".join((text or "").split())
+    if len(t) <= limit:
+        return t
+    cut = t[:limit].rsplit(" ", 1)[0] if " " in t[:limit] else t[:limit]
+    return cut.rstrip(" ,;:-")

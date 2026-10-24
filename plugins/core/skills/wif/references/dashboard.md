@@ -17,8 +17,9 @@ streams (N):
 candidates (N):                         (tangents awaiting promotion)
   ← <stream>: <text>
   last → task: <task> [(derived; pin with wif tangent --as <task> --for "<substring>")]
-    1. herdr-task <task> <collection|repos>   (parent stream's repo set; omitted when the container exists)
-    2. wif adopt <task> -p <parent>           (or: already a stream (<status>) — wif note --done "...")
+    herdr-task <task> <collection|repos> && wif adopt <task> -g "<text>"   (parent stream's repo set)
+    (container exists:  wif adopt <task>   (container exists, untracked)
+                    or  wif adopt <task>   (already a stream (<status>); re-adopting clears this note))
 untracked containers (N; wif adopt <task> [-s parked]):
   task   age   shape   dirty   herdr:<agent_status>   flags   (8 by recency; --all for everything)
 unbound memory (N): task(files), …
@@ -36,7 +37,12 @@ unbound memory (N): task(files), …
   order). Its task name is the `as=` pin on the note, else derived from the
   text (`<issue>-` prefix + first content words, ≤ 40 chars). The `herdr-task`
   repos are the parent container's; a `HERDR_REPOS_<X>` collection whose set
-  matches exactly is named instead (`oracle`).
+  matches exactly is named instead (`oracle`). The command is complete on its
+  own: `wif adopt <task>` clears the tangent note on the parent stream and
+  inherits parent and goal from it (see stream-format.md). The `-g` text is
+  the tangent cut at a word boundary under 72 chars (no ellipsis), and the
+  command line is the one dashboard line never trimmed to 110 columns: a cut
+  command is not pasteable, a wrapped one is.
 - Flags: `stale` (no commit, session or stream update for 14 days and nothing
   dirty), `dirty`, `unpushed` (ahead of the remote ref), `unpublished` (origin
   exists, branch never pushed), `no-remote` (a repo without origin), `landed?`

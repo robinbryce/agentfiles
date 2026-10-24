@@ -68,7 +68,7 @@ herdr-task-done eng-2700-thing
 Slices are ordered so each is useful alone. C1 goes first because A's footer
 and the dashboard text both describe what adopt now does.
 
-### Slice C1 — `wif adopt` finishes the tangent (agentfiles)
+### Slice C1 — `wif adopt` finishes the tangent (agentfiles) — IMPLEMENTED 2026-10-24 (branch `plan-2610-02-c1`)
 
 Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
 `wif/ledger.py` (`Stream.section`), `tests/test_commands.py`.
@@ -92,9 +92,12 @@ Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
    - `re-invoke: /core:wif` .
    Never overwrite an existing non-empty `## Handoff` (re-adopt, re-open).
 3. **Collapse the recommendation** in `tangents.recommend` to the one-command
-   form: `herdr-task <task> <collection|repos> -p <parent> -g "<text>"`, and
-   only the `wif adopt <task>` line when the container already exists. The
-   `wif note --done` line goes away because adopt now does it.
+   form, and only the `wif adopt <task>` line when the container already
+   exists. The `wif note --done` line goes away because adopt now does it.
+   *As built:* the form is `herdr-task <task> <collection|repos> && wif adopt
+   <task> -g "<text>"` rather than herdr-task flags, so the printed command is
+   valid before Slice A lands; `-p` is omitted because adopt infers the parent
+   from the cleared note. Slice A may switch the text to the flag form.
 4. Tests: adopt clears the as= note and prints it; adopt without `-p` inherits
    the parent; Handoff seeded once and never clobbered; recommend emits one
    line; existing-container and already-a-stream branches unchanged.

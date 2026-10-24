@@ -44,8 +44,17 @@ Rules
   before this field is still read; its name is derived at show time.
 - `Now` is rewritten at each handoff and should shrink or hold. Growth is drift.
 - `Notes` lines are removed with `wif note --done "<substring>"` when acted on
-  (a followup that became an intent, a tangent that became a stream via
-  `wif adopt`/`start`, a reminder that fired).
+  (a followup that became an intent, a reminder that fired). A tangent is
+  removed by `wif adopt <task>` itself: adopting a container named `<task>`
+  deletes the first `[tangent as=<task>]` note on any open stream in scope,
+  sets the new stream's `parent` to that stream (unless `-p` was given) and
+  its `goal` to the note text (unless `-g` was given or a goal exists).
+- `## Handoff` is seeded by `wif adopt` when it is empty and the stream was
+  born from a tangent or under `-p <existing stream>`: `objective:`,
+  `discovered from:`/`parent:` with the container path, `parent goal:`,
+  `parent handoff:` (its `handoff_doc`), `memory bridge:` (only when the
+  parent container's memory dir has a `MEMORY.md`), `re-invoke: /core:wif`.
+  ≤ 12 lines; a non-empty Handoff is never overwritten.
 - The SessionStart hook injects `Handoff` (30 lines max) and `Now` (20 lines max).
 - Closing: `wif mark -s closed` moves the file to `../archive/`; hooks then
   ignore the container until `wif adopt` re-opens it. From outside the

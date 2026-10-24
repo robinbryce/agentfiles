@@ -54,7 +54,7 @@ def last_tangent_lines(streams: dict, cont: dict, cur: str) -> list[str]:
     repos = [r.get("name") for r in (cont.get(parent) or {}).get("repos") or [] if isinstance(r, dict) and r.get("name")]
     rec = tangents.recommend(task, parent, repos, cont.get(task), p.get("text", ""))
     out = [f"  last → task: {task}" + ("" if p.get("as") else " (derived; pin with wif tangent --as <task> --for \"<substring>\")")]
-    out.extend(f"    {trim(ln, 110)}" for ln in rec)
+    out.extend(f"    {ln}" for ln in rec)          # a command is never trimmed: cut text is not pasteable
     return out
 
 

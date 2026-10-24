@@ -34,11 +34,22 @@ listed so they can be changed deliberately rather than rediscovered.
 - Tangent → task name: a tangent note carries `as=<task>` — pinned by the
   model (`wif tangent --as`, the skill tells it to always name) or derived by
   the CLI (`<issue>-` + first content words, 40 chars; a fallback, not a
-  naming authority). The dashboard's `last →` block prints the `herdr-task`
-  then `wif adopt` steps for the newest tangent, using the parent container's
-  repo set (or the matching `HERDR_REPOS_*` collection), and collapses to the
-  remaining step when the container already exists. Ruling 2026-10-22: Robin
-  wanted the adopt name and the herdr-task context visible, not re-derived.
+  naming authority). The dashboard's `last →` block prints ONE command for
+  the newest tangent — `herdr-task <task> <repos> && wif adopt <task>
+  -g "<text>"`, using the parent container's repo set (or the matching
+  `HERDR_REPOS_*` collection) — and collapses to the `wif adopt` step when the
+  container already exists. Ruling 2026-10-22: Robin wanted the adopt name and
+  the herdr-task context visible, not re-derived. Ruling 2026-10-24
+  (plan-2610-02 C1): promotion is one command, so `wif adopt <task>` finishes
+  the tangent itself — it removes the `[tangent as=<task>]` note from the
+  stream it was discovered from (exact `as=` match; open streams only),
+  defaults `parent` to that stream and `goal` to the note text, and seeds an
+  empty `## Handoff` (objective, discovered-from, parent goal/handoff_doc,
+  memory bridge when the parent has a `MEMORY.md`, `re-invoke: /core:wif`;
+  ≤ 12 lines) so the SessionStart hook carries it into the first session. A
+  non-empty Handoff is never overwritten. The `&&` form (rather than
+  herdr-task flags) keeps the printed command valid before plan-2610-02
+  Slice A lands in dotfiles; Slice A may collapse it to flags.
 - Intent ring length 10. Stream file cap 120 lines (over-cap is a dashboard flag).
 - Stale: no commit, session or stream update for 14 days and nothing dirty →
   flag `stale` (not a status).
