@@ -17,7 +17,7 @@ streams (N):
 candidates (N):                         (tangents awaiting promotion)
   ← <stream>: <text>
   last → task: <task> [(derived; pin with wif tangent --as <task> --for "<substring>")]
-    herdr-task <task> <collection|repos> && wif adopt <task> -g "<text>"   (parent stream's repo set)
+    herdr-task <task> <collection|repos> && wif adopt <task> -g '<text>'   (parent stream's repo set)
     (container exists:  wif adopt <task>   (container exists, untracked)
                     or  wif adopt <task>   (already a stream (<status>); re-adopting clears this note))
 untracked containers (N; wif adopt <task> [-s parked]):

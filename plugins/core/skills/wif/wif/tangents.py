@@ -85,15 +85,11 @@ def container_repos(path: Path | None) -> list[str]:
         return []
 
 
-def done_needle(text: str) -> str:
-    """A short substring of the note text for `wif note --done`."""
-    words = [w for w in re.split(r"\s+", text.strip()) if w and '"' not in w and "'" not in w]
-    return " ".join(words[:3]) if words else text[:16]
-
-
 def shell_quote(text: str) -> str:
-    """Double-quote <text> for a copy-pasteable shell line."""
-    return '"' + (text or "").replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace("`", "\\`") + '"'
+    """Single-quote <text> for a copy-pasteable shell line. Single quotes leave
+    `$`, backticks, `"` and `!` (interactive history expansion) alone; an
+    embedded single quote becomes the usual '\\'' splice."""
+    return "'" + (text or "").replace("'", "'\\''") + "'"
 
 
 def recommend(task: str, parent: str, parent_repos: list[str], container: dict | None, text: str = "") -> list[str]:

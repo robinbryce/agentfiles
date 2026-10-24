@@ -115,6 +115,14 @@ def adopt(args: list[str], out=None) -> int:
     if ctx.kind == "none":
         raise WifError("no backing here (not a herdr container, not a git repo)")
     paths.ledger_init(ctx.scope, ctx.config_dir)
+    # The tangent this container was promoted from: clear it on the stream it was
+    # discovered from, and let that stream stand in for -p / -g when they were
+    # not given. Exact `as=<task>` match only (a derived name is a fallback,
+    # never an authority). Done before this stream's lock is taken, so only one
+    # stream file is ever locked at a time. Closing a container is not promotion.
+    origin = _clear_tangent(ctx, out) if status != "closed" else None
+    if origin and not parent:
+        parent = origin["parent"]
     with stream_lock(ctx.stream_file):
         created = False
         if not ctx.stream_file.exists() and ctx.archive_file.exists():
@@ -125,13 +133,6 @@ def adopt(args: list[str], out=None) -> int:
         else:
             s = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path), status or "active")
             created = True
-        # The tangent this container was promoted from: clear it on the stream it
-        # was discovered from, and let that stream stand in for -p / -g when they
-        # were not given. Exact `as=<task>` match only (a derived name is a
-        # fallback, never an authority).
-        origin = _clear_tangent(ctx, out)
-        if origin and not parent:
-            parent = origin["parent"]
         if goal: s.set("goal", goal)
         elif origin and not s.get("goal"): s.set("goal", origin["text"])
         if parent: s.set("parent", parent)
@@ -162,14 +163,21 @@ def _clear_tangent(ctx: paths.Ctx, out) -> dict | None:
         files = sorted(sd.glob("*.md"))
     except OSError:
         return None
+    def is_mine(ln: str) -> bool:
+        return (tangents.parse(ln) or {}).get("as") == ctx.id
     for f in files:
         if f == ctx.stream_file:
             continue
-        with stream_lock(f):
+        try:                                   # unlocked read first: no lock file for streams that don't match
+            if not any(is_mine(ln) for ln in Stream.load(f).notes()):
+                continue
+        except OSError:
+            continue
+        with stream_lock(f):                   # re-check under the lock; another writer may have beaten us
             if not f.exists():
                 continue
             ps = Stream.load(f)
-            hit = ps.section_remove_if("Notes", lambda ln: (tangents.parse(ln) or {}).get("as") == ctx.id)
+            hit = ps.section_remove_if("Notes", is_mine)
             if hit is None:
                 continue
             ps.set("updated", today()); ps.save()
@@ -187,14 +195,19 @@ def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -
     """First-session kickoff for a stream born from a tangent or under a parent
     stream: objective, where it came from, the parent's pointers and the
     memory bridge. Empty when neither applies (nothing to say yet)."""
-    pf = (ctx.ledger / "streams" / f"{parent}.md") if parent and safe_sid(parent) else None
+    # The stream whose pointers we carry: the one the tangent was found on, else
+    # the -p value when it names a stream. `parent` may also be a plain label
+    # (a Linear id); then it is recorded as such and carries no pointers.
+    src = origin["parent"] if origin else parent
+    pf = (ctx.ledger / "streams" / f"{src}.md") if src and safe_sid(src) else None
     if not origin and not (pf and pf.exists()):
         return []
     lines = [f"objective: {origin['text'] if origin else (s.get('goal') or '-')}"]
+    label = "discovered from" if origin else "parent"
     if pf and pf.exists():
         ps = Stream.load(pf)
         bpath = ps.get("backing").split(":", 1)[-1]
-        lines.append(f"{'discovered from' if origin else 'parent'}: {parent}" + (f" ({bpath})" if bpath else ""))
+        lines.append(f"{label}: {src}" + (f" ({bpath})" if bpath else ""))
         if ps.get("goal"):
             lines.append(f"parent goal: {ps.get('goal')}")
         if ps.get("handoff_doc"):
@@ -203,8 +216,10 @@ def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -
             md = ctx.config_dir / "projects" / scan.sanitize(bpath) / "memory"
             if (md / "MEMORY.md").is_file():
                 lines.append("memory bridge: " + MEMORY_BRIDGE.format(md=md))
-    elif parent:
-        lines.append(f"{'discovered from' if origin else 'parent'}: {parent}")
+    else:
+        lines.append(f"{label}: {src}")
+    if parent and parent != src:
+        lines.append(f"parent: {parent}")
     lines.append("re-invoke: /core:wif")
     return lines
 

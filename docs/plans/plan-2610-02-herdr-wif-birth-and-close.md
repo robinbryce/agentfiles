@@ -95,7 +95,7 @@ Files: `wif/commands.py` (`adopt`, `_tangent_tail`), `wif/tangents.py`,
    form, and only the `wif adopt <task>` line when the container already
    exists. The `wif note --done` line goes away because adopt now does it.
    *As built:* the form is `herdr-task <task> <collection|repos> && wif adopt
-   <task> -g "<text>"` rather than herdr-task flags, so the printed command is
+   <task> -g '<text>'` (single-quoted goal) rather than herdr-task flags, so the printed command is
    valid before Slice A lands; `-p` is omitted because adopt infers the parent
    from the cleared note. Slice A may switch the text to the flag form.
 4. Tests: adopt clears the as= note and prints it; adopt without `-p` inherits

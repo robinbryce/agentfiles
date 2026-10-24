@@ -140,8 +140,8 @@ class CommandTests(WifCase):
         rc, out, _ = self.capture(commands.note, ["ENG-2486 generic drift-report linter could be its own stream"], "tangent")
         self.assertIn("[tangent as=eng-2486-generic-drift-report-linter] ", out)
         self.assertIn("  task: eng-2486-generic-drift-report-linter\n", out)
-        self.assertIn('    herdr-task eng-2486-generic-drift-report-linter repo-a && wif adopt eng-2486-generic-drift-report-linter '
-                      '-g "ENG-2486 generic drift-report linter could be its own stream"\n', out)
+        self.assertIn("    herdr-task eng-2486-generic-drift-report-linter repo-a && wif adopt eng-2486-generic-drift-report-linter "
+                      "-g 'ENG-2486 generic drift-report linter could be its own stream'\n", out)
         rc, out, _ = self.capture(commands.note, ["--as", "drift-linter", "a second idea"], "tangent")
         self.assertIn("[tangent as=drift-linter] ", out)
         with self.assertRaises(WifError): commands.note(["--as", "Drift_Linter", "x"], "tangent")
@@ -163,7 +163,7 @@ class CommandTests(WifCase):
         self.container("repo-b-task", repos=("repo-b",))
         with mock.patch.dict(os.environ, {"HERDR_REPOS_ONE": "repo-a", "HERDR_REPOS_A_B": "repo-a repo-b"}):
             rc, out, _ = self.capture(commands.note, ["--as", "fresh-idea", "x"], "tangent")
-        self.assertIn('    herdr-task fresh-idea one && wif adopt fresh-idea -g "x"\n', out)
+        self.assertIn("    herdr-task fresh-idea one && wif adopt fresh-idea -g 'x'\n", out)
         rc, out, _ = self.capture(commands.note, ["--as", "repo-b-task", "already made"], "tangent")
         self.assertIn("wif adopt repo-b-task   (container exists, untracked)", out)
         Stream.create(self.ledger / "streams" / "repo-b-task.md", "repo-b-task", "justgames", "herdr", str(self.cont_root / "repo-b-task"), "parked")
@@ -200,8 +200,10 @@ class CommandTests(WifCase):
         child = Stream.load(self.ledger / "streams" / "kid.md")
         self.assertEqual((child.get("parent"), child.get("goal")), ("ENG-7", "my goal"))
         self.assertEqual(len(self.stream().notes()), 1)                   # only the first as=kid note cleared
-        self.assertEqual(child.section("Handoff")[0], "objective: tangent text")
-        self.assertIn("discovered from: ENG-7", child.section("Handoff"))   # -p is a label, not a stream here
+        h = child.section("Handoff")
+        self.assertEqual(h[0], "objective: tangent text")
+        self.assertTrue(h[1].startswith("discovered from: eng-1 ("), h)       # the stream the note was on…
+        self.assertIn("parent: ENG-7", h)                                      # …and the label -p recorded
         before = child.section("Handoff")
         rc, out, _ = self.capture(commands.adopt, ["kid", "-n", "next"])    # re-adopt: clears the second note, keeps Handoff
         self.assertIn("cleared tangent on eng-1: second note", out); self.assertNotIn("seeded", out)
@@ -234,10 +236,26 @@ class CommandTests(WifCase):
         long = "please add the --issue flag to wif mark per the correction, and wire it through the hooks and the statusline too"
         rc, out, _ = self.capture(commands.note, ["--as", "wif-issue", long], "tangent")
         cmd = [l for l in out.splitlines() if l.strip().startswith("herdr-task wif-issue")][0]
-        goal = cmd.split(' -g "', 1)[1].rstrip('"')
-        self.assertTrue(cmd.endswith('"') and len(goal) <= tangents.GOAL_MAX and long.startswith(goal) and not goal.endswith(","), cmd)
-        self.assertEqual(tangents.goal_text('say "hi" $x'), 'say "hi" $x')
-        self.assertIn('\\"hi\\" \\$x', tangents.shell_quote('say "hi" $x'))
+        goal = cmd.split(" -g '", 1)[1].rstrip("'")
+        self.assertTrue(cmd.endswith("'") and len(goal) <= tangents.GOAL_MAX and long.startswith(goal) and not goal.endswith(","), cmd)
+        self.assertEqual(tangents.goal_text('say "hi" $x!'), 'say "hi" $x!')
+        self.assertEqual(tangents.shell_quote("""it's "x" $y!"""), """'it'\\''s "x" $y!'""")
+        import subprocess
+        echoed = subprocess.run(["bash", "-c", "echo " + tangents.shell_quote("""it's "x" $y! `z`""")], capture_output=True, text=True).stdout
+        self.assertEqual(echoed.rstrip("\n"), """it's "x" $y! `z`""")
+
+    def test_adopt_closed_does_not_consume_tangent_and_locks_only_matching_streams(self):
+        self.capture(commands.adopt, ["."])
+        self.container("other"); self.capture(commands.adopt, ["other"])
+        self.capture(commands.note, ["--as", "kid", "keep me"], "tangent")
+        self.container("kid")
+        for lk in (self.ledger / "streams").glob("*.lock"): lk.unlink()
+        rc, out, _ = self.capture(commands.adopt, ["kid", "-s", "closed"])
+        self.assertNotIn("cleared", out); self.assertEqual(len(self.stream().notes()), 1)
+        rc, out, _ = self.capture(commands.adopt, ["kid"])
+        self.assertIn("cleared tangent on eng-1", out)
+        locks = sorted(p.name for p in (self.ledger / "streams").glob("*.lock"))
+        self.assertEqual(locks, ["eng-1.md.lock", "kid.md.lock"])              # `other` was read, never locked
 
     def test_note_newline_flattened(self):
         self.capture(commands.note, ["line one\nline two"])

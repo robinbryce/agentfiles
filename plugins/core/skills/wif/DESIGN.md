@@ -36,7 +36,7 @@ listed so they can be changed deliberately rather than rediscovered.
   the CLI (`<issue>-` + first content words, 40 chars; a fallback, not a
   naming authority). The dashboard's `last →` block prints ONE command for
   the newest tangent — `herdr-task <task> <repos> && wif adopt <task>
-  -g "<text>"`, using the parent container's repo set (or the matching
+  -g '<text>'`, using the parent container's repo set (or the matching
   `HERDR_REPOS_*` collection) — and collapses to the `wif adopt` step when the
   container already exists. Ruling 2026-10-22: Robin wanted the adopt name and
   the herdr-task context visible, not re-derived. Ruling 2026-10-24

@@ -89,7 +89,7 @@ goal. For each, one line with the command that resolves it.
 
 When `candidates` shows a `last → task:` line, add one short block after the
 dashboard recommending the context to create: the one-line
-`herdr-task <task> <repos> && wif adopt <task> -g "<text>"` command from the
+`herdr-task <task> <repos> && wif adopt <task> -g '<text>'` command from the
 dashboard (the repo set is the parent stream's; a `HERDR_REPOS_*` collection
 name is used when one matches exactly — say if a different set fits the
 tangent better). Nothing else is needed: `wif adopt <task>` clears the

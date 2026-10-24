@@ -242,7 +242,7 @@ class ShowTests(WifCase):
         self.assertTrue(any(l.startswith("candidates (1)") for l in lines))
         self.assertTrue(any("← eng-1: 2000-01-01 side idea" in l for l in lines))
         self.assertIn("  last → task: side-idea (derived; pin with wif tangent --as <task> --for \"<substring>\")", lines)
-        self.assertTrue(any(l.startswith("    herdr-task side-idea repo-a && wif adopt side-idea -g \"") for l in lines), lines)
+        self.assertTrue(any(l.startswith("    herdr-task side-idea repo-a && wif adopt side-idea -g '") for l in lines), lines)
         brief = self.show("--brief", "--session", "s1")
         self.assertIn("due:", brief); self.assertFalse(any(l.startswith("streams") for l in brief))
 
