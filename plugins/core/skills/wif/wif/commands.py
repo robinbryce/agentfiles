@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import config, paths, tangents
+from . import config, paths, scan, tangents
 from .ledger import (Stream, ctx_file, load_json, now_iso, ring_last, safe_sid, session_ensure,
                      session_file, session_save, stream_lock, today)
 
@@ -115,6 +115,14 @@ def adopt(args: list[str], out=None) -> int:
     if ctx.kind == "none":
         raise WifError("no backing here (not a herdr container, not a git repo)")
     paths.ledger_init(ctx.scope, ctx.config_dir)
+    # The tangent this container was promoted from: clear it on the stream it was
+    # discovered from, and let that stream stand in for -p / -g when they were
+    # not given. Exact `as=<task>` match only (a derived name is a fallback,
+    # never an authority). Done before this stream's lock is taken, so only one
+    # stream file is ever locked at a time. Closing a container is not promotion.
+    origin = _clear_tangent(ctx, out) if status != "closed" else None
+    if origin and not parent:
+        parent = origin["parent"]
     with stream_lock(ctx.stream_file):
         created = False
         if not ctx.stream_file.exists() and ctx.archive_file.exists():
@@ -126,12 +134,18 @@ def adopt(args: list[str], out=None) -> int:
             s = Stream.create(ctx.stream_file, ctx.id, ctx.scope, ctx.kind, str(ctx.path), status or "active")
             created = True
         if goal: s.set("goal", goal)
+        elif origin and not s.get("goal"): s.set("goal", origin["text"])
         if parent: s.set("parent", parent)
         if nxt: s.set("next", nxt)
         if status:
             s.set("status", status)
         elif not created and s.get("status") == "closed":
             s.set("status", "active")
+        if not s.section("Handoff"):
+            seed = _handoff_seed(ctx, s, origin, parent)
+            if seed:
+                s.set_section("Handoff", seed)
+                print(f"seeded ## Handoff ({len(seed)} lines; injected by the SessionStart hook)", file=out)
         s.set("updated", today())
         s.save()
         if s.get("status") == "closed":
@@ -139,6 +153,75 @@ def adopt(args: list[str], out=None) -> int:
         else:
             print(str(ctx.stream_file), file=out)
     return 0
+
+
+def _clear_tangent(ctx: paths.Ctx, out) -> dict | None:
+    """Remove the first `[tangent as=<ctx.id>]` note found on any other open stream
+    in scope. -> {"parent": <stream id>, "text": <note text>} or None."""
+    sd = ctx.ledger / "streams"
+    try:
+        files = sorted(sd.glob("*.md"))
+    except OSError:
+        return None
+    def is_mine(ln: str) -> bool:
+        return (tangents.parse(ln) or {}).get("as") == ctx.id
+    for f in files:
+        if f == ctx.stream_file:
+            continue
+        try:                                   # unlocked read first: no lock file for streams that don't match
+            if not any(is_mine(ln) for ln in Stream.load(f).notes()):
+                continue
+        except OSError:
+            continue
+        with stream_lock(f):                   # re-check under the lock; another writer may have beaten us
+            if not f.exists():
+                continue
+            ps = Stream.load(f)
+            hit = ps.section_remove_if("Notes", is_mine)
+            if hit is None:
+                continue
+            ps.set("updated", today()); ps.save()
+        text = (tangents.parse(hit) or {}).get("text", "")
+        print(f"cleared tangent on {ps.get('id') or f.stem}: {text}", file=out)
+        return {"parent": ps.get("id") or f.stem, "text": text}
+    return None
+
+
+MEMORY_BRIDGE = ("Read {md}/MEMORY.md and the memories it indexes, then re-save what's still "
+                 "relevant to this workspace's own memory.")
+
+
+def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -> list[str]:
+    """First-session kickoff for a stream born from a tangent or under a parent
+    stream: objective, where it came from, the parent's pointers and the
+    memory bridge. Empty when neither applies (nothing to say yet)."""
+    # The stream whose pointers we carry: the one the tangent was found on, else
+    # the -p value when it names a stream. `parent` may also be a plain label
+    # (a Linear id); then it is recorded as such and carries no pointers.
+    src = origin["parent"] if origin else parent
+    pf = (ctx.ledger / "streams" / f"{src}.md") if src and safe_sid(src) else None
+    if not origin and not (pf and pf.exists()):
+        return []
+    lines = [f"objective: {origin['text'] if origin else (s.get('goal') or '-')}"]
+    label = "discovered from" if origin else "parent"
+    if pf and pf.exists():
+        ps = Stream.load(pf)
+        bpath = ps.get("backing").split(":", 1)[-1]
+        lines.append(f"{label}: {src}" + (f" ({bpath})" if bpath else ""))
+        if ps.get("goal"):
+            lines.append(f"parent goal: {ps.get('goal')}")
+        if ps.get("handoff_doc"):
+            lines.append(f"parent handoff: {ps.get('handoff_doc')}")
+        if bpath:
+            md = ctx.config_dir / "projects" / scan.sanitize(bpath) / "memory"
+            if (md / "MEMORY.md").is_file():
+                lines.append("memory bridge: " + MEMORY_BRIDGE.format(md=md))
+    else:
+        lines.append(f"{label}: {src}")
+    if parent and parent != src:
+        lines.append(f"parent: {parent}")
+    lines.append("re-invoke: /core:wif")
+    return lines
 
 
 # ---- mark --------------------------------------------------------------------
