@@ -123,6 +123,15 @@ own-branch PR when exactly one is open):
 "within Plan and Design" test with examples), `github-api.md` (the GraphQL
 queries, resolveReviewThread mutation, the reply marker).
 
+*W2 as built (2026-10-25):* `plugins/core/skills/review-feedback/` — SKILL.md
+(§0 posture, §1 scope/overlay + PR resolution + author check, §2 tick gate,
+§3 fetch, §4 verdict table, §5 act, §6 re-review, §7 report), `references/
+triage.md` (the two tests, Workaround shapes), `references/github-api.md`
+(the one GraphQL query — verified live on flip-oracle#1672 — reply, resolve,
+comment, re-request, the marker), overlays for justgames / forestrie /
+personal. `--dry-run` and `--once` flags. Plugin manifest description lists
+the skill; `claude plugin validate` passes.
+
 ### W3 — wiring and docs
 
 - agentfiles `core` plugin picks the new skill up automatically (skills dir);
