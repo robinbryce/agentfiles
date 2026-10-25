@@ -27,11 +27,27 @@ class HookTests(WifCase):
         self.assertIn("session goal unset", ctx)
         st = Stream.load(self.ledger / "streams" / "eng-1.md"); st.set("issue", "ENG-42"); st.save()
         ctx2 = hooks.handle(self.ev("UserPromptSubmit", prompt="again"))["hookSpecificOutput"]["additionalContext"]
-        self.assertTrue(ctx2.startswith("[wif] eng-1 · active · issue: ENG-42 · goal:"), ctx2)
+        self.assertTrue(ctx2.startswith("[wif] eng-1 · active · issue: [ENG-42](https://linear.app/justgames/issue/ENG-42) · goal:"), ctx2)
+
         self.assertIn("--session s1", ctx)
         self.assertTrue((self.ledger / "streams" / "eng-1.md").exists())
         self.assertEqual(self.sess("s1")["ring"][0]["prompt"], "fix the drift test")
         self.assertEqual(Stream.load(self.ledger / "streams" / "eng-1.md").get("last_session"), "s1")
+
+    def test_hook_text_links_references_from_index_or_disk(self):
+        # index entry for eng-1 with a cached PR and two origins -> cache hit links, bare numbers without a hit stay plain
+        idx = {"containers": [{"task": "eng-1", "repos": [{"name": "a", "origin": "git@github.com:o/a.git"}, {"name": "b", "origin": "git@github.com:o/b.git"}],
+                               "prs": [{"number": 7, "url": "https://github.com/o/a/pull/7", "repo": "a"}]}]}
+        ledger.dump_json(self.ledger / "index.json", idx)
+        hooks.handle(self.ev("UserPromptSubmit", prompt="p"))
+        st = Stream.load(self.ledger / "streams" / "eng-1.md"); st.set("next", "merge #7 then #8 and o/b#9; see ENG-1 and ARC-014"); st.save()
+        ctx = hooks.handle(self.ev("UserPromptSubmit", prompt="q"))["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("next: merge [#7](https://github.com/o/a/pull/7) then #8 and [o/b#9](https://github.com/o/b/pull/9); see [ENG-1](https://linear.app/justgames/issue/ENG-1) and ARC-014", ctx)
+        # no index: origins read from disk; single origin -> link
+        (self.ledger / "index.json").unlink()
+        self.git(self.c / "repo-a", "remote", "add", "origin", "https://github.com/o/repo-a.git")
+        out = hooks.handle(self.ev("SessionStart", source="startup"))["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("next: merge [#7](https://github.com/o/repo-a/pull/7) then [#8](https://github.com/o/repo-a/pull/8)", out)
 
     def test_prompt_text_key_also_accepted_and_ring_bounded(self):
         with mock.patch.dict(os.environ, {"WIF_RING": "3"}):

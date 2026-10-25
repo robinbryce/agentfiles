@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import config, paths, tangents
+from . import config, paths, refs, tangents
 from .ledger import Stream, dump_json, load_json
 
 ORDER = {"active": 0, "blocked": 1, "landed": 2, "parked": 3, "closed": 9}
@@ -66,6 +66,14 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     budget = config.budget_lines()
     cont = {c["task"]: c for c in idx.get("containers", []) if isinstance(c, dict) and "task" in c}
     streams = idx.get("streams") or {}; sess = idx.get("sessions") or {}
+    mode = refs.mode_from(args)
+    resolvers: dict[str, refs.Resolver] = {}
+    def L(text, task: str) -> str:                 # trim first (callers), then link: width is unaffected
+        if mode != "md":
+            return text
+        if task not in resolvers:
+            resolvers[task] = refs.Resolver.from_container(ctx.scope, cont.get(task))
+        return refs.linkify(text, resolvers[task], mode)
     extra = ""
     if not idx.get("prs_fetched"):
         extra += " · PRs cached/none (wif scan --prs)"
@@ -76,17 +84,18 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     if cur:
         st = streams.get(cur); c = cont.get(cur)
         status = (st or {}).get("status") or ("closed" if ctx.archive_file.exists() else ("untracked" if c else "unknown"))
-        lines.append(f"▶ {cur}  {status}" + (f"  [{' '.join(c['flags'])}]" if c and c.get("flags") else ""))
+        iss = f"  · issue {L(st['issue'], cur)}" if st and st.get("issue") else ""
+        lines.append(f"▶ {cur}  {status}" + (f"  [{' '.join(c['flags'])}]" if c and c.get("flags") else "") + iss)
         if st:
-            lines.append(f"  goal: {trim(st.get('goal'), 70)}")
-            lines.append(f"  next: {trim(st.get('next'), 70)}   position: {trim(st.get('position'), 30)}")
+            lines.append(f"  goal: {L(trim(st.get('goal'), 70), cur)}")
+            lines.append(f"  next: {L(trim(st.get('next'), 70), cur)}   position: {L(trim(st.get('position'), 30), cur)}")
         s = sess.get(cur); cx = ""
         if sid and "/" not in sid:
             cj = load_json(ctx.ledger / "sessions" / f"{sid}.ctx.json", {})
             if cj:
                 cx = f"  ctx {cj.get('used_pct', '?')}%"
         if s:
-            lines.append(f"  session: {trim(s.get('goal') or 'goal unset', 50)}   ~ {trim(s.get('last_intent') or s.get('last_prompt'), 50)}{cx}")
+            lines.append(f"  session: {L(trim(s.get('goal') or 'goal unset', 50), cur)}   ~ {L(trim(s.get('last_intent') or s.get('last_prompt'), 50), cur)}{cx}")
         elif cx:
             lines.append(f" {cx}")
     else:
@@ -95,7 +104,7 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     if dn:
         lines.append("due:")
         for sid_, ln in dn[:5]:
-            lines.append(f"  ! {sid_}: {trim(note_text(ln), 80)}")
+            lines.append(f"  ! {sid_}: {L(trim(note_text(ln), 80), sid_)}")
     if "--brief" in args:
         return lines
 
@@ -133,10 +142,10 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
         tail.append(f"candidates ({len(tang)}):")
         for k, ln in tang[:4]:
             iss = (tangents.parse(ln) or {}).get("issue", "")
-            tail.append(f"  ← {k}: {('[' + iss + '] ') if iss else ''}{trim(note_text(ln), 70)}")
+            tail.append(f"  ← {k}: {('[' + L(iss, k) + '] ') if iss else ''}{L(trim(note_text(ln), 70), k)}")
         if len(tang) > 4:
             tail.append(f"  … {len(tang) - 4} more")
-        tail.extend(last_tangent_lines(streams, cont, cur))
+        tail.extend(L(ln, cur) if ln.startswith("  last → task:") else ln for ln in last_tangent_lines(streams, cont, cur))
     un = sorted([c for c in cont.values() if not c.get("stream")], key=lambda c: -(c.get("last_activity_ts") or 0))
     lim = len(un) if "--all" in args else 8
     if un:
@@ -165,7 +174,7 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     lines.append(f"streams ({len(rows) + (1 if cur in streams else 0)}):")
     lines.append(f"  {'id':<34} {'status':<8} {'age':>4} {'next':<40} flags")
     for _, _, k, s, c in rows[:room]:
-        lines.append(f"  {trim(k, 34):<34} {s.get('status', ''):<8} {age(c.get('last_activity_ts') or 0, now):>4} {trim(s.get('next'), 40):<40} {' '.join(c.get('flags', []))}")
+        lines.append(f"  {trim(k, 34):<34} {s.get('status', ''):<8} {age(c.get('last_activity_ts') or 0, now):>4} {L(f"{trim(s.get('next'), 40):<40}", k)} {' '.join(c.get('flags', []))}")
     if len(rows) > room:
         lines.append(f"  … {len(rows) - room} more (wif show --all)")
     if orphans:
@@ -185,6 +194,10 @@ def main(args: list[str], out=None) -> int:
             print(f"wif: no usable index for scope {ctx.scope} — run `wif scan`", file=out); return 0
         if "--json" in args:
             print(json.dumps(idx), file=out); return 0
+        try:
+            refs.mode_from(args)
+        except ValueError as e:
+            print(f"wif show: {e}", file=out); return 2
         sid = args[args.index("--session") + 1] if "--session" in args and args.index("--session") + 1 < len(args) else os.environ.get("CLAUDE_SESSION_ID", "")
         print("\n".join(render(ctx, idx, args, sid)), file=out)
     except Exception as e:

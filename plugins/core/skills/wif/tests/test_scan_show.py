@@ -267,6 +267,57 @@ class ShowTests(WifCase):
         self.scan()
         self.assertTrue(any(l.startswith("    wif adopt same-day   (already a stream (active); re-adopting clears this note)") for l in self.show()))
 
+    def test_refs_md_links_dashboard_fields_and_plain_is_unchanged(self):
+        self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/repo-a.git")
+        s1 = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c))
+        s1.set("issue", "ENG-1"); s1.set("goal", "fewer writes per ENG-1"); s1.set("next", "merge #1669 and #1672"); s1.set("position", "#1669 awaiting")
+        s1.section_append("Notes", "- [reminder due=2000-01-01] 2000-01-01 ping on #5")
+        s1.section_append("Notes", "- [tangent as=kid issue=ENG-9] 2000-01-02 split #6 out"); s1.save()
+        c2 = self.container("eng-2"); s2 = Stream.create(self.ledger / "streams" / "eng-2.md", "eng-2", "justgames", "herdr", str(c2))
+        s2.set("next", "review #3 (ambiguous: no origin)"); s2.save()
+        self.scan()
+        plain = self.show()
+        self.assertTrue(plain[1].startswith("▶ eng-1  active") and plain[1].endswith("  · issue ENG-1"), plain[1])
+        self.assertFalse(any("](http" in l for l in plain))
+        md = self.show("--refs", "md")
+        P = "https://github.com/o/repo-a/pull"
+        self.assertTrue(md[1].endswith("  · issue [ENG-1](https://linear.app/justgames/issue/ENG-1)"), md[1])
+        self.assertIn(f"  goal: fewer writes per [ENG-1](https://linear.app/justgames/issue/ENG-1)", md)
+        self.assertIn(f"  next: merge [#1669]({P}/1669) and [#1672]({P}/1672)   position: [#1669]({P}/1669) awaiting", md)
+        self.assertTrue(any(l.startswith("  ! eng-1: ") and f"[#5]({P}/5)" in l for l in md), md)
+        self.assertTrue(any("← eng-1: [[ENG-9](https://linear.app/justgames/issue/ENG-9)] " in l and f"[#6]({P}/6)" in l for l in md), md)
+        self.assertTrue(any("last → task: kid · issue [ENG-9](https://linear.app/justgames/issue/ENG-9)" in l for l in md), md)
+        row = [l for l in md if l.startswith("  eng-2 ")][0]
+        self.assertIn("review #3 (ambiguous: no origin)", row)                       # no origin -> plain
+        with mock.patch.dict(os.environ, {"WIF_REFS": "md"}):
+            self.assertEqual(self.show(), md)                                        # env default
+            self.assertEqual(self.show("--refs", "plain"), plain)                    # flag beats env
+        rc, out, _ = self.capture(show.main, ["--refs", "html"])
+        self.assertEqual(rc, 2); self.assertIn("--refs must be md or plain", out)
+
+    def test_scan_prs_resolves_cited_numbers_across_origins_exactly(self):
+        c = self.container("eng-1", repos=("repo-a", "repo-b")); self.with_remote(c / "repo-a"); self.with_remote(c / "repo-b")
+        self.git(c / "repo-a", "remote", "set-url", "origin", "git@github.com:o/a.git"); self.git(c / "repo-b", "remote", "set-url", "origin", "git@github.com:o/b.git")
+        s = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(c))
+        s.set("next", "merge #7 and #8; o/x#9 is named already"); s.section_append("Now", "- done: #10 landed in b"); s.save()
+        def gh(args, cwd=None, timeout=20):
+            if args[0] != "gh": return REAL_RUN(args, cwd, timeout)
+            if args[1:3] == ["pr", "list"]: return 0, json.dumps([{"number": 1, "state": "OPEN", "url": "https://github.com/o/a/pull/1"}])
+            n, slug = args[3], args[5]
+            table = {("7", "o/a"): "OPEN", ("8", "o/a"): "MERGED", ("8", "o/b"): "MERGED", ("10", "o/b"): "MERGED"}   # 8 exists in both -> ambiguous
+            if (n, slug) in table: return 0, json.dumps({"number": int(n), "state": table[(n, slug)], "url": f"https://github.com/{slug}/pull/{n}"})
+            return 1, "GraphQL: Could not resolve to a PullRequest"
+        with mock.patch("wif.proc.run", gh):
+            rc, _, err = self.capture(scan.main, ["--prs"]); self.assertEqual(rc, 0, err)
+        t = {c["task"]: c for c in ledger.load_json(self.ledger / "index.json", {})["containers"]}
+        prs = {p["number"]: p for p in t["eng-1"]["prs"]}
+        self.assertEqual(sorted(prs), [1, 7, 10])                                  # 8 ambiguous -> omitted; 9 named its repo -> not looked up
+        self.assertEqual((prs[7]["url"], prs[7]["cited"], prs[10]["repo"]), ("https://github.com/o/a/pull/7", True, "repo-b"))
+        self.assertNotIn("cited", prs[1])
+        self.assertNotIn("landed?", t["eng-1"]["flags"])                             # own PR #1 is OPEN; cited MERGED #10 does not count
+        md = self.show("--refs", "md")                                             # eng-1 is the current stream: header block
+        self.assertTrue(any(l.startswith("  next: merge [#7](https://github.com/o/a/pull/7) and #8; [o/x#9](https://github.com/o/x/pull/9) is named already") for l in md), md)
+
     def test_budget_cuts_streams_table_and_all_lifts_it(self):
         for i in range(45):
             c = self.container(f"t{i:02d}")

@@ -6,7 +6,8 @@ from . import commands, hooks, install, scan, show, statusline
 from .commands import WifError
 
 HELP = """wif <command> [args]
-  show [--brief|--changes|--json|--all] [--session ID]   dashboard for the current scope (default)
+  show [--brief|--changes|--json|--all] [--refs md|plain] [--session ID]   dashboard for the current scope (default)
+                                    (--refs md: PR numbers / team issue ids as markdown links; default plain; env WIF_REFS)
   ls [--archived] [--json]          every stream and container in scope, with paths
   where [--json] [dir]              what stream/scope/account a directory resolves to
   scan [--prs] [--scope S] [--quiet] [--json]   rebuild index.json from disk (read-only elsewhere)

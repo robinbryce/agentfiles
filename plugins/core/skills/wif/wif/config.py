@@ -23,3 +23,21 @@ def rotate_pct() -> int: return _int("WIF_ROTATE_PCT", 60)
 def pr_ttl() -> int: return _int("WIF_PR_TTL", 6 * 3600)
 def session_keep_days() -> int: return _int("WIF_SESSION_KEEP_DAYS", 30)
 def budget_lines() -> int: return _int("WIF_BUDGET_LINES", 40)
+
+
+# Linear per scope: (workspace url key, team keys). Issue ids are only
+# recognised for these teams (so ARC-014 stays plain), and only linked when
+# the workspace is known. Override: WIF_LINEAR_<SCOPE>="workspace:TEAM,TEAM".
+# forestrie's workspace key is not set here yet (plan-2610-03, open for Robin).
+LINEAR: dict[str, tuple[str, tuple[str, ...]]] = {
+    "justgames": ("justgames", ("ENG",)),
+    "forestrie": ("", ("FOR",)),
+}
+
+
+def linear_for(scope: str) -> tuple[str, tuple[str, ...]]:
+    raw = os.environ.get("WIF_LINEAR_" + "".join(c if c.isalnum() else "_" for c in scope.upper()))
+    if raw is not None:
+        ws, _, teams = raw.partition(":")
+        return ws.strip(), tuple(t.strip() for t in teams.split(",") if t.strip())
+    return LINEAR.get(scope, ("", ()))

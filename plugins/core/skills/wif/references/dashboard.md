@@ -4,7 +4,7 @@ Target ≤ 40 lines at 120 columns. Order is fixed so the eye learns it.
 
 ```
 wif · <account> @ <scope> · scanned 3m ago [· PRs cached/none]
-▶ <current stream>  <status>  [flags]
+▶ <current stream>  <status>  [flags]  · issue <ENG-N>     (issue only when the stream has one)
   goal: <stream goal>
   next: <next>   position: <position>
   session: <session goal|goal unset>   ~ <last intent|last prompt>  ctx NN%
@@ -25,6 +25,21 @@ untracked containers (N; wif adopt <task> [-s parked]):
 unbound memory (N): task(files), …
 ```
 
+- `--refs md|plain` (default plain; env `WIF_REFS`, the flag wins): under `md`
+  every **Reference** — `#N`, `owner/repo#N`, and issue ids of the scope's
+  Linear teams — in goal, next, position, session, due text, candidate text,
+  the `last → task` issue, the header's issue and the streams table's `next`
+  column is rendered as `[ref](url)`. Text is trimmed to its column first,
+  then linked, so widths are unchanged and a cut reference stays plain. PR
+  URLs come from the container's PR cache — this branch's PRs plus every bare
+  `#N` the stream cites, resolved by number across the container's GitHub
+  origins at `scan --prs` time (ambiguous → omitted) — else its single GitHub
+  origin, else the reference stays plain (no guessing). Issue URLs
+  need the scope's Linear workspace (`wif/config.py` `LINEAR`, override
+  `WIF_LINEAR_<SCOPE>=workspace:TEAM,TEAM`). The skill runs `--refs md`; a
+  human's `wif show` (pane or `!`) stays plain — the two are indistinguishable
+  from inside the process, so there is no TTY heuristic. `--json` is always
+  plain ids.
 - `--brief`: header block plus due reminders only.
 - `--changes`: header + due + only containers whose (stream status, dirty,
   ahead, flags, PR states) changed since the previous `--changes` call, plus

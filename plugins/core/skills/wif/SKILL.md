@@ -8,7 +8,7 @@ allowed-tools: Bash(wif *) Bash(*/skills/wif/scripts/wif *) Bash(git *) Bash(gh 
 # wif — work in flight
 
 ```
-/core:wif [status]                 dashboard (default)
+/core:wif [status]                 dashboard (default; run as `wif show --refs md`)
 /core:wif start "<session goal>"   bind this session to the stream here; set its goal
 /core:wif mark ...                 override an inferred goal/intent; set position/next/status
 /core:wif note|tangent|remind ...  capture a side thought without acting on it
@@ -33,10 +33,16 @@ Python 3.9+ stdlib only). `wif help` lists every subcommand and its flags.
 
 ## 0. First action, every invocation
 
-Run `wif show` (fallback: the absolute script path above) and print its output
-verbatim as the first thing in your reply. Not a dynamic `!` injection on
-purpose: a denied shell command would abort the whole skill instead of just
-the dashboard.
+Run `wif show --refs md` (fallback: the absolute script path above) and print
+its output verbatim as the first thing in your reply. `--refs md` renders PR
+numbers and the scope's Linear issue ids as markdown links; your reply is
+rendered as markdown, so they become clickable. Never drop the flag and never
+"tidy" the links. (Plain is the default because Robin's own `wif show`, in a
+pane or via `!`, prints raw text.) If the header says `PRs cached/none`, run
+`wif scan --prs --quiet` first and show again: a bare `#1669` in a container
+with several repos can only be linked from the PR cache (6h TTL). Not a
+dynamic `!` injection on purpose: a denied shell command would abort the whole
+skill instead of just the dashboard.
 
 ## 1. Posture
 
@@ -144,7 +150,7 @@ suggest `-p <parent>` so the two stay linked.
 ## 5. `/core:wif tick` (for `/loop /core:wif tick`, self-paced)
 
 1. `wif scan --quiet` (add `--prs` at most once per 6h; the cache enforces it).
-2. `wif show --changes` — print exactly that output, nothing more.
+2. `wif show --changes --refs md` — print exactly that output, nothing more.
 3. `wif ctx` — if it says ROTATE, run the handoff protocol (§6) now, then
    tell Robin to `/clear`; do not keep ticking in a session past 60%.
 4. Schedule the next wake: 20–30 min idle; sooner only if a due reminder or a

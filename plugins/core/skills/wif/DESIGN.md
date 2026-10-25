@@ -60,6 +60,17 @@ listed so they can be changed deliberately rather than rediscovered.
   stored as the bare identifier (URLs normalised), leads the derived task name,
   and flows note → `adopt` → stream `issue:` → `## Handoff` → `[wif]` line.
   `wif mark --issue` sets it on an existing stream (Robin's 2026-10-24 ask).
+- References as links (plan-2610-03, grilled 2026-10-25): `wif show --refs md`
+  and the hook injections render `#N` / `owner/repo#N` / scope-team issue ids
+  as markdown links; the statusline and the Ledger never change. Plain is the
+  default and the skill opts in, because `! wif show` inside Claude Code prints
+  raw and cannot be told from the agent's Bash tool (measured) — so no TTY
+  heuristic. PR URL: container PR cache (own-branch PRs + cited `#N` looked
+  up by number across the container's origins at scan time, ambiguous
+  omitted, never counted for `landed?`) → single GitHub origin → plain; no
+  cross-container lookup. Issue URL: per-scope `LINEAR` table (justgames =
+  `justgames`/ENG; forestrie workspace TBD) with `WIF_LINEAR_<SCOPE>` override;
+  the team-key limit keeps `ARC-014` plain. Trim first, then link.
 - Intent ring length 10. Stream file cap 120 lines (over-cap is a dashboard flag).
 - Stale: no commit, session or stream update for 14 days and nothing dirty →
   flag `stale` (not a status).

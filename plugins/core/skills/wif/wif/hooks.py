@@ -5,17 +5,30 @@ import json
 import os
 import sys
 
-from . import config, paths
+from . import config, paths, refs
 from .ledger import (Stream, first_line, now_iso, ring_last, session_ensure, session_file,
                      session_prev_for, session_save, load_json, safe_sid, stream_lock)
 
 
-def _ctx_line(stream: Stream, sess: dict, sid: str) -> str:
+def _resolver(ctx: paths.Ctx) -> refs.Resolver:
+    """The container's References context: from index.json when it has an entry
+    for this stream, else from the worktrees on disk (single-origin PR links
+    only). Hook text is always markdown: it is read by the model, never a terminal."""
+    idx = load_json(ctx.ledger / "index.json", None)
+    if isinstance(idx, dict):
+        for c in idx.get("containers") or []:
+            if isinstance(c, dict) and c.get("task") == ctx.id:
+                return refs.Resolver.from_container(ctx.scope, c)
+    return refs.Resolver.from_disk(ctx.scope, ctx.path if ctx.kind == "herdr" else None)
+
+
+def _ctx_line(stream: Stream, sess: dict, sid: str, r: refs.Resolver | None = None) -> str:
+    M = lambda t: refs.linkify(t, r, "md") if r else t
     st = stream.get("status") or "active"
-    g, n, p = stream.get("goal") or "-", stream.get("next") or "-", stream.get("position") or "-"
+    g, n, p = M(stream.get("goal") or "-"), M(stream.get("next") or "-"), M(stream.get("position") or "-")
     sg = sess.get("goal") or ""
-    li = ring_last(sess).get("intent") or "-"
-    iss = f" · issue: {stream.get('issue')}" if stream.get("issue") else ""
+    li = M(ring_last(sess).get("intent") or "-")
+    iss = f" · issue: {M(stream.get('issue'))}" if stream.get("issue") else ""
     line = (f"[wif] {stream.get('id')} · {st}{iss} · goal: {g} · next: {n} · position: {p} · "
             f"session: {sg or 'unset'} · last intent: {li}")
     if not sg:
@@ -64,7 +77,7 @@ def handle(event: dict) -> dict | None:
                 stream.set("last_session", sid, touch=False)
                 stream.save()
         return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
-                                       "additionalContext": _ctx_line(stream, sess, sid)}}
+                                       "additionalContext": _ctx_line(stream, sess, sid, _resolver(ctx))}}
     stream = Stream.load(ctx.stream_file)
 
     if ev == "Stop":
@@ -86,8 +99,11 @@ def handle(event: dict) -> dict | None:
             sess.pop("end_reason", None)
             session_save(led, sess)
         prev = None if src == "compact" else session_prev_for(led, stream, exclude=sid)
-        body = [f"[wif] session {src} on stream {ctx.id} ({stream.get('status')})",
-                f"goal: {stream.get('goal')}", f"next: {stream.get('next')}", f"position: {stream.get('position')}"]
+        r = _resolver(ctx)
+        M = lambda t: refs.linkify(t, r, "md")
+        body = [f"[wif] session {src} on stream {ctx.id} ({stream.get('status')})"
+                + (f" · issue: {M(stream.get('issue'))}" if stream.get("issue") else ""),
+                f"goal: {M(stream.get('goal'))}", f"next: {M(stream.get('next'))}", f"position: {M(stream.get('position'))}"]
         if prev:
             pl = ring_last(prev)
             body.append(f"previous session: goal={prev.get('goal') or '-'} · last intent="
@@ -97,10 +113,10 @@ def handle(event: dict) -> dict | None:
                 session_save(led, sess)
         h = stream.section("Handoff")[:30]
         if h:
-            body += ["## Handoff (from stream file)", *h]
+            body += ["## Handoff (from stream file)", *(M(x) for x in h)]
         nw = stream.section("Now")[:20]
         if nw:
-            body += ["## Now", *nw]
+            body += ["## Now", *(M(x) for x in nw)]
         body.append(f"stream file: {ctx.stream_file} · dashboard: /core:wif")
         return {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "\n".join(body)}}
 
