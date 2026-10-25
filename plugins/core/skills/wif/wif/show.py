@@ -31,7 +31,10 @@ def mine(text: str | None) -> str:
     reader's own) is dropped — the reader knows who they are and the column is
     narrow. Display only; the Ledger keeps the text as written."""
     t = (text or "").strip()
-    pfx = config.owner().lower() + ":"
+    owner = config.owner().strip()
+    if not owner:
+        return t
+    pfx = owner.lower() + ":"
     return t[len(pfx):].lstrip() if t.lower().startswith(pfx) else t
 
 

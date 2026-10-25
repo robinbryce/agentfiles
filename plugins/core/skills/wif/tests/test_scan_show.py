@@ -304,6 +304,9 @@ class ShowTests(WifCase):
             self.assertEqual(self.show("--refs", "plain"), plain)                         # flag beats env
         rc, out, _ = self.capture(show.main, ["--refs", "html"])
         self.assertEqual(rc, 2); self.assertIn("--refs must be md or plain", out)
+        brief = self.show("--brief", "--refs", "md")
+        self.assertIn("    [ENG-1](https://linear.app/justgames/issue/ENG-1) this stream", brief)   # --brief keeps the header's Reference lines
+        self.assertFalse(any(l.startswith("streams") for l in brief))
 
     def test_owner_prefix_dropped_from_next_on_display_only(self):
         s1 = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c))
@@ -322,6 +325,9 @@ class ShowTests(WifCase):
             out = self.show()
             self.assertTrue(any(l.startswith("  eng-3 ") and "re-approve; Robin: then merge" in l and "owner:" not in l for l in out), out)
             self.assertIn("  next: Robin: merge #1665 when S1 review closes   position: -", out)
+        s1.set("next", ": odd leading colon"); s1.save(); self.scan()
+        with mock.patch.dict(os.environ, {"WIF_OWNER": ""}):
+            self.assertIn("  next: : odd leading colon   position: -", self.show())      # empty owner strips nothing
 
     def test_reference_lines_count_toward_the_budget(self):
         self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/r.git")
