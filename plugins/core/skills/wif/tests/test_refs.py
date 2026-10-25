@@ -52,5 +52,6 @@ class RefsTests(WifCase):
         self.assertEqual(refs.linkify(md, r, "md"), md)                     # idempotent
         self.assertEqual(refs.linkify(t, r, "plain"), t)                     # plain: byte-identical
         self.assertEqual(refs.linkify("", r, "md"), ""); self.assertEqual(refs.linkify(None, r, "md"), "")
-        self.assertEqual(refs.linkify("cut #16…", r, "md"), "cut [#16](https://github.com/o/r/pull/16)…")   # a trimmed tail still links the complete part
+        self.assertEqual(refs.linkify("cut #16… and ENG-2… but #16 and ENG-2 ok", r, "md"),           # a trimmed reference is a prefix of another id: never linked
+                         "cut #16… and ENG-2… but [#16](https://github.com/o/r/pull/16) and [ENG-2](https://linear.app/justgames/issue/ENG-2) ok")
         self.assertEqual(refs.linkify("fragment https://x/y#12 and C#", r, "md"), "fragment https://x/y#12 and C#")   # not after a word char / slash

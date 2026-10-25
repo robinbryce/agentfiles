@@ -16,7 +16,9 @@ from . import config, proc
 
 MODES = ("plain", "md")
 LINK_RE = re.compile(r"\[[^\]]*\]\([^)\s]*\)")                      # an existing markdown link: never touched
-PR_RE = re.compile(r"(?<![\w/\[(])(?:([\w.-]+/[\w.-]+))?#(\d+)\b")   # #1669 or owner/repo#1669
+# `(?!…)`: a reference cut by the dashboard's trim (`#16…`, `ENG-2…`) is a
+# prefix of some other id — never link it (plan-2610-03 decision 6).
+PR_RE = re.compile(r"(?<![\w/\[(])(?:([\w.-]+/[\w.-]+))?#(\d+)\b(?!…)")   # #1669 or owner/repo#1669
 GITHUB_ORIGIN_RE = re.compile(r"^(?:git@github\.com:|https?://github\.com/|ssh://git@github\.com/)([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
 
@@ -94,7 +96,7 @@ class Resolver:
     def issue_re(self):
         if not self.teams:
             return None
-        return re.compile(r"\b(" + "|".join(re.escape(t) for t in self.teams) + r")-(\d{1,6})\b")
+        return re.compile(r"\b(" + "|".join(re.escape(t) for t in self.teams) + r")-(\d{1,6})\b(?!…)")
 
 
 def _link_segment(seg: str, r: Resolver) -> str:
