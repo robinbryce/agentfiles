@@ -55,3 +55,21 @@ class RefsTests(WifCase):
         self.assertEqual(refs.linkify("cut #16… and ENG-2… but #16 and ENG-2 ok", r, "md"),           # a trimmed reference is a prefix of another id: never linked
                          "cut #16… and ENG-2… but [#16](https://github.com/o/r/pull/16) and [ENG-2](https://linear.app/justgames/issue/ENG-2) ok")
         self.assertEqual(refs.linkify("fragment https://x/y#12 and C#", r, "md"), "fragment https://x/y#12 and C#")   # not after a word char / slash
+
+    def test_references_and_reference_lines(self):
+        cache = [{"number": 1, "state": "open", "title": "a title", "url": "https://github.com/o/r/pull/1"}]
+        r = self.r([{"origin": "git@github.com:o/r.git"}], cache)
+        text = "merge #1, ENG-5 and #2; #1 again; ARC-014; see o/x#4 … ENG-5"
+        self.assertEqual(refs.references(text, r), [("#1", "https://github.com/o/r/pull/1", "pr"), ("ENG-5", "https://linear.app/justgames/issue/ENG-5", "issue"),
+                                                    ("#2", "https://github.com/o/r/pull/2", "pr"), ("o/x#4", "https://github.com/o/x/pull/4", "pr")])
+        lines = refs.reference_lines([text, "and ENG-6"], r, own_issue="ENG-5")
+        self.assertEqual(lines, ["    [#1](https://github.com/o/r/pull/1) OPEN · a title",
+                                 "    [ENG-5](https://linear.app/justgames/issue/ENG-5) this stream",
+                                 "    [#2](https://github.com/o/r/pull/2)",
+                                 "    [o/x#4](https://github.com/o/x/pull/4)",
+                                 "    [ENG-6](https://linear.app/justgames/issue/ENG-6)"])
+        long = [{"number": 1, "state": "MERGED", "title": "t" * 200, "url": "https://github.com/o/r/pull/1"}]
+        ln = refs.reference_lines(["#1"], self.r([], long))[0]
+        self.assertLessEqual(len(ln), 120); self.assertTrue(ln.endswith("…"))
+        self.assertEqual(refs.reference_lines(["#9 nothing resolvable", "ARC-014"], self.r([{"origin": "git@gitlab.com:o/r.git"}])), [])
+        self.assertEqual(refs.reference_lines(["#1"], None), [])

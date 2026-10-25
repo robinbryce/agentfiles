@@ -68,12 +68,14 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     streams = idx.get("streams") or {}; sess = idx.get("sessions") or {}
     mode = refs.mode_from(args)
     resolvers: dict[str, refs.Resolver] = {}
-    def L(text, task: str) -> str:                 # trim first (callers), then link: width is unaffected
+    def R(task: str, texts, own_issue: str = "") -> list[str]:
+        """Reference lines for one item (md only): the item text stays as written;
+        every resolved Reference in the UNTRIMMED <texts> is listed beneath it."""
         if mode != "md":
-            return text
+            return []
         if task not in resolvers:
             resolvers[task] = refs.Resolver.from_container(ctx.scope, cont.get(task))
-        return refs.linkify(text, resolvers[task], mode)
+        return refs.reference_lines(texts, resolvers[task], own_issue)
     extra = ""
     if not idx.get("prs_fetched"):
         extra += " · PRs cached/none (wif scan --prs)"
@@ -84,18 +86,19 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     if cur:
         st = streams.get(cur); c = cont.get(cur)
         status = (st or {}).get("status") or ("closed" if ctx.archive_file.exists() else ("untracked" if c else "unknown"))
-        iss = f"  · issue {L(st['issue'], cur)}" if st and st.get("issue") else ""
+        iss = f"  · issue {st['issue']}" if st and st.get("issue") and mode != "md" else ""   # md: a Reference line instead
         lines.append(f"▶ {cur}  {status}" + (f"  [{' '.join(c['flags'])}]" if c and c.get("flags") else "") + iss)
         if st:
-            lines.append(f"  goal: {L(trim(st.get('goal'), 70), cur)}")
-            lines.append(f"  next: {L(trim(st.get('next'), 70), cur)}   position: {L(trim(st.get('position'), 30), cur)}")
+            lines.append(f"  goal: {trim(st.get('goal'), 70)}")
+            lines.append(f"  next: {trim(st.get('next'), 70)}   position: {trim(st.get('position'), 30)}")
+            lines.extend(R(cur, [st.get("goal"), st.get("next"), st.get("position"), st.get("issue")], st.get("issue") or ""))
         s = sess.get(cur); cx = ""
         if sid and "/" not in sid:
             cj = load_json(ctx.ledger / "sessions" / f"{sid}.ctx.json", {})
             if cj:
                 cx = f"  ctx {cj.get('used_pct', '?')}%"
         if s:
-            lines.append(f"  session: {L(trim(s.get('goal') or 'goal unset', 50), cur)}   ~ {L(trim(s.get('last_intent') or s.get('last_prompt'), 50), cur)}{cx}")
+            lines.append(f"  session: {trim(s.get('goal') or 'goal unset', 50)}   ~ {trim(s.get('last_intent') or s.get('last_prompt'), 50)}{cx}")
         elif cx:
             lines.append(f" {cx}")
     else:
@@ -104,7 +107,8 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     if dn:
         lines.append("due:")
         for sid_, ln in dn[:5]:
-            lines.append(f"  ! {sid_}: {L(trim(note_text(ln), 80), sid_)}")
+            lines.append(f"  ! {sid_}: {trim(note_text(ln), 80)}")
+            lines.extend(R(sid_, [note_text(ln)], (streams.get(sid_) or {}).get("issue") or ""))
     if "--brief" in args:
         return lines
 
@@ -142,10 +146,11 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
         tail.append(f"candidates ({len(tang)}):")
         for k, ln in tang[:4]:
             iss = (tangents.parse(ln) or {}).get("issue", "")
-            tail.append(f"  ← {k}: {('[' + L(iss, k) + '] ') if iss else ''}{L(trim(note_text(ln), 70), k)}")
+            tail.append(f"  ← {k}: {('[' + iss + '] ') if iss else ''}{trim(note_text(ln), 70)}")
+            tail.extend(R(k, [note_text(ln), iss], (streams.get(k) or {}).get("issue") or ""))
         if len(tang) > 4:
             tail.append(f"  … {len(tang) - 4} more")
-        tail.extend(L(ln, cur) if ln.startswith("  last → task:") else ln for ln in last_tangent_lines(streams, cont, cur))
+        tail.extend(last_tangent_lines(streams, cont, cur))
     un = sorted([c for c in cont.values() if not c.get("stream")], key=lambda c: -(c.get("last_activity_ts") or 0))
     lim = len(un) if "--all" in args else 8
     if un:
@@ -170,13 +175,18 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     rows.sort(key=lambda r: (r[0], r[1], r[2]))
     orphans = idx.get("orphan_streams") or []
     head_n = len(lines) + 2 + (1 if orphans else 0)
-    room = len(rows) if "--all" in args else max(4, budget - head_n - len(tail) - 1)
+    room = max(4, budget - head_n - len(tail) - 1)          # lines, not rows: Reference lines count (plan-2610-04 D5)
     lines.append(f"streams ({len(rows) + (1 if cur in streams else 0)}):")
     lines.append(f"  {'id':<34} {'status':<8} {'age':>4} {'next':<40} flags")
-    for _, _, k, s, c in rows[:room]:
-        lines.append(f"  {trim(k, 34):<34} {s.get('status', ''):<8} {age(c.get('last_activity_ts') or 0, now):>4} {L(f"{trim(s.get('next'), 40):<40}", k)} {' '.join(c.get('flags', []))}")
-    if len(rows) > room:
-        lines.append(f"  … {len(rows) - room} more (wif show --all)")
+    shown, used = 0, 0
+    for _, _, k, s, c in rows:
+        row = [f"  {trim(k, 34):<34} {s.get('status', ''):<8} {age(c.get('last_activity_ts') or 0, now):>4} {trim(s.get('next'), 40):<40} {' '.join(c.get('flags', []))}"]
+        row.extend(R(k, [s.get("next"), s.get("issue")], s.get("issue") or ""))
+        if "--all" not in args and shown >= 1 and used + len(row) > room:
+            break
+        lines.extend(row); shown += 1; used += len(row)
+    if len(rows) > shown:
+        lines.append(f"  … {len(rows) - shown} more (wif show --all)")
     if orphans:
         lines.append(f"  (backing missing: {', '.join(orphans[:6])}{'…' if len(orphans) > 6 else ''})")
     lines.extend(tail)

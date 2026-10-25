@@ -267,33 +267,57 @@ class ShowTests(WifCase):
         self.scan()
         self.assertTrue(any(l.startswith("    wif adopt same-day   (already a stream (active); re-adopting clears this note)") for l in self.show()))
 
-    def test_refs_md_links_dashboard_fields_and_plain_is_unchanged(self):
+    def test_refs_md_lists_reference_lines_under_items_and_plain_is_unchanged(self):
         self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/repo-a.git")
         s1 = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c))
         s1.set("issue", "ENG-1"); s1.set("goal", "fewer writes per ENG-1"); s1.set("next", "merge #1669 and #1672"); s1.set("position", "#1669 awaiting")
         s1.section_append("Notes", "- [reminder due=2000-01-01] 2000-01-01 ping on #5")
         s1.section_append("Notes", "- [tangent as=kid issue=ENG-9] 2000-01-02 split #6 out"); s1.save()
         c2 = self.container("eng-2"); s2 = Stream.create(self.ledger / "streams" / "eng-2.md", "eng-2", "justgames", "herdr", str(c2))
-        s2.set("next", "review #3 (ambiguous: no origin)"); s2.save()
+        s2.set("next", "a long next whose reference sits past the forty character trim #3 here"); s2.save()
+        ledger.dump_json(self.ledger / "cache" / "prs" / "eng-1.json", [{"number": 1669, "state": "OPEN", "title": "odds-writer: mirror the odds book", "url": "https://github.com/o/repo-a/pull/1669", "repo": "repo-a"}])
         self.scan()
         plain = self.show()
         self.assertTrue(plain[1].startswith("▶ eng-1  active") and plain[1].endswith("  · issue ENG-1"), plain[1])
         self.assertFalse(any("](http" in l for l in plain))
         md = self.show("--refs", "md")
         P = "https://github.com/o/repo-a/pull"
-        self.assertTrue(md[1].endswith("  · issue [ENG-1](https://linear.app/justgames/issue/ENG-1)"), md[1])
-        self.assertIn(f"  goal: fewer writes per [ENG-1](https://linear.app/justgames/issue/ENG-1)", md)
-        self.assertIn(f"  next: merge [#1669]({P}/1669) and [#1672]({P}/1672)   position: [#1669]({P}/1669) awaiting", md)
-        self.assertTrue(any(l.startswith("  ! eng-1: ") and f"[#5]({P}/5)" in l for l in md), md)
-        self.assertTrue(any("← eng-1: [[ENG-9](https://linear.app/justgames/issue/ENG-9)] " in l and f"[#6]({P}/6)" in l for l in md), md)
-        self.assertTrue(any("last → task: kid · issue [ENG-9](https://linear.app/justgames/issue/ENG-9)" in l for l in md), md)
-        row = [l for l in md if l.startswith("  eng-2 ")][0]
-        self.assertIn("review #3 (ambiguous: no origin)", row)                       # no origin -> plain
+        self.assertFalse(any("](http" in l for l in md if not l.startswith("    [")))      # never inline: links only on Reference lines
+        self.assertTrue(md[1].startswith("▶ eng-1  active") and "issue" not in md[1], md[1])   # marker moved to a Reference line
+        self.assertIn("  goal: fewer writes per ENG-1", md)
+        i = md.index("  next: merge #1669 and #1672   position: #1669 awaiting")
+        self.assertEqual(md[i + 1:i + 4], ["    [ENG-1](https://linear.app/justgames/issue/ENG-1) this stream",
+                                           f"    [#1669]({P}/1669) OPEN · odds-writer: mirror the odds book",
+                                           f"    [#1672]({P}/1672)"])                     # goal first (own issue), then next; #1669 once; no cache -> link only
+        j = [k for k, l in enumerate(md) if l.startswith("  ! eng-1: ")][0]
+        self.assertEqual(md[j + 1], f"    [#5]({P}/5)")
+        j = [k for k, l in enumerate(md) if l.startswith("  ← eng-1: [ENG-9] ")][0]
+        self.assertEqual(md[j + 1:j + 3], [f"    [#6]({P}/6)", "    [ENG-9](https://linear.app/justgames/issue/ENG-9)"])
+        row = [k for k, l in enumerate(md) if l.startswith("  eng-2 ")][0]
+        self.assertNotIn("#3", md[row])                                                   # trimmed out of the 40-char cell
+        self.assertFalse(md[row + 1].startswith("    ["))                                 # eng-2's repo has no origin: unresolvable -> no Reference line
+        self.git(c2 / "repo-a", "remote", "add", "origin", "https://github.com/o/two.git"); self.scan()
+        plain = self.show(); md = self.show("--refs", "md"); row = [k for k, l in enumerate(md) if l.startswith("  eng-2 ")][0]
+        self.assertEqual(md[row + 1], "    [#3](https://github.com/o/two/pull/3)")        # hidden by the trim, still listed
         with mock.patch.dict(os.environ, {"WIF_REFS": "md"}):
-            self.assertEqual(self.show(), md)                                        # env default
-            self.assertEqual(self.show("--refs", "plain"), plain)                    # flag beats env
+            self.assertEqual(self.show(), md)                                             # env default
+            self.assertEqual(self.show("--refs", "plain"), plain)                         # flag beats env
         rc, out, _ = self.capture(show.main, ["--refs", "html"])
         self.assertEqual(rc, 2); self.assertIn("--refs must be md or plain", out)
+
+    def test_reference_lines_count_toward_the_budget(self):
+        self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/r.git")
+        for i in range(30):
+            c = self.container(f"t{i:02d}"); self.git(c / "repo-a", "remote", "add", "origin", "git@github.com:o/r.git")
+            st = Stream.create(self.ledger / "streams" / f"t{i:02d}.md", f"t{i:02d}", "justgames", "herdr", str(c)); st.set("next", f"merge #{i} and #{i + 100}"); st.save()
+        self.scan()
+        plain = self.show(); md = self.show("--refs", "md")
+        rows = lambda lines: len([l for l in lines if l.startswith("  t")])
+        self.assertEqual(rows(plain), 30)                                                 # plain: every row fits the budget
+        self.assertLess(rows(md), 30)                                                     # md: each shown row costs 3 lines
+        self.assertTrue(any("more (wif show --all)" in l for l in md))
+        self.assertLessEqual(len(md), 42)                                                 # budget held (same header slack as today)
+        self.assertEqual(len([l for l in self.show("--refs", "md", "--all") if l.startswith("    [#")]), 60)   # --all lifts it
 
     def test_scan_prs_resolves_cited_numbers_across_origins_exactly(self):
         c = self.container("eng-1", repos=("repo-a", "repo-b")); self.with_remote(c / "repo-a"); self.with_remote(c / "repo-b")
@@ -316,7 +340,8 @@ class ShowTests(WifCase):
         self.assertNotIn("cited", prs[1])
         self.assertNotIn("landed?", t["eng-1"]["flags"])                             # own PR #1 is OPEN; cited MERGED #10 does not count
         md = self.show("--refs", "md")                                             # eng-1 is the current stream: header block
-        self.assertTrue(any(l.startswith("  next: merge [#7](https://github.com/o/a/pull/7) and #8; [o/x#9](https://github.com/o/x/pull/9) is named already") for l in md), md)
+        i = md.index("  next: merge #7 and #8; o/x#9 is named already   position: -")
+        self.assertEqual(md[i + 1:i + 3], ["    [#7](https://github.com/o/a/pull/7) OPEN", "    [o/x#9](https://github.com/o/x/pull/9)"])   # #8 ambiguous: no line
 
     def test_budget_cuts_streams_table_and_all_lifts_it(self):
         for i in range(45):

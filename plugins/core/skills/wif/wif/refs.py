@@ -77,6 +77,13 @@ class Resolver:
                 pass
         return cls(scope, repos, [])
 
+    def pr_entry(self, url: str) -> dict | None:
+        """The cached PR whose url is <url> (title/state for a Reference line's note)."""
+        for p in self.prs.values():
+            if p.get("url") == url:
+                return p
+        return None
+
     def pr_url(self, number: int, slug: str | None = None) -> str | None:
         if slug:
             return f"https://github.com/{slug}/pull/{number}"
@@ -126,3 +133,69 @@ def linkify(text: str | None, resolver: Resolver | None, mode: str) -> str:
         pos = m.end()
     out.append(_link_segment(text[pos:], resolver))
     return "".join(out)
+
+
+# ---- Reference lines (plan-2610-04) ------------------------------------------------
+# On the dashboard the item text stays as written; each resolved Reference is
+# listed once beneath the item as `    [ref](url) <note>`, derived from the
+# UNTRIMMED text so a reference the column trim hides is still listed.
+
+INDENT = "    "
+
+
+def references(text: str | None, resolver: Resolver | None) -> list[tuple[str, str, str]]:
+    """Resolved References in <text>, first-appearance order, de-duplicated by
+    url. -> [(label, url, kind)] with kind "pr" | "issue"."""
+    out: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    if not text or resolver is None:
+        return out
+    hits: list[tuple[int, str, str, str]] = []
+    for m in PR_RE.finditer(text):
+        url = resolver.pr_url(int(m.group(2)), m.group(1))
+        if url:
+            hits.append((m.start(), m.group(0), url, "pr"))
+    ire = resolver.issue_re()
+    if ire:
+        for m in ire.finditer(text):
+            url = resolver.issue_url(m.group(0))
+            if url:
+                hits.append((m.start(), m.group(0), url, "issue"))
+    for _, label, url, kind in sorted(hits):
+        if url not in seen:
+            seen.add(url); out.append((label, url, kind))
+    return out
+
+
+def reference_lines(texts, resolver: Resolver | None, own_issue: str = "", width: int = 120,
+                    indent: str = INDENT) -> list[str]:
+    """One line per distinct resolved Reference across <texts>: the link, then a
+    note — a PR's cached `STATE · title`, `this stream` for the stream's own
+    issue, else nothing. Trimmed so the line fits <width>. Unresolvable
+    References get no line (they stay as written in the item text)."""
+    if resolver is None:
+        return []
+    lines: list[str] = []
+    seen: set[str] = set()
+    for t in texts:
+        for label, url, kind in references(t, resolver):
+            if url in seen:
+                continue
+            seen.add(url)
+            head = f"{indent}[{label}]({url})"
+            note = ""
+            if kind == "pr":
+                p = resolver.pr_entry(url)
+                if p:
+                    bits = [str(p.get("state") or "").upper(), (p.get("title") or "").strip()]
+                    note = " · ".join(b for b in bits if b)
+            elif own_issue and label == own_issue:
+                note = "this stream"
+            if note:
+                room = width - len(head) - 1
+                if room < 8:
+                    note = ""
+                elif len(note) > room:
+                    note = note[: room - 1].rstrip() + "…"
+            lines.append(head + (" " + note if note else ""))
+    return lines

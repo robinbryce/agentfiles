@@ -1,6 +1,6 @@
 ---
 id: plan-2610-04
-status: draft
+status: active
 created: 2026-10-25
 refs:
   - docs/plans/plan-2610-03-wif-clickable-refs.md
@@ -11,7 +11,7 @@ refs:
 
 # Plan plan-2610-04 — wif: Reference lines under each dashboard item
 
-**Status:** DRAFT · **Created:** 2026-10-25
+**Status:** ACTIVE · **Created:** 2026-10-25
 
 ## Context
 
@@ -98,6 +98,16 @@ Files under `plugins/core/skills/wif/`.
   from the trimmed `next` still gets a line; budget counts Reference lines
   (`… N more` appears earlier under md than plain); plain byte-identical.
 - hooks tests unchanged.
+
+## As built (2026-10-25)
+
+S1–S4 as specified, on this branch with the agentfiles#13 ellipsis guard
+folded in (it remains for the hook text). `refs.references()` /
+`refs.reference_lines()`; `show.py` renders item text plain under md and
+appends Reference lines for the header (sources goal, next, position, issue),
+each table row (next, issue), each due reminder and each candidate (note text
++ the tangent's issue); the streams table fills by lines, at least one row,
+`… N more` counts rows. Suite 148 → 150.
 
 ## Verification
 
