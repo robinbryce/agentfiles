@@ -76,6 +76,10 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
   Follow-ups ("yes", "fix that", "and the tests") inherit; do nothing.
 - **A slice boundary is reached** (tests green, PR opened, decision locked) →
   `wif mark -p "<slice n/m — what>" -n "<next action>"`.
+- **Something is deployed or rolled** (a worker, a contract, a config) → the position
+  names what runs where: `wif mark -p "<env> on <sha|tag> (<component>, <version id>)"`.
+  A stream that deployed from a branch records that the environment is ahead of or
+  behind `main`, so a later session does not redeploy an older tag over it.
 - Robin says "remind me", "followup", "tangent", "note that", "park that
   thought" → the matching `wif note|tangent|remind` command, verbatim text.
   For a tangent always pass `--as <task>`: the name of the herdr container
