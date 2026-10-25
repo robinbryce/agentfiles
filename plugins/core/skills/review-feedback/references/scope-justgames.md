@@ -1,7 +1,7 @@
 # Overlay — justgames (SentientDogs)
 
 - **Scope root**: `~/Dev/justgames/code`; containers under `.worktrees-herdr/`.
-  Checkouts are on this machine (banks-7 and morgan both).
+  Run wherever that root exists (banks-7 does; a machine without it stops in §1).
 - **Standards**: apply the posture of `review-pr-justgames` (just-agents
   `review-pull-request` / `review-changes`, the repo's `AGENTS.md`, ADRs and
   rules of the road). When the PR touches curator ingestion / CRE / odds / live

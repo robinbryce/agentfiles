@@ -315,8 +315,9 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False, fresh: bool = False) -> 
         dirty = sum(max(r["dirty"], 0) for r in repos)
         ahead_known = bool(repos) and all(r["ahead"] is not None for r in repos)
         ahead = sum(r["ahead"] or 0 for r in repos)
-        prs = prs_for(task, repos, ledger / "cache", want_prs, failures, seen, (streams.get(task) or {}).get("_cited"),
-                      fresh=fresh and task == ctx.id)
+        here = fresh and task == ctx.id
+        prs = prs_for(task, repos, ledger / "cache", want_prs or here, failures, seen, (streams.get(task) or {}).get("_cited"),
+                      fresh=here)                      # --fresh alone fetches ONLY this container; others read their cache
         st = streams.get(task)
         sess_ts = int(sess[task]["mtime"]) if task in sess else 0
         upd_ts = int(st.get("_updated_ts", 0)) if st else 0
@@ -349,7 +350,7 @@ def main(args: list[str], out=None, err=None) -> int:
     out = out or sys.stdout
     err = err or sys.stderr
     fresh = "--fresh" in args
-    want_prs = "--prs" in args or fresh; quiet = "--quiet" in args; as_json = "--json" in args
+    want_prs = "--prs" in args; quiet = "--quiet" in args; as_json = "--json" in args
     scope = args[args.index("--scope") + 1] if "--scope" in args and args.index("--scope") + 1 < len(args) else None
     if scope and scope not in paths.known_scopes():
         print(f"wif: unknown scope '{scope}' (known: {' '.join(paths.known_scopes())})", file=err); return 1

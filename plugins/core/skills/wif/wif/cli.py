@@ -11,7 +11,7 @@ HELP = """wif <command> [args]
   ls [--archived] [--json]          every stream and container in scope, with paths
   where [--json] [dir]              what stream/scope/account a directory resolves to
   scan [--prs] [--fresh] [--scope S] [--quiet] [--json]   rebuild index.json from disk (read-only elsewhere)
-                                    (--fresh: refetch the current container's PRs now, with review facts — implies --prs)
+                                    (--fresh: refetch ONLY the current container's PRs now, with review facts; other containers read their cache)
   adopt <task|.|path> [-s status] [-g goal] [-p parent] [-n next] [--issue ID] [--scope S]   create/re-open a stream
                                     (clears the [tangent as=<task>] note on the stream it came from; inherits parent/goal/issue)
   mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--issue ID] [--done text] [--session ID]

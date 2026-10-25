@@ -54,8 +54,9 @@ unbound memory (N): task(files), …
   owner and the column is narrow. Display only — the Ledger keeps the text
   as written, and `owner: …` / `Robin's …` / a mid-text `Robin:` are untouched.
 - Review state: every cached PR carries `reviewDecision`, `isDraft`,
-  `updatedAt` (free from `gh pr list`). `wif scan --prs --fresh`, run inside a
-  container, bypasses the TTL for **that container only** and adds per open
+  `updatedAt` (free from `gh pr list`). `wif scan --fresh`, run inside a
+  container, fetches **that container only** (TTL bypassed; every other
+  container reads its cache — add `--prs` to refresh stale ones too) and adds per open
   own-branch PR one GraphQL call's worth of review facts — `unresolved` thread
   count, `lastReviewAt`, `requestedChangesBy` — which join the `--changes`
   signature and the Reference-line note

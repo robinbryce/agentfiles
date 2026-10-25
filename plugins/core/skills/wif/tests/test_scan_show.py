@@ -106,6 +106,16 @@ class ScanTests(WifCase):
             self.assertEqual(rc, 0, err)
         lists = [c_ for c_ in calls if c_[1:3] == ["pr", "list"]]; gql = [c_ for c_ in calls if c_[1:3] == ["api", "graphql"]]
         self.assertEqual((len(lists), len(gql)), (1, 1))
+        # another container's cache is STALE: --fresh alone still leaves it alone; --prs --fresh refreshes it
+        import os as _os; old = (self.ledger / "cache" / "prs" / "eng-2.json"); _os.utime(old, (1, 1))
+        calls.clear()
+        with contextlib.chdir(c), mock.patch("wif.proc.run", gh):
+            self.capture(scan.main, ["--fresh", "--quiet"])
+        self.assertEqual(len([c_ for c_ in calls if c_[1:3] == ["pr", "list"]]), 1)      # only eng-1
+        calls.clear()
+        with contextlib.chdir(c), mock.patch("wif.proc.run", gh):
+            self.capture(scan.main, ["--prs", "--fresh", "--quiet"])
+        self.assertEqual(len([c_ for c_ in calls if c_[1:3] == ["pr", "list"]]), 2)      # eng-1 (fresh) + stale eng-2
         t = self.by_task(ledger.load_json(self.ledger / "index.json", {}))
         p1 = t["eng-1"]["prs"][0]
         self.assertEqual((p1["unresolved"], p1["lastReviewAt"], p1["requestedChangesBy"]), (1, "2026-10-25T11:00:00Z", ["bob"]))

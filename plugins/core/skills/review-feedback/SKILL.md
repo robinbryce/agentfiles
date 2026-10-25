@@ -52,7 +52,8 @@ GitHub calls: [references/github-api.md](./references/github-api.md).
 
 ## 2. Tick gate
 
-1. `wif scan --prs --fresh --quiet` (inside the container).
+1. `wif scan --fresh --quiet` (inside the container; fetches only this
+   container's PRs — never a scope-wide refetch on a tick).
 2. `wif show --changes`. A change counts when this PR's `reviewDecision`,
    `unresolved` or `lastReviewAt` moved, or a draft from a previous tick is
    still pending in your context. Otherwise: print one line
@@ -64,9 +65,10 @@ GitHub calls: [references/github-api.md](./references/github-api.md).
 
 Per [github-api.md](./references/github-api.md): unresolved Threads (id,
 path, line, outdated, first comment's author/body/databaseId, later comments),
-`latestReviews` (state, author, body, submittedAt), issue comments since the
-skill's last marker SHA (found by scanning replies for the marker; none →
-since the PR's creation). Drop anything authored by Robin's login. Bots count
+`latestReviews` (state, author, body, submittedAt), issue comments newer than
+the skill's newest marker reply (its timestamp, not its SHA — a deferral's
+marker carries an issue id; none → since the PR's creation). Drop anything
+authored by Robin's login. Bots count
 (Bugbot, CodeRabbit, Copilot, GitHub Advanced Security) when they appear as
 Threads or comments. Failing checks are not Feedback.
 
@@ -96,7 +98,7 @@ Workaround is paid later by someone else.
 
 ## 5. Act
 
-- **Fix**: `git switch` is already the PR branch (herdr container). Edit,
+- **Fix**: the container's worktree is already on the PR branch. Edit,
   run the overlay's test/lint command for the touched area, `git commit` with
   a subject that names the Thread (`fix(review): <path> — <finding in 6 words>`),
   `git push` (no `--force`). Reply on the Thread (what changed, why it is the

@@ -76,9 +76,11 @@ Grilled 2026-10-25; decisions in dependency order:
   Flag (done). Tests: list/view fields, `--fresh` scope, GraphQL parse +
   failure tolerance, flag, signature, note.
 
-*W1 as built (2026-10-25):* as specified. `--fresh` implies `--prs`, applies
-only to the cwd's container (exits 1 outside one), and fetches review facts
-only for OPEN own-branch PRs (not cited, not merged). Suite 151 → 153.
+*W1 as built (2026-10-25):* as specified. `--fresh` fetches **only** the
+cwd's container (exits 1 outside one; other containers read their cache
+unless `--prs` is also given — a review finding corrected this from
+"implies --prs") and adds review facts only for OPEN own-branch PRs (not
+cited, not merged). Suite 151 → 153.
 
 ### W2 — the skill (`plugins/core/skills/review-feedback/`)
 
