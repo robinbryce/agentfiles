@@ -10,7 +10,8 @@ HELP = """wif <command> [args]
                                     (--refs md: PR numbers / team issue ids as markdown links; default plain; env WIF_REFS)
   ls [--archived] [--json]          every stream and container in scope, with paths
   where [--json] [dir]              what stream/scope/account a directory resolves to
-  scan [--prs] [--scope S] [--quiet] [--json]   rebuild index.json from disk (read-only elsewhere)
+  scan [--prs] [--fresh] [--scope S] [--quiet] [--json]   rebuild index.json from disk (read-only elsewhere)
+                                    (--fresh: refetch the current container's PRs now, with review facts — implies --prs)
   adopt <task|.|path> [-s status] [-g goal] [-p parent] [-n next] [--issue ID] [--scope S]   create/re-open a stream
                                     (clears the [tangent as=<task>] note on the stream it came from; inherits parent/goal/issue)
   mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--issue ID] [--done text] [--session ID]

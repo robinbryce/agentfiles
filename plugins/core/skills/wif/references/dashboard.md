@@ -53,6 +53,14 @@ unbound memory (N): task(files), …
   header line and in the streams table, in both modes: the reader is the
   owner and the column is narrow. Display only — the Ledger keeps the text
   as written, and `owner: …` / `Robin's …` / a mid-text `Robin:` are untouched.
+- Review state: every cached PR carries `reviewDecision`, `isDraft`,
+  `updatedAt` (free from `gh pr list`). `wif scan --prs --fresh`, run inside a
+  container, bypasses the TTL for **that container only** and adds per open
+  own-branch PR one GraphQL call's worth of review facts — `unresolved` thread
+  count, `lastReviewAt`, `requestedChangesBy` — which join the `--changes`
+  signature and the Reference-line note
+  (`OPEN · CHANGES_REQUESTED · 2 open threads · title`). The scope-wide scan
+  never makes the per-PR call (plan-2610-05 W1).
 - `--brief`: header block plus due reminders only.
 - `--changes`: header + due + only containers whose (stream status, dirty,
   ahead, flags, PR states) changed since the previous `--changes` call, plus
@@ -73,7 +81,9 @@ unbound memory (N): task(files), …
   command is not pasteable, a wrapped one is.
 - Flags: `stale` (no commit, session or stream update for 14 days and nothing
   dirty), `dirty`, `unpushed` (ahead of the remote ref), `unpublished` (origin
-  exists, branch never pushed), `no-remote` (a repo without origin), `landed?`
+  exists, branch never pushed), `no-remote` (a repo without origin), `feedback`
+  (an open own-branch PR has `CHANGES_REQUESTED`, or unresolved review threads
+  once `scan --prs --fresh` has counted them), `landed?`
   (every PR MERGED, nothing dirty/unpushed, remote ref verifiable), `over-cap`
   (stream file over 120 lines), `bad-status` (status outside the vocabulary).
 - `age` is time since the newest of: the latest commit across the container's

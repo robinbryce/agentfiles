@@ -187,7 +187,10 @@ def reference_lines(texts, resolver: Resolver | None, own_issue: str = "", width
             if kind == "pr":
                 p = resolver.pr_entry(url)
                 if p:
-                    bits = [str(p.get("state") or "").upper(), (p.get("title") or "").strip()]
+                    bits = [str(p.get("state") or "").upper(),
+                            "CHANGES_REQUESTED" if p.get("reviewDecision") == "CHANGES_REQUESTED" else "",
+                            f"{p['unresolved']} open thread{'s' if p['unresolved'] != 1 else ''}" if p.get("unresolved") else "",
+                            (p.get("title") or "").strip()]
                     note = " · ".join(b for b in bits if b)
             elif own_issue and label == own_issue:
                 note = "this stream"

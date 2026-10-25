@@ -75,6 +75,45 @@ class ScanTests(WifCase):
         self.assertIsNone(t["nobranch"]["ahead"]); self.assertIn("unpublished", t["nobranch"]["flags"])
         self.assertEqual(t["originref"]["repos"][0]["remote_ref"], "origin/main")
 
+    def test_fresh_refetches_only_the_current_container_with_review_facts_and_feedback_flag(self):
+        c = self.container("eng-1"); self.with_remote(c / "repo-a"); self.git(c / "repo-a", "remote", "set-url", "origin", "git@github.com:o/a.git")
+        c2 = self.container("eng-2"); self.with_remote(c2 / "repo-a"); self.git(c2 / "repo-a", "remote", "set-url", "origin", "git@github.com:o/b.git")
+        for t in ("eng-1", "eng-2"):
+            Stream.create(self.ledger / "streams" / f"{t}.md", t, "justgames", "herdr", str(self.cont_root / t))
+        calls = []
+        def gh(args, cwd=None, timeout=20):
+            if args[0] != "gh": return REAL_RUN(args, cwd, timeout)
+            calls.append(args[:3])
+            if args[1:3] == ["pr", "list"]:
+                self.assertIn("reviewDecision,isDraft,updatedAt", args[-1])                  # new fields requested
+                n = 11 if cwd and cwd.endswith("eng-1/repo-a") else 22
+                return 0, json.dumps([{"number": n, "state": "OPEN", "url": f"https://github.com/o/x/pull/{n}", "title": "t", "reviewDecision": "CHANGES_REQUESTED", "isDraft": False}])
+            if args[1:3] == ["api", "graphql"]:
+                return 0, json.dumps({"data": {"repository": {"pullRequest": {
+                    "reviewThreads": {"nodes": [{"isResolved": False, "isOutdated": False, "comments": {"nodes": [{"createdAt": "2026-10-25T10:00:00Z", "author": {"login": "bob"}}]}},
+                                                {"isResolved": True, "isOutdated": False, "comments": {"nodes": [{"createdAt": "2026-10-24T09:00:00Z", "author": {"login": "bugbot"}}]}}]},
+                    "latestReviews": {"nodes": [{"state": "CHANGES_REQUESTED", "submittedAt": "2026-10-25T11:00:00Z", "author": {"login": "bob"}}]}}}}})
+            return 1, ""
+        with mock.patch("wif.proc.run", gh):
+            t = self.by_task(self.index("--prs"))                           # scope-wide: fields cached, no graphql
+        self.assertFalse(any(c_[1:3] == ["api", "graphql"] for c_ in calls))
+        self.assertEqual(t["eng-1"]["prs"][0]["reviewDecision"], "CHANGES_REQUESTED")
+        self.assertIn("feedback", t["eng-1"]["flags"])                       # CHANGES_REQUESTED alone raises the flag
+        self.assertNotIn("unresolved", t["eng-1"]["prs"][0])
+        calls.clear()
+        with contextlib.chdir(c), mock.patch("wif.proc.run", gh):
+            rc, _, err = self.capture(scan.main, ["--fresh"])                 # inside eng-1: TTL bypassed there only, graphql there only
+            self.assertEqual(rc, 0, err)
+        lists = [c_ for c_ in calls if c_[1:3] == ["pr", "list"]]; gql = [c_ for c_ in calls if c_[1:3] == ["api", "graphql"]]
+        self.assertEqual((len(lists), len(gql)), (1, 1))
+        t = self.by_task(ledger.load_json(self.ledger / "index.json", {}))
+        p1 = t["eng-1"]["prs"][0]
+        self.assertEqual((p1["unresolved"], p1["lastReviewAt"], p1["requestedChangesBy"]), (1, "2026-10-25T11:00:00Z", ["bob"]))
+        self.assertNotIn("unresolved", t["eng-2"]["prs"][0])                  # the other container came from its cache
+        with contextlib.chdir(self.root):                                     # served scope, but not a container
+            rc, _, err = self.capture(scan.main, ["--fresh"])
+            self.assertEqual(rc, 1); self.assertIn("inside a herdr container", err)
+
     def test_landed_proposal_requires_merged_prs_clean_and_known_remote(self):
         c = self.container("eng-1"); r = c / "repo-a"; self.with_remote(r)
         Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(c))
@@ -328,6 +367,23 @@ class ShowTests(WifCase):
         s1.set("next", ": odd leading colon"); s1.save(); self.scan()
         with mock.patch.dict(os.environ, {"WIF_OWNER": ""}):
             self.assertIn("  next: : odd leading colon   position: -", self.show())      # empty owner strips nothing
+
+    def test_review_state_in_changes_signature_and_reference_note(self):
+        self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/r.git")
+        s1 = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c)); s1.set("next", "address #9"); s1.save()
+        cf = self.ledger / "cache" / "prs" / "eng-1.json"
+        pr = {"number": 9, "state": "OPEN", "title": "the change", "url": "https://github.com/o/r/pull/9", "repo": "repo-a", "reviewDecision": "CHANGES_REQUESTED", "unresolved": 2, "lastReviewAt": "T1"}
+        ledger.dump_json(cf, [pr]); self.scan()
+        self.assertIn("    [#9](https://github.com/o/r/pull/9) OPEN · CHANGES_REQUESTED · 2 open threads · the change", self.show("--refs", "md"))
+        self.show("--changes")                                                   # baseline
+        self.assertEqual(self.show("--changes")[-1], "no changes")
+        pr["unresolved"] = 1; pr["lastReviewAt"] = "T2"; ledger.dump_json(cf, [pr]); self.scan()
+        out = self.show("--changes")
+        self.assertTrue(any(l.startswith("changed (1)") for l in out), out)       # a resolved thread is a change
+        pr["unresolved"] = 0; pr["reviewDecision"] = "APPROVED"; ledger.dump_json(cf, [pr]); self.scan()
+        self.assertIn("    [#9](https://github.com/o/r/pull/9) OPEN · the change", self.show("--refs", "md"))
+        t = {c["task"]: c for c in ledger.load_json(self.ledger / "index.json", {})["containers"]}
+        self.assertNotIn("feedback", t["eng-1"]["flags"])
 
     def test_reference_lines_count_toward_the_budget(self):
         self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/r.git")

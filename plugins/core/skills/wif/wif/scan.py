@@ -62,16 +62,51 @@ def cited_prs(s) -> list[int]:
     return sorted(nums)
 
 
+PR_FIELDS = "number,state,url,title,mergedAt,headRefOid,reviewDecision,isDraft,updatedAt"
+REVIEW_QUERY = """query($owner:String!,$name:String!,$number:Int!){ repository(owner:$owner,name:$name){
+  pullRequest(number:$number){
+    reviewThreads(first:100){ nodes{ isResolved isOutdated comments(last:1){ nodes{ createdAt author{login} } } } }
+    latestReviews(first:20){ nodes{ state submittedAt author{login} } } } } }"""
+
+
+def review_facts(url: str) -> dict | None:
+    """One GraphQL call for a PR's review state: unresolved thread count, the
+    latest review/thread activity, and who last requested changes. None on
+    failure (never cached as facts)."""
+    m = re.search(r"github\.com/([^/]+)/([^/]+)/pull/(\d+)", url or "")
+    if not m:
+        return None
+    rc, o = proc.run(["gh", "api", "graphql", "-f", f"query={REVIEW_QUERY}", "-F", f"owner={m.group(1)}",
+                      "-F", f"name={m.group(2)}", "-F", f"number={m.group(3)}"], timeout=40)
+    try:
+        pr = (json.loads(o) if rc == 0 and o else {}).get("data", {}).get("repository", {}).get("pullRequest") or None
+    except (ValueError, AttributeError):
+        pr = None
+    if not isinstance(pr, dict):
+        return None
+    threads = (pr.get("reviewThreads") or {}).get("nodes") or []
+    reviews = (pr.get("latestReviews") or {}).get("nodes") or []
+    stamps = [((t.get("comments") or {}).get("nodes") or [{}])[-1].get("createdAt") for t in threads]
+    stamps += [r.get("submittedAt") for r in reviews]
+    stamps = [s for s in stamps if s]
+    return {"unresolved": sum(1 for t in threads if not t.get("isResolved")),
+            "lastReviewAt": max(stamps) if stamps else None,
+            "requestedChangesBy": sorted({(r.get("author") or {}).get("login") for r in reviews
+                                          if r.get("state") == "CHANGES_REQUESTED" and (r.get("author") or {}).get("login")})}
+
+
 def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures: list, seen: dict,
-            cited: list[int] | None = None):
+            cited: list[int] | None = None, fresh: bool = False):
     """-> (prs or None). This branch's PRs (gh pr list --head) plus, marked
     `cited: true`, every bare `#N` the stream's text cites, looked up by number
     across the container's GitHub origins (exact: a number found in more than
-    one origin is ambiguous and omitted). Failures are reported, never cached."""
+    one origin is ambiguous and omitted). <fresh> (the cwd's container under
+    `scan --prs --fresh`) bypasses the TTL and adds per-PR review facts for the
+    own-branch PRs. Failures are reported, never cached."""
     from . import refs
     cf = cache_dir / "prs" / f"{task}.json"
-    fresh = cf.exists() and (time.time() - cf.stat().st_mtime) < config.pr_ttl()
-    if fresh or not want:
+    cached_ok = cf.exists() and (time.time() - cf.stat().st_mtime) < config.pr_ttl()
+    if (cached_ok and not fresh) or not want:
         return load_json(cf, None) if cf.exists() else None
     out, failed = [], False
     for r in repos:
@@ -81,7 +116,7 @@ def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures:
         if key in seen:
             out.extend(seen[key]); continue
         rc, o = proc.run(["gh", "pr", "list", "--head", r["branch"], "--state", "all",
-                          "--json", "number,state,url,title,mergedAt,headRefOid"], cwd=r["path"], timeout=40)
+                          "--json", PR_FIELDS], cwd=r["path"], timeout=40)
         try:
             got = json.loads(o) if rc == 0 and o else ([] if rc == 0 else None)
         except ValueError:
@@ -106,7 +141,7 @@ def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures:
         for sl, r in slugs.items():
             key = ("view", sl, n)
             if key not in seen:
-                rc, o = proc.run(["gh", "pr", "view", str(n), "-R", sl, "--json", "number,state,url,title,mergedAt,headRefOid"],
+                rc, o = proc.run(["gh", "pr", "view", str(n), "-R", sl, "--json", PR_FIELDS],
                                  cwd=r.get("path"), timeout=40)
                 try:
                     got = json.loads(o) if rc == 0 and o else None
@@ -118,6 +153,15 @@ def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures:
         if len(hits) == 1:
             name, p = hits[0]
             out.append({**p, "repo": name, "cited": True})
+    if fresh:
+        for p in out:
+            if p.get("cited") or not p.get("url") or p.get("state") != "OPEN":
+                continue
+            rf = review_facts(p["url"])
+            if rf is None:
+                failures.append(f"{task}/review#{p.get('number')}")
+            else:
+                p.update(rf)
     dump_json(cf, out)
     return out
 
@@ -176,7 +220,7 @@ def memory_dirs(cfg: Path, root: Path | None) -> dict[str, list[dict]]:
     return mem
 
 
-def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
+def build_index(ctx: paths.Ctx, want_prs: bool = False, fresh: bool = False) -> dict:
     ledger = paths.ledger_init(ctx.scope, ctx.config_dir)
     root = ctx.root
     now = time.time()
@@ -271,7 +315,8 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
         dirty = sum(max(r["dirty"], 0) for r in repos)
         ahead_known = bool(repos) and all(r["ahead"] is not None for r in repos)
         ahead = sum(r["ahead"] or 0 for r in repos)
-        prs = prs_for(task, repos, ledger / "cache", want_prs, failures, seen, (streams.get(task) or {}).get("_cited"))
+        prs = prs_for(task, repos, ledger / "cache", want_prs, failures, seen, (streams.get(task) or {}).get("_cited"),
+                      fresh=fresh and task == ctx.id)
         st = streams.get(task)
         sess_ts = int(sess[task]["mtime"]) if task in sess else 0
         upd_ts = int(st.get("_updated_ts", 0)) if st else 0
@@ -279,8 +324,10 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
         stale = (now - last_activity) > stale_s and dirty == 0
         own = [p for p in (prs or []) if isinstance(p, dict) and not p.get("cited")]     # cited PRs belong to other branches
         landed_prop = (bool(own) and all(p.get("state") == "MERGED" for p in own) and dirty == 0 and ahead_known and ahead == 0)
+        feedback = any(p.get("state") == "OPEN" and (p.get("reviewDecision") == "CHANGES_REQUESTED" or (p.get("unresolved") or 0) > 0)
+                       for p in own)
         flags = [f for f, on in (
-            ("stale", stale), ("dirty", dirty > 0), ("unpushed", ahead_known and ahead > 0),
+            ("stale", stale), ("dirty", dirty > 0), ("unpushed", ahead_known and ahead > 0), ("feedback", feedback),
             ("unpublished", any(r["origin"] and r["ahead"] is None and r["branch"] != "detached" for r in repos)),
             ("no-remote", any(not r["origin"] for r in repos)),
             ("landed?", landed_prop and (st or {}).get("status") not in ("landed", "closed")),
@@ -301,14 +348,17 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
 def main(args: list[str], out=None, err=None) -> int:
     out = out or sys.stdout
     err = err or sys.stderr
-    want_prs = "--prs" in args; quiet = "--quiet" in args; as_json = "--json" in args
+    fresh = "--fresh" in args
+    want_prs = "--prs" in args or fresh; quiet = "--quiet" in args; as_json = "--json" in args
     scope = args[args.index("--scope") + 1] if "--scope" in args and args.index("--scope") + 1 < len(args) else None
     if scope and scope not in paths.known_scopes():
         print(f"wif: unknown scope '{scope}' (known: {' '.join(paths.known_scopes())})", file=err); return 1
     ctx = paths.resolve(None, scope)
     if not ctx.served:
         print(f"wif: scope {ctx.scope} is not served by account {ctx.account} — nothing recorded", file=err); return 0
-    index = build_index(ctx, want_prs)
+    if fresh and ctx.kind != "herdr":
+        print("wif: --fresh refreshes the current container's PRs; run it from inside a herdr container", file=err); return 1
+    index = build_index(ctx, want_prs, fresh)
     dump_json(ctx.ledger / "index.json", index)
     if as_json:
         print(json.dumps(index), file=out)

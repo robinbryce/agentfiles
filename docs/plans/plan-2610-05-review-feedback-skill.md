@@ -1,6 +1,6 @@
 ---
 id: plan-2610-05
-status: draft
+status: active
 created: 2026-10-25
 refs:
   - plugins/core/skills/review-feedback/CONTEXT.md
@@ -13,7 +13,7 @@ refs:
 
 # Plan plan-2610-05 — `review-feedback`: babysit a PR's review feedback, driven by wif
 
-**Status:** DRAFT · **Created:** 2026-10-25
+**Status:** ACTIVE · **Created:** 2026-10-25
 
 ## Context
 
@@ -75,6 +75,10 @@ Grilled 2026-10-25; decisions in dependency order:
 - Docs: dashboard.md (flag, `--fresh`), DESIGN.md routine default, CONTEXT
   Flag (done). Tests: list/view fields, `--fresh` scope, GraphQL parse +
   failure tolerance, flag, signature, note.
+
+*W1 as built (2026-10-25):* as specified. `--fresh` implies `--prs`, applies
+only to the cwd's container (exits 1 outside one), and fetches review facts
+only for OPEN own-branch PRs (not cited, not merged). Suite 151 → 153.
 
 ### W2 — the skill (`plugins/core/skills/review-feedback/`)
 
