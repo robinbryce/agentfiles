@@ -30,7 +30,8 @@ unbound memory (N): task(files), …
   Linear teams — in goal, next, position, session, due text, candidate text,
   the `last → task` issue, the header's issue and the streams table's `next`
   column is rendered as `[ref](url)`. Text is trimmed to its column first,
-  then linked, so widths are unchanged and a cut reference stays plain. PR
+  then linked, so widths are unchanged and a cut reference (`#16…`, `ENG-2…`:
+  a prefix of some other id) is never linked. PR
   URLs come from the container's PR cache — this branch's PRs plus every bare
   `#N` the stream cites, resolved by number across the container's GitHub
   origins at `scan --prs` time (ambiguous → omitted) — else its single GitHub
