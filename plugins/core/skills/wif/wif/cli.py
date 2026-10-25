@@ -10,13 +10,14 @@ HELP = """wif <command> [args]
   ls [--archived] [--json]          every stream and container in scope, with paths
   where [--json] [dir]              what stream/scope/account a directory resolves to
   scan [--prs] [--scope S] [--quiet] [--json]   rebuild index.json from disk (read-only elsewhere)
-  adopt <task|.|path> [-s status] [-g goal] [-p parent] [-n next] [--scope S]   create/re-open a stream
-  mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--done text] [--session ID]
+  adopt <task|.|path> [-s status] [-g goal] [-p parent] [-n next] [--issue ID] [--scope S]   create/re-open a stream
+                                    (clears the [tangent as=<task>] note on the stream it came from; inherits parent/goal/issue)
+  mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--issue ID] [--done text] [--session ID]
                                     [--stream ID [--scope S]]   target a stream by id from anywhere
-  note "<text>"                     followup for this stream;  note --done "<substring>" removes one
-  tangent [--as <task>] "<text>"    candidate for a new stream (discovered-from this one); --as pins the
+  note "<text>"                     followup for this stream;  note --done "<substring>" [--stream ID [--scope S]] removes one
+  tangent [--as <task>] [--issue ENG-N|url] "<text>"   candidate for a new stream (discovered-from this one); --as pins the
                                     container/task name (lowercase kebab) it becomes, else one is derived
-  tangent --as <task> --for "<substring>"   re-pin the name of a recorded tangent
+  tangent [--as <task>] [--issue ID] --for "<substring>"   re-pin the name and/or issue of a recorded tangent
   remind <when> "<text>"            when = YYYY-MM-DD | +Nd | landed
   ctx [--session ID] [--json]       context % from the statusline dump (for rotation)
   sessions [stream] [-n N]          recent sessions and their goals/intents

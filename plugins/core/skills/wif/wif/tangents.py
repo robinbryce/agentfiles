@@ -9,7 +9,9 @@ from pathlib import Path
 
 TASK_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")          # herdr-task's rule (branch == task name)
 ISSUE_RE = re.compile(r"\b([A-Z]{2,6})-(\d{2,6})\b")        # ENG-2486, ARC-014 → name prefix
-TANGENT_RE = re.compile(r"^- \[tangent(?: as=([^\]\s]+))?\] (?:(\d{4}-\d{2}-\d{2}) )?(.*)$")
+TANGENT_RE = re.compile(r"^- \[tangent(?: as=([^\]\s]+))?(?: issue=([^\]\s]+))?\] (?:(\d{4}-\d{2}-\d{2}) )?(.*)$")
+ISSUE_ID_RE = re.compile(r"^[A-Z]{2,6}-\d{1,6}$")             # ENG-2486, FOR-12
+ISSUE_URL_RE = re.compile(r"linear\.app/[^/]+/issue/([A-Z]{2,6}-\d{1,6})(?:/|$)")
 STOP = set("""a an the to of for and or but in on at by with from into as is are be been was were it its this that
 these those we i you they our your my me us please could should would can will do does make let also then than
 there here own new just some any all more very so if not no yes which what who how when where why about over
@@ -17,13 +19,27 @@ under against via per pr prs stream streams issue task work thing things create 
 MAX_WORDS, MAX_LEN = 4, 40
 
 
-def derive(text: str) -> str:
-    """Lowercase kebab name: `<issue>-` prefix when the text names one, then the
-    first content words (stopwords dropped), at most 4 words / 40 chars."""
+def issue_id(s: str) -> str:
+    """`ENG-123`, or a Linear issue URL, -> `ENG-123`; "" when it is neither."""
+    s = (s or "").strip()
+    if ISSUE_ID_RE.match(s):
+        return s
+    m = ISSUE_URL_RE.search(s)
+    return m.group(1) if m else ""
+
+
+def derive(text: str, issue: str = "") -> str:
+    """Lowercase kebab name: `<issue>-` prefix (the pinned issue, else one the
+    text names), then the first content words (stopwords dropped), at most
+    4 words / 40 chars."""
     raw = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
     out: list[str] = []
     m = ISSUE_RE.search(raw)
-    if m:
+    if issue:
+        out.append(issue.lower())
+        if m and m.group(0) == issue:
+            raw = raw[: m.start()] + " " + raw[m.end():]
+    elif m:
         out.append(f"{m.group(1).lower()}-{m.group(2)}")
         raw = raw[: m.start()] + " " + raw[m.end():]
     words = [w for w in re.split(r"[^a-z0-9]+", raw.lower()) if w and w not in STOP]
@@ -36,16 +52,20 @@ def derive(text: str) -> str:
 
 
 def parse(line: str) -> dict | None:
-    """`- [tangent as=x] 2026-10-22 text` -> {"as", "date", "text"}; None for other notes."""
+    """`- [tangent as=x issue=ENG-1] 2026-10-22 text` -> {"as", "issue", "date", "text"};
+    None for other notes."""
     m = TANGENT_RE.match(line)
     if not m:
         return None
-    text = m.group(3) or ""
-    return {"as": m.group(1) or "", "date": m.group(2) or "", "text": text}
+    return {"as": m.group(1) or "", "issue": m.group(2) or "", "date": m.group(3) or "", "text": m.group(4) or ""}
+
+
+def tag(task: str = "", issue: str = "") -> str:
+    return "[tangent" + (f" as={task}" if task else "") + (f" issue={issue}" if issue else "") + "]"
 
 
 def task_of(parsed: dict) -> str:
-    return parsed.get("as") or derive(parsed.get("text", ""))
+    return parsed.get("as") or derive(parsed.get("text", ""), parsed.get("issue", ""))
 
 
 def last(streams: dict, cur: str = "") -> tuple[str, dict] | None:

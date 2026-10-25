@@ -149,7 +149,7 @@ class CommandTests(WifCase):
         with self.assertRaises(WifError): commands.note(["--as", "x", "--for", "second", "text"], "tangent")
         with self.assertRaises(WifError): commands.note(["--as", "x", "--for", "nope"], "tangent")
         rc, out, _ = self.capture(commands.note, ["--as", "eng-2486-drift-linter", "--for", "generic drift"], "tangent")
-        self.assertIn("renamed on eng-1: - [tangent as=eng-2486-drift-linter] ", out)
+        self.assertIn("re-tagged on eng-1: - [tangent as=eng-2486-drift-linter] ", out)
         notes = self.stream().notes()
         self.assertEqual(len(notes), 2)
         self.assertTrue(notes[0].startswith("- [tangent as=eng-2486-drift-linter] "))      # renamed in place
@@ -256,6 +256,52 @@ class CommandTests(WifCase):
         self.assertIn("cleared tangent on eng-1", out)
         locks = sorted(p.name for p in (self.ledger / "streams").glob("*.lock"))
         self.assertEqual(locks, ["eng-1.md.lock", "kid.md.lock"])              # `other` was read, never locked
+
+    # ---- tangent --issue: the Linear id rides the note, the name, the stream and its handoff
+    def test_tangent_issue_tag_name_and_retag(self):
+        from wif import tangents
+        rc, out, _ = self.capture(commands.note, ["--issue", "https://linear.app/sentientdogs/issue/ENG-2700/some-slug", "split the thing out"], "tangent")
+        self.assertIn("[tangent as=eng-2700-split-out issue=ENG-2700] ", out)      # issue leads the derived name ("thing" is a stopword)
+        n = self.stream().notes()[0]; p = tangents.parse(n)
+        self.assertEqual((p["as"], p["issue"], p["text"]), ("eng-2700-split-out", "ENG-2700", "split the thing out"))
+        with self.assertRaises(WifError): commands.note(["--issue", "nope-1", "x"], "tangent")
+        with self.assertRaises(WifError): commands.note(["--for", "split"], "tangent")               # neither --as nor --issue
+        rc, out, _ = self.capture(commands.note, ["--issue", "ENG-2701", "--for", "split"], "tangent")   # re-pin issue only: name kept
+        self.assertIn("[tangent as=eng-2700-split-out issue=ENG-2701] ", out)
+        rc, out, _ = self.capture(commands.note, ["--as", "better-name", "--for", "split"], "tangent")    # re-pin name only: issue kept
+        self.assertIn("[tangent as=better-name issue=ENG-2701] ", out)
+        self.capture(commands.note, ["an unnamed one"], "tangent")                                  # name derived at record time…
+        rc, out, _ = self.capture(commands.note, ["--issue", "ENG-9", "--for", "unnamed"], "tangent")
+        self.assertIn("[tangent as=unnamed-one issue=ENG-9] ", out)                                 # …and kept when only the issue is pinned
+        s = self.stream(); s.section_append("Notes", "- [tangent] 2000-01-01 legacy bare note"); s.save()   # pre-as= format
+        rc, out, _ = self.capture(commands.note, ["--issue", "ENG-10", "--for", "legacy bare"], "tangent")
+        self.assertIn("[tangent as=eng-10-legacy-bare-note issue=ENG-10] ", out)                   # legacy line gets a name, issue first
+        self.assertIn("  task: eng-10-legacy-bare-note\n", out)
+
+    def test_adopt_carries_issue_into_stream_and_handoff_and_mark_sets_it(self):
+        self.capture(commands.adopt, ["."])
+        self.capture(commands.note, ["--as", "kid", "--issue", "ENG-77", "kid idea"], "tangent")
+        self.container("kid")
+        rc, out, _ = self.capture(commands.adopt, ["kid"])
+        child = Stream.load(self.ledger / "streams" / "kid.md")
+        self.assertEqual((child.get("issue"), child.get("parent")), ("ENG-77", "eng-1"))
+        self.assertIn("issue: ENG-77", child.section("Handoff"))
+        rc, out, _ = self.capture(commands.adopt, ["kid", "--issue", "https://linear.app/x/issue/ENG-78/slug"])  # explicit wins
+        self.assertEqual(Stream.load(self.ledger / "streams" / "kid.md").get("issue"), "ENG-78")
+        rc, out, _ = self.capture(commands.mark, ["--issue", "ENG-5"])
+        self.assertEqual(self.stream().get("issue"), "ENG-5"); self.assertIn("issue=ENG-5", out)
+        with self.assertRaises(WifError): commands.mark(["--issue", "bogus"])
+        with self.assertRaises(WifError): commands.adopt(["kid", "--issue", "bogus"])
+
+    def test_note_done_by_stream_from_anywhere(self):
+        self.capture(commands.adopt, ["."])
+        self.capture(commands.note, ["clear me remotely"])
+        self.cd(self.home)                                                     # anywhere outside the container
+        with self.assertRaises(WifError): commands.note(["--done", "remotely"])          # no backing at ~
+        with self.assertRaises(WifError): commands.note(["--done", "remotely", "--scope", "justgames"])
+        rc, out, _ = self.capture(commands.note, ["--done", "remotely", "--stream", "eng-1", "--scope", "justgames"])
+        self.assertIn("removed from eng-1", out)
+        self.assertEqual(Stream.load(self.ledger / "streams" / "eng-1.md").notes(), [])
 
     def test_note_newline_flattened(self):
         self.capture(commands.note, ["line one\nline two"])

@@ -15,7 +15,8 @@ def _ctx_line(stream: Stream, sess: dict, sid: str) -> str:
     g, n, p = stream.get("goal") or "-", stream.get("next") or "-", stream.get("position") or "-"
     sg = sess.get("goal") or ""
     li = ring_last(sess).get("intent") or "-"
-    line = (f"[wif] {stream.get('id')} · {st} · goal: {g} · next: {n} · position: {p} · "
+    iss = f" · issue: {stream.get('issue')}" if stream.get("issue") else ""
+    line = (f"[wif] {stream.get('id')} · {st}{iss} · goal: {g} · next: {n} · position: {p} · "
             f"session: {sg or 'unset'} · last intent: {li}")
     if not sg:
         line += f' — session goal unset: when this prompt states one, record it with `wif mark -g "<one line>" --session {sid}`'

@@ -12,7 +12,8 @@ allowed-tools: Bash(wif *) Bash(*/skills/wif/scripts/wif *) Bash(git *) Bash(gh 
 /core:wif start "<session goal>"   bind this session to the stream here; set its goal
 /core:wif mark ...                 override an inferred goal/intent; set position/next/status
 /core:wif note|tangent|remind ...  capture a side thought without acting on it
-                                   (tangent --as <task>: the container name it becomes)
+                                   (tangent --as <task> --issue ENG-N: the container
+                                   name it becomes and the Linear issue that tracks it)
 /core:wif scan [--prs]             rebuild the index from disk (gh lookups opt-in, cached 6h)
 /core:wif tick                     loop body: scan, print only what changed, check rotation
 /core:wif handoff                  land the plane: fold session → stream, write kickoff, advise /clear
@@ -73,13 +74,45 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
   thought" → the matching `wif note|tangent|remind` command, verbatim text.
   For a tangent always pass `--as <task>`: the name of the herdr container
   (and so the stream) it would become — lowercase kebab-case, ≤ 40 chars,
-  `eng-NNNN-<two-or-three words>` when a Linear issue is named, else
+  `eng-NNNN-<two-or-three words>` when a Linear issue exists, else
   `<topic>-<subject>-<kind>` like the existing containers
   (`basketball-la-lakers-alias`, `pr-1643-rotd-rr`). You name better than the
   CLI's stopword fallback; pick it from the meaning, not the words. Relay the
-  command's `task:` tail (the `herdr-task` / `wif adopt` steps) in your reply.
+  command's `task:` tail (the one-line `herdr-task … && wif adopt …`) in your
+  reply.
+- **A tangent normally needs a Linear issue, and only you have the context
+  to write a good one.** In a scope with a Linear team (justgames → `ENG`,
+  forestrie → `FOR`; personal and home have none) create the issue in the same
+  turn, before recording the tangent, unless Robin says "no issue" or the
+  idea is tooling outside Linear's remit (dotfiles, agentfiles, wif itself).
+  Mechanism: `core:linear-direct-api` and the profile's Linear rule — resolve
+  the key through direnv from the scope root, never print it, confirm
+  `viewer` once per session; if the scope has no key, record the tangent
+  without `--issue` and say so in one line.
+  1. **Draft from the conversation**, not from the words alone: title ≤ 70
+     chars, imperative; description = the idea in Robin's words, then
+     **Context** (what in this stream surfaced it: files, PR, SHA, the
+     failing case), **Discovered from** `<stream id>` plus its own issue when
+     the stream has one, **Acceptance criteria** (2–4 falsifiable bullets).
+  2. Team = the parent stream's issue's team, else the scope's team.
+     Project = the parent issue's project when it has one, else none.
+     Mutation `issueCreate` via `curl … -d @req.json` (write the JSON to a
+     file; inline mutation bodies get blocked). Read back `identifier` and
+     `url`.
+  3. `wif tangent --as eng-NNNN-<two-or-three words> --issue ENG-NNNN "<text>"`.
+     The id leads the task name, rides the note, and `wif adopt` copies it
+     into the new stream's `issue:` and `## Handoff`. No `-p` is needed: the
+     parent defaults to this stream.
+  4. Show the title, the first description line and the issue URL in your
+     reply, with the one-line command. If the issue already exists, pass
+     `--issue` and skip 1–2; to attach one later:
+     `wif tangent --issue ENG-NNNN --for "<substring>"`.
 - A note has been acted on (followup became the intent, reminder fired,
-  tangent promoted or rejected) → `wif note --done "<substring>"`.
+  tangent rejected) → `wif note --done "<substring>"`; from another
+  directory, `wif note --done "<substring>" --stream <id> [--scope S]`. A
+  tangent that was promoted needs nothing: `wif adopt` clears it.
+- The stream's Linear issue becomes known (created, or named by Robin) →
+  `wif mark --issue ENG-NNNN`; the `[wif]` line then carries it.
 
 ## 3. `/core:wif` and `/core:wif status`
 

@@ -53,7 +53,8 @@ def last_tangent_lines(streams: dict, cont: dict, cur: str) -> list[str]:
     task = tangents.task_of(p)
     repos = [r.get("name") for r in (cont.get(parent) or {}).get("repos") or [] if isinstance(r, dict) and r.get("name")]
     rec = tangents.recommend(task, parent, repos, cont.get(task), p.get("text", ""))
-    out = [f"  last → task: {task}" + ("" if p.get("as") else " (derived; pin with wif tangent --as <task> --for \"<substring>\")")]
+    out = [f"  last → task: {task}" + (f" · issue {p['issue']}" if p.get("issue") else "")
+           + ("" if p.get("as") else " (derived; pin with wif tangent --as <task> --for \"<substring>\")")]
     out.extend(f"    {ln}" for ln in rec)          # a command is never trimmed: cut text is not pasteable
     return out
 
@@ -131,7 +132,8 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     if tang:
         tail.append(f"candidates ({len(tang)}):")
         for k, ln in tang[:4]:
-            tail.append(f"  ← {k}: {trim(note_text(ln), 70)}")
+            iss = (tangents.parse(ln) or {}).get("issue", "")
+            tail.append(f"  ← {k}: {('[' + iss + '] ') if iss else ''}{trim(note_text(ln), 70)}")
         if len(tang) > 4:
             tail.append(f"  … {len(tang) - 4} more")
         tail.extend(last_tangent_lines(streams, cont, cur))
