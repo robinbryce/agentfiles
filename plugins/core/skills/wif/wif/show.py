@@ -128,7 +128,8 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
         prev_p = ctx.ledger / "cache" / "prev-shown.json"
         prev = load_json(prev_p, None)
         cur_sig = {t: [c.get("stream"), c.get("dirty"), c.get("ahead"), c.get("flags"),
-                       [p.get("state") for p in (c.get("prs") or []) if isinstance(p, dict)]] for t, c in cont.items()}
+                       [[p.get("state"), p.get("reviewDecision"), p.get("unresolved"), p.get("lastReviewAt")]
+                        for p in (c.get("prs") or []) if isinstance(p, dict)]] for t, c in cont.items()}
         try:
             dump_json(prev_p, cur_sig)
         except OSError:

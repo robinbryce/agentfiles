@@ -100,6 +100,14 @@ listed so they can be changed deliberately rather than rediscovered.
 - Memory-dir keys use Claude Code's sanitizer: every non-alphanumeric
   character becomes `-` (observed in the installed binary, not documented).
 - PR lookups (`gh`) are opt-in (`--prs`) and cached 6h; git facts always.
+  Review state (plan-2610-05 W1, 2026-10-25): `reviewDecision`/`isDraft`/
+  `updatedAt` ride the free `gh pr list` fields; `scan --prs --fresh` (inside
+  a container) bypasses the TTL for that container only and fetches, per open
+  own-branch PR, one GraphQL call of review facts (`unresolved`,
+  `lastReviewAt`, `requestedChangesBy`). Flag `feedback`; `--changes`
+  signatures include review state so a review-feedback loop can tick on
+  `wif show --changes` instead of re-reading the PR. The per-PR call is kept
+  out of the scope-wide scan on purpose (70 containers → 70 calls).
 - Loop: `/loop /core:wif tick`, self-paced; a tick prints only changed rows.
 - Account map: `.claude-justgames` → justgames; `.claude-personal`, `.claude`
   → personal + forestrie. Override with `WIF_ACCOUNT_SCOPES="a b"`.

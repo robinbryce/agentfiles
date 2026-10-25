@@ -149,7 +149,9 @@ suggest `-p <parent>` so the two stay linked.
 
 ## 5. `/core:wif tick` (for `/loop /core:wif tick`, self-paced)
 
-1. `wif scan --quiet` (add `--prs` at most once per 6h; the cache enforces it).
+1. `wif scan --quiet` (add `--prs` at most once per 6h; the cache enforces it;
+   `--fresh`, inside a container, refetches only that container's PRs now,
+   with review facts — what `/core:review-feedback` uses).
 2. `wif show --changes --refs md` — print exactly that output, nothing more.
 3. `wif ctx` — if it says ROTATE, run the handoff protocol (§6) now, then
    tell Robin to `/clear`; do not keep ticking in a session past 60%.
