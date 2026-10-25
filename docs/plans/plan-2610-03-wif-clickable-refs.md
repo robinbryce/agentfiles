@@ -119,8 +119,18 @@ S1–S5 implemented on this branch (agentfiles PR #12). One addition from the
 first live render: `eng-2654-odds-writer-optimisations` has two GitHub origins
 and no PR cache had ever been fetched, so `#1669` stayed plain under `--refs
 md` exactly as decision 4 says. SKILL.md §0 therefore runs
-`wif scan --prs --quiet` when the header reports `PRs cached/none`. Suite
-140 → 147.
+`wif scan --prs --quiet` when the header reports `PRs cached/none`.
+
+*Refinement of decision 4 (same day):* the PR cache was filled only by
+`gh pr list --head <branch>`, i.e. PRs whose head is the container's own
+branch — so `#1669`, a flip-oracle PR on another branch, stayed plain even
+after the scan while `#1672` linked. "Cache first" now means: the scan also
+looks up every bare `#N` the stream's text cites, by number, across the
+container's GitHub origins (`gh pr view N -R <slug>`), and caches the exact
+answer marked `cited: true`; a number present in more than one origin is
+ambiguous and omitted. Still no guessing, same 6h TTL, a few extra `gh` calls
+per container. Cited PRs never count toward the `landed?` proposal (they
+belong to other branches). Suite 140 → 148.
 
 ## Open for Robin
 

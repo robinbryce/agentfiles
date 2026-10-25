@@ -65,7 +65,9 @@ listed so they can be changed deliberately rather than rediscovered.
   as markdown links; the statusline and the Ledger never change. Plain is the
   default and the skill opts in, because `! wif show` inside Claude Code prints
   raw and cannot be told from the agent's Bash tool (measured) — so no TTY
-  heuristic. PR URL: container PR cache → single GitHub origin → plain; no
+  heuristic. PR URL: container PR cache (own-branch PRs + cited `#N` looked
+  up by number across the container's origins at scan time, ambiguous
+  omitted, never counted for `landed?`) → single GitHub origin → plain; no
   cross-container lookup. Issue URL: per-scope `LINEAR` table (justgames =
   `justgames`/ENG; forestrie workspace TBD) with `WIF_LINEAR_<SCOPE>` override;
   the team-key limit keeps `ARC-014` plain. Trim first, then link.

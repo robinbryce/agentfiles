@@ -295,6 +295,29 @@ class ShowTests(WifCase):
         rc, out, _ = self.capture(show.main, ["--refs", "html"])
         self.assertEqual(rc, 2); self.assertIn("--refs must be md or plain", out)
 
+    def test_scan_prs_resolves_cited_numbers_across_origins_exactly(self):
+        c = self.container("eng-1", repos=("repo-a", "repo-b")); self.with_remote(c / "repo-a"); self.with_remote(c / "repo-b")
+        self.git(c / "repo-a", "remote", "set-url", "origin", "git@github.com:o/a.git"); self.git(c / "repo-b", "remote", "set-url", "origin", "git@github.com:o/b.git")
+        s = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(c))
+        s.set("next", "merge #7 and #8; o/x#9 is named already"); s.section_append("Now", "- done: #10 landed in b"); s.save()
+        def gh(args, cwd=None, timeout=20):
+            if args[0] != "gh": return REAL_RUN(args, cwd, timeout)
+            if args[1:3] == ["pr", "list"]: return 0, json.dumps([{"number": 1, "state": "OPEN", "url": "https://github.com/o/a/pull/1"}])
+            n, slug = args[3], args[5]
+            table = {("7", "o/a"): "OPEN", ("8", "o/a"): "MERGED", ("8", "o/b"): "MERGED", ("10", "o/b"): "MERGED"}   # 8 exists in both -> ambiguous
+            if (n, slug) in table: return 0, json.dumps({"number": int(n), "state": table[(n, slug)], "url": f"https://github.com/{slug}/pull/{n}"})
+            return 1, "GraphQL: Could not resolve to a PullRequest"
+        with mock.patch("wif.proc.run", gh):
+            rc, _, err = self.capture(scan.main, ["--prs"]); self.assertEqual(rc, 0, err)
+        t = {c["task"]: c for c in ledger.load_json(self.ledger / "index.json", {})["containers"]}
+        prs = {p["number"]: p for p in t["eng-1"]["prs"]}
+        self.assertEqual(sorted(prs), [1, 7, 10])                                  # 8 ambiguous -> omitted; 9 named its repo -> not looked up
+        self.assertEqual((prs[7]["url"], prs[7]["cited"], prs[10]["repo"]), ("https://github.com/o/a/pull/7", True, "repo-b"))
+        self.assertNotIn("cited", prs[1])
+        self.assertNotIn("landed?", t["eng-1"]["flags"])                             # own PR #1 is OPEN; cited MERGED #10 does not count
+        md = self.show("--refs", "md")                                             # eng-1 is the current stream: header block
+        self.assertTrue(any(l.startswith("  next: merge [#7](https://github.com/o/a/pull/7) and #8; [o/x#9](https://github.com/o/x/pull/9) is named already") for l in md), md)
+
     def test_budget_cuts_streams_table_and_all_lifts_it(self):
         for i in range(45):
             c = self.container(f"t{i:02d}")

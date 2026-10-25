@@ -47,8 +47,28 @@ def is_worktree_root(d: Path) -> bool:
         return False
 
 
-def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures: list, seen: dict):
-    """-> (prs or None). Failures are reported, never cached."""
+def cited_prs(s) -> list[int]:
+    """Bare `#N` References in a stream's goal/next/position and its Now, Notes
+    and Handoff sections (not `owner/repo#N`: those name their repo already)."""
+    from . import refs
+    texts = [s.get("goal"), s.get("next"), s.get("position")]
+    for sec in ("Now", "Notes", "Handoff"):
+        texts.extend(s.section(sec))
+    nums: set[int] = set()
+    for t in texts:
+        for m in refs.PR_RE.finditer(t or ""):
+            if not m.group(1):
+                nums.add(int(m.group(2)))
+    return sorted(nums)
+
+
+def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures: list, seen: dict,
+            cited: list[int] | None = None):
+    """-> (prs or None). This branch's PRs (gh pr list --head) plus, marked
+    `cited: true`, every bare `#N` the stream's text cites, looked up by number
+    across the container's GitHub origins (exact: a number found in more than
+    one origin is ambiguous and omitted). Failures are reported, never cached."""
+    from . import refs
     cf = cache_dir / "prs" / f"{task}.json"
     fresh = cf.exists() and (time.time() - cf.stat().st_mtime) < config.pr_ttl()
     if fresh or not want:
@@ -73,6 +93,31 @@ def prs_for(task: str, repos: list[dict], cache_dir: Path, want: bool, failures:
         seen[key] = got; out.extend(got)
     if failed:
         return load_json(cf, None) if cf.exists() else None
+    have = {int(p["number"]) for p in out if str(p.get("number", "")).isdigit()}
+    slugs = {}
+    for r in repos:
+        sl = refs.slug_of_origin(r.get("origin"))
+        if sl and sl not in slugs:
+            slugs[sl] = r
+    for n in cited or []:
+        if n in have or not slugs:
+            continue
+        hits = []
+        for sl, r in slugs.items():
+            key = ("view", sl, n)
+            if key not in seen:
+                rc, o = proc.run(["gh", "pr", "view", str(n), "-R", sl, "--json", "number,state,url,title,mergedAt,headRefOid"],
+                                 cwd=r.get("path"), timeout=40)
+                try:
+                    got = json.loads(o) if rc == 0 and o else None
+                except ValueError:
+                    got = None
+                seen[key] = got if isinstance(got, dict) and got.get("url") else None   # a 404 is a normal miss
+            if seen[key]:
+                hits.append((r["name"], seen[key]))
+        if len(hits) == 1:
+            name, p = hits[0]
+            out.append({**p, "repo": name, "cited": True})
     dump_json(cf, out)
     return out
 
@@ -146,7 +191,7 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
         if not s.fm:
             continue
         d = dict(s.fm)
-        d["file"] = str(sf); d["notes"] = s.notes(); d["_lines"] = s.line_count
+        d["file"] = str(sf); d["notes"] = s.notes(); d["_lines"] = s.line_count; d["_cited"] = cited_prs(s)
         try:
             d["_updated_ts"] = time.mktime(time.strptime(d.get("updated", ""), "%Y-%m-%d"))
         except (ValueError, OverflowError):
@@ -226,13 +271,14 @@ def build_index(ctx: paths.Ctx, want_prs: bool = False) -> dict:
         dirty = sum(max(r["dirty"], 0) for r in repos)
         ahead_known = bool(repos) and all(r["ahead"] is not None for r in repos)
         ahead = sum(r["ahead"] or 0 for r in repos)
-        prs = prs_for(task, repos, ledger / "cache", want_prs, failures, seen)
+        prs = prs_for(task, repos, ledger / "cache", want_prs, failures, seen, (streams.get(task) or {}).get("_cited"))
         st = streams.get(task)
         sess_ts = int(sess[task]["mtime"]) if task in sess else 0
         upd_ts = int(st.get("_updated_ts", 0)) if st else 0
         last_activity = max(last_ts, sess_ts, upd_ts)
         stale = (now - last_activity) > stale_s and dirty == 0
-        landed_prop = (bool(prs) and all(p.get("state") == "MERGED" for p in prs) and dirty == 0 and ahead_known and ahead == 0)
+        own = [p for p in (prs or []) if isinstance(p, dict) and not p.get("cited")]     # cited PRs belong to other branches
+        landed_prop = (bool(own) and all(p.get("state") == "MERGED" for p in own) and dirty == 0 and ahead_known and ahead == 0)
         flags = [f for f, on in (
             ("stale", stale), ("dirty", dirty > 0), ("unpushed", ahead_known and ahead > 0),
             ("unpublished", any(r["origin"] and r["ahead"] is None and r["branch"] != "detached" for r in repos)),

@@ -31,8 +31,10 @@ unbound memory (N): task(files), …
   the `last → task` issue, the header's issue and the streams table's `next`
   column is rendered as `[ref](url)`. Text is trimmed to its column first,
   then linked, so widths are unchanged and a cut reference stays plain. PR
-  URLs come from the container's cached PRs, else its single GitHub origin,
-  else the reference stays plain (no cross-container guessing). Issue URLs
+  URLs come from the container's PR cache — this branch's PRs plus every bare
+  `#N` the stream cites, resolved by number across the container's GitHub
+  origins at `scan --prs` time (ambiguous → omitted) — else its single GitHub
+  origin, else the reference stays plain (no guessing). Issue URLs
   need the scope's Linear workspace (`wif/config.py` `LINEAR`, override
   `WIF_LINEAR_<SCOPE>=workspace:TEAM,TEAM`). The skill runs `--refs md`; a
   human's `wif show` (pane or `!`) stays plain — the two are indistinguishable
