@@ -50,6 +50,16 @@ listed so they can be changed deliberately rather than rediscovered.
   non-empty Handoff is never overwritten. The `&&` form (rather than
   herdr-task flags) keeps the printed command valid before plan-2610-02
   Slice A lands in dotfiles; Slice A may collapse it to flags.
+- Tangent → Linear issue (2026-10-25): the model creates the issue, the CLI
+  carries it. Only the session has the context for a good title, description
+  and acceptance criteria, so the skill drafts and creates it (per
+  `core:linear-direct-api`, scope team, parent issue's project) and then
+  records `wif tangent --as eng-NNNN-… --issue ENG-NNNN`. The CLI never calls
+  Linear: no key handling in stdlib Python, no cross-scope leak surface, and a
+  scope without a tracker (personal, home) simply records no issue. The id is
+  stored as the bare identifier (URLs normalised), leads the derived task name,
+  and flows note → `adopt` → stream `issue:` → `## Handoff` → `[wif]` line.
+  `wif mark --issue` sets it on an existing stream (Robin's 2026-10-24 ask).
 - Intent ring length 10. Stream file cap 120 lines (over-cap is a dashboard flag).
 - Stale: no commit, session or stream update for 14 days and nothing dirty →
   flag `stale` (not a status).

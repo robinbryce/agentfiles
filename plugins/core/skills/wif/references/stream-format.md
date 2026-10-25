@@ -14,7 +14,7 @@ next: "one line: the very next action"
 position: "slice 2/3 — review fixes"      # plan slice when a plan dir exists, else free text
 parent: "ENG-2486"                        # optional grouping key (issue / plan id / topic)
 backing: "herdr:/abs/path/.worktrees-herdr/<task>"   # or repo:/abs/path
-issue: "https://linear.app/..."           # optional
+issue: "ENG-2700"                         # optional; identifier (a URL given to --issue is normalised)
 prs: "#1581"                              # optional, free text; scan keeps the real list in index.json
 handoff_doc: "/abs/path/docs/plans/plan-2610-03-x/handoff.md"   # where durable handoff text lives
 last_session: "<session id>"              # hook-maintained; the handoff carry-forward source
@@ -29,6 +29,7 @@ failing: …
 ## Notes
 - [followup] 2026-10-21 check hockey CMS rows after merge
 - [tangent as=drift-report-linter] 2026-10-21 generic drift-report linter could be its own stream
+- [tangent as=eng-2700-split-out issue=ENG-2700] 2026-10-25 split the thing out
 - [reminder due=2026-10-23] 2026-10-21 ping reviewer
 - [reminder due=landed] 2026-10-21 close ENG-2486 in Linear
 ## Handoff
@@ -40,8 +41,14 @@ failing: …
 Rules
 - A tangent carries `as=<task>`: the herdr container / stream name it becomes
   (`wif tangent --as`, else derived from the text at record time; re-pin with
-  `wif tangent --as <task> --for "<substring>"`). A bare `[tangent]` from
-  before this field is still read; its name is derived at show time.
+  `wif tangent --as <task> --for "<substring>"`), and optionally
+  `issue=<ID>`: the Linear issue that tracks it (`--issue ENG-N` or a Linear
+  issue URL, normalised to the identifier; re-pin with
+  `wif tangent --issue ENG-N --for "<substring>"`). A pinned issue leads the
+  derived name (`eng-2700-…`). A bare `[tangent]` from before these fields is
+  still read; its name is derived at show time. `wif adopt <task>` copies the
+  issue into the new stream's `issue:` (unless `--issue` was given) and into
+  the seeded `## Handoff`.
 - `Now` is rewritten at each handoff and should shrink or hold. Growth is drift.
 - `Notes` lines are removed with `wif note --done "<substring>"` when acted on
   (a followup that became an intent, a reminder that fired). A tangent is

@@ -85,7 +85,7 @@ def where(args: list[str], out=None) -> int:
 
 def adopt(args: list[str], out=None) -> int:
     out = out or sys.stdout
-    target, status, goal, parent, nxt, scope = "", "", "", "", "", ""
+    target, status, goal, parent, nxt, scope, issue = "", "", "", "", "", "", ""
     it = iter(args)
     for a in it:
         if a == "-s": status = next(it, "")
@@ -93,6 +93,7 @@ def adopt(args: list[str], out=None) -> int:
         elif a == "-p": parent = next(it, "")
         elif a == "-n": nxt = next(it, "")
         elif a == "--scope": scope = next(it, "")
+        elif a == "--issue": issue = _issue_arg(next(it, ""))
         elif a.startswith("-"): raise WifError(f"unknown arg {a}")
         else: target = a
     if status and status not in config.STATUSES:
@@ -136,6 +137,8 @@ def adopt(args: list[str], out=None) -> int:
         if goal: s.set("goal", goal)
         elif origin and not s.get("goal"): s.set("goal", origin["text"])
         if parent: s.set("parent", parent)
+        if issue: s.set("issue", issue)
+        elif origin and origin.get("issue") and not s.get("issue"): s.set("issue", origin["issue"])
         if nxt: s.set("next", nxt)
         if status:
             s.set("status", status)
@@ -181,10 +184,17 @@ def _clear_tangent(ctx: paths.Ctx, out) -> dict | None:
             if hit is None:
                 continue
             ps.set("updated", today()); ps.save()
-        text = (tangents.parse(hit) or {}).get("text", "")
-        print(f"cleared tangent on {ps.get('id') or f.stem}: {text}", file=out)
-        return {"parent": ps.get("id") or f.stem, "text": text}
+        p = tangents.parse(hit) or {}
+        print(f"cleared tangent on {ps.get('id') or f.stem}: {p.get('text', '')}", file=out)
+        return {"parent": ps.get("id") or f.stem, "text": p.get("text", ""), "issue": p.get("issue", "")}
     return None
+
+
+def _issue_arg(raw: str) -> str:
+    v = tangents.issue_id(raw)
+    if not v:
+        raise WifError(f"--issue '{raw}': need an id like ENG-123 or a Linear issue URL")
+    return v
 
 
 MEMORY_BRIDGE = ("Read {md}/MEMORY.md and the memories it indexes, then re-save what's still "
@@ -203,6 +213,8 @@ def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -
     if not origin and not (pf and pf.exists()):
         return []
     lines = [f"objective: {origin['text'] if origin else (s.get('goal') or '-')}"]
+    if s.get("issue"):
+        lines.append(f"issue: {s.get('issue')}")
     label = "discovered from" if origin else "parent"
     if pf and pf.exists():
         ps = Stream.load(pf)
@@ -229,11 +241,12 @@ def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -
 def mark(args: list[str], out=None) -> int:
     out = out or sys.stdout
     sid = os.environ.get("CLAUDE_SESSION_ID", "")
-    goal = intent = pos = nxt = status = done = stream_id = scope = ""
+    goal = intent = pos = nxt = status = done = stream_id = scope = issue = ""
     it = iter(args)
     for a in it:
         if a == "--stream": stream_id = next(it, "")
         elif a == "--scope": scope = next(it, "")
+        elif a == "--issue": issue = _issue_arg(next(it, ""))
         elif a == "-g": goal = next(it, "")
         elif a == "-i": intent = next(it, "")
         elif a == "-p": pos = next(it, "")
@@ -254,8 +267,9 @@ def mark(args: list[str], out=None) -> int:
         if status: s.set("status", status)
         if pos: s.set("position", pos)
         if nxt: s.set("next", nxt)
+        if issue: s.set("issue", issue)
         if done: s.section_append("Now", f"- done {today()}: {done}"); s.set("updated", today())
-        if status or pos or nxt or done:
+        if status or pos or nxt or done or issue:
             s.save()
     if goal or intent:
         sid = sid or s.get("last_session")
@@ -275,6 +289,7 @@ def mark(args: list[str], out=None) -> int:
     if status: bits.append(f"status={status}")
     if pos: bits.append(f'position="{pos}"')
     if nxt: bits.append(f'next="{nxt}"')
+    if issue: bits.append(f"issue={issue}")
     if goal: bits.append(f'session-goal="{goal}"')
     if intent: bits.append(f'intent="{intent}"')
     print(" ".join(bits), file=out)
@@ -306,7 +321,15 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
         needle = args[1] if len(args) > 1 else ""
         if not needle:
             raise WifError("--done needs a substring")
-        ctx = _ctx_for_write()
+        stream_id = scope = ""
+        it = iter(args[2:])
+        for a in it:
+            if a == "--stream": stream_id = next(it, "")
+            elif a == "--scope": scope = next(it, "")
+            else: raise WifError(f"unknown arg {a} (note --done \"<substring>\" [--stream ID [--scope S]])")
+        if scope and not stream_id:
+            raise WifError("--scope needs --stream")
+        ctx = _ctx_for_stream(stream_id, scope) if stream_id else _ctx_for_write()
         with stream_lock(ctx.stream_file):
             s = _stream_for_write(ctx)
             removed = s.section_remove("Notes", needle)
@@ -315,7 +338,7 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
             s.set("updated", today()); s.save()
         print(f"removed from {ctx.id}: {removed}", file=out)
         return 0
-    due = task = for_ = ""
+    due = task = for_ = issue = ""
     if kind == "reminder":
         if not args:
             raise WifError("remind needs <when>: YYYY-MM-DD | +Nd | landed")
@@ -326,33 +349,35 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
         for a in it:
             if a == "--as": task = next(it, "")
             elif a == "--for": for_ = next(it, "")
+            elif a == "--issue": issue = _issue_arg(next(it, ""))
             else: rest.append(a)
         args = rest
         if task and not tangents.TASK_RE.match(task):
             raise WifError(f"--as '{task}': task name must be lowercase kebab-case (a-z, 0-9, single dashes)")
-        if for_ and not task:
-            raise WifError("--for needs --as <task>")
+        if for_ and not task and not issue:
+            raise WifError("--for needs --as <task> and/or --issue <id>")
     text = " ".join(args).strip()
-    if for_:                                   # re-pin the name of a recorded tangent
+    if for_:                                   # re-pin the name / issue of a recorded tangent
         if text:
-            raise WifError("--for takes no text; it renames the tangent containing <substring>")
+            raise WifError("--for takes no text; it re-tags the tangent containing <substring>")
         ctx = _ctx_for_write()
         with stream_lock(ctx.stream_file):
             s = _stream_for_write(ctx)
-            hit = s.section_edit("Notes", for_, lambda ln: _retag_tangent(ln, task))
-            if hit is None or hit[0] == hit[1]:
+            hit = s.section_edit("Notes", for_, lambda ln: _retag_tangent(ln, task, issue),
+                                 only=lambda ln: tangents.parse(ln) is not None)    # followups/reminders never match
+            if hit is None:
                 raise WifError(f"no tangent on {ctx.id} contains '{for_}'")
             s.set("updated", today()); s.save()
-        print(f"renamed on {ctx.id}: {hit[1]}", file=out)
-        p = tangents.parse(hit[1]) or {"text": ""}
-        _tangent_tail(ctx, task, p["text"], out)
+        print(f"re-tagged on {ctx.id}: {hit[1]}", file=out)
+        p = tangents.parse(hit[1]) or {"text": "", "issue": ""}
+        _tangent_tail(ctx, tangents.task_of(p), p["text"], out)
         return 0
     if not text:
         raise WifError("note text required")
     ctx = _ctx_for_write()
     if kind == "tangent":
-        task = task or tangents.derive(text)
-    tag = f"[{kind}{' due=' + due if due else ''}{' as=' + task if task else ''}]"
+        task = task or tangents.derive(text, issue)
+    tag = f"[{kind}{' due=' + due if due else ''}{' as=' + task if task else ''}{' issue=' + issue if issue else ''}]"
     with stream_lock(ctx.stream_file):
         s = _stream_for_write(ctx)
         s.section_append("Notes", f"- {tag} {today()} {text}")
@@ -363,11 +388,15 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
     return 0
 
 
-def _retag_tangent(ln: str, task: str) -> str:
+def _retag_tangent(ln: str, task: str, issue: str = "") -> str:
+    """Re-pin the task name and/or issue of a tangent line; untouched fields keep
+    their value, and a tangent that had no name gets one derived now."""
     p = tangents.parse(ln)
     if p is None:
         return ln
-    return f"- [tangent as={task}] " + (p["date"] + " " if p["date"] else "") + p["text"]
+    issue = issue or p["issue"]
+    task = task or p["as"] or tangents.derive(p["text"], issue)
+    return f"- {tangents.tag(task, issue)} " + (p["date"] + " " if p["date"] else "") + p["text"]
 
 
 def _tangent_tail(ctx: paths.Ctx, task: str, text: str, out) -> None:

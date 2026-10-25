@@ -129,10 +129,18 @@ Intent. The default kind.
 
 **Tangent**:
 A Note about work that does *not* belong to this Stream: a candidate for a new
-Stream, recorded with the Stream it was discovered from and with the Task
-name it would become (the Container to create with `herdr-task`, then
-`wif adopt`).
+Stream, recorded with the Stream it was discovered from, the Task name it
+would become (the Container to create with `herdr-task`), and the Linear
+Issue that tracks it when the Scope has a tracker. Promotion is `wif adopt`,
+which consumes the Note.
 _Avoid_: side quest, spin-off, idea
+
+**Issue**:
+The tracker item (Linear `ENG-NNNN` / `FOR-NN`) a Stream or Tangent is
+accountable to. Recorded as the bare identifier; the model creates it from
+the conversation's context, the CLI only carries it (`--issue` on `tangent`,
+`adopt`, `mark`; the `issue:` frontmatter; the `[wif]` line).
+_Avoid_: ticket, card, task (that is the Container)
 
 **Reminder**:
 A Note with a trigger — a date, or the event "this Stream lands" — that the
