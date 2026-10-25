@@ -1,6 +1,6 @@
 ---
 id: plan-2610-03
-status: draft
+status: active
 created: 2026-10-25
 refs:
   - plugins/core/skills/wif/CONTEXT.md
@@ -12,7 +12,7 @@ refs:
 
 # Plan plan-2610-03 — wif: clickable References in the dashboard and hook text
 
-**Status:** DRAFT · **Created:** 2026-10-25
+**Status:** ACTIVE · **Created:** 2026-10-25
 
 ## Context
 
@@ -112,6 +112,15 @@ One module, one call site per surface. Files under `plugins/core/skills/wif/`.
   as links; plain `wif show` is byte-identical to the pre-change output.
 - In a live session: `/core:wif` prints a dashboard whose references are
   clickable in Claude Code; `! wif show` in the same session prints plain.
+
+## As built (2026-10-25)
+
+S1–S5 implemented on this branch (agentfiles PR #12). One addition from the
+first live render: `eng-2654-odds-writer-optimisations` has two GitHub origins
+and no PR cache had ever been fetched, so `#1669` stayed plain under `--refs
+md` exactly as decision 4 says. SKILL.md §0 therefore runs
+`wif scan --prs --quiet` when the header reports `PRs cached/none`. Suite
+140 → 147.
 
 ## Open for Robin
 
