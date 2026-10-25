@@ -132,6 +132,13 @@ comment, re-request, the marker), overlays for justgames / forestrie /
 personal. `--dry-run` and `--once` flags. Plugin manifest description lists
 the skill; `claude plugin validate` passes.
 
+*W4 dry run (2026-10-25, read-only, just-agents#35):* 7 unresolved Threads
+(5 Copilot, 2 giuseppecrj `CHANGES_REQUESTED`), head 799a204. Every Thread was
+already satisfied by later commits on the branch — a verdict path the plan
+lacked. Added **Fix (already at head)**: reply naming the commit, resolve, no
+new commit. Re-review would go to giuseppecrj (changes requested); Copilot
+never; bcleary06 is already requested. Nothing was posted.
+
 ### W3 — wiring and docs
 
 - agentfiles `core` plugin picks the new skill up automatically (skills dir);

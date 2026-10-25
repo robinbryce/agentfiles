@@ -82,6 +82,14 @@ Read the diff for the Thread's path and the PR body's plan link (or the
 | **Defer** | correct, belongs outside this PR | Linear issue per the overlay's tracker rule; `wif tangent --as <eng-N-words> --issue <ID> "<finding>"`; reply with the issue URL; **resolve** |
 | **Rejected fix** | correct, but every in-scope remedy is a Workaround or breaks a rule of the road | nothing changed; **draft** the explanation |
 
+**Already fixed at head.** Many Threads are `isOutdated` because a later
+commit changed the lines. Before any other Verdict, check whether the current
+head already satisfies the Finding (read the code at `headRefOid`; `git log
+-S`/`git blame` on the Thread's path finds the commit). If it does, the
+Verdict is Fix with nothing to change: reply naming that commit (`fixed in
+<short sha>` + what it did + the marker) and **resolve**. The dry run on
+just-agents#35 (2026-10-25) found all seven open Threads in this state.
+
 Bots and humans are triaged identically; only the posting policy differs.
 When in doubt between Fix and Rejected fix, it is Rejected fix: the cost of a
 Workaround is paid later by someone else.

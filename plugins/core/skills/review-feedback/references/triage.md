@@ -4,6 +4,13 @@ The two tests a Finding must pass to become a **Fix**, and the shapes that
 fail them. Read the code before deciding; never triage from the comment text
 alone.
 
+## Test 0 — is it already fixed at head?
+
+Outdated Threads often are. Read the current code at the Thread's path; if
+the Finding no longer holds because a later commit changed it, the Verdict is
+**Fix (already at head)**: find the commit (`git log -S '<phrase>' -- <path>`,
+`git blame`), reply `fixed in <sha>: <what it did>`, resolve. No new commit.
+
 ## Test 1 — is the Finding correct about the code as it stands?
 
 Reproduce the claim: open the file at the Thread's path and line (or the
