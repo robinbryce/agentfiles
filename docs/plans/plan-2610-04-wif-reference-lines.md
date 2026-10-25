@@ -33,6 +33,7 @@ link with a short contextual note.
 | 5 | Budget | Reference lines count toward the 40-line budget; the streams table fills rows **and their Reference lines** until the budget, then `… N more`; `--all` lifts the cap. Plain mode: byte-identical to today. | exempt md mode from the budget |
 | 6 | Hooks | unchanged: the `[wif]` line and SessionStart body keep inline links (single lines read by the model, not a table); the #13 ellipsis guard stays for them. | sub-lines in hook text |
 | 7 | Glossary | **Reference** refined; **Reference line** added. No ADR. | — |
+| 8 | Owner prefix (added 2026-10-25 on review of the live output) | A leading `<owner>:` on `next` (`WIF_OWNER`, default `Robin`) is dropped on the header line and in the table, both modes; display only, Ledger as written; `owner:`, `Robin's`, mid-text `Robin:` untouched. | keep the prefix (wastes the 40-char cell on the reader's own name) |
 
 ## Goal
 

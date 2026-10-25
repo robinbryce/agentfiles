@@ -49,6 +49,10 @@ unbound memory (N): task(files), …
   or `!`) stays plain — indistinguishable from inside the process, so no TTY
   heuristic. `--json` is always plain ids. The hook injections keep inline
   links (single lines read by the model).
+- `next` drops a leading `<owner>:` (`WIF_OWNER`, default `Robin`) on the
+  header line and in the streams table, in both modes: the reader is the
+  owner and the column is narrow. Display only — the Ledger keeps the text
+  as written, and `owner: …` / `Robin's …` / a mid-text `Robin:` are untouched.
 - `--brief`: header block plus due reminders only.
 - `--changes`: header + due + only containers whose (stream status, dirty,
   ahead, flags, PR states) changed since the previous `--changes` call, plus

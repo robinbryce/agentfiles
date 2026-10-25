@@ -26,6 +26,15 @@ def trim(s, n: int) -> str:
     return s if len(s) <= n else s[: max(n - 1, 1)] + "…"
 
 
+def mine(text: str | None) -> str:
+    """`next` as the dashboard shows it: a leading `<owner>:` (the item is the
+    reader's own) is dropped — the reader knows who they are and the column is
+    narrow. Display only; the Ledger keeps the text as written."""
+    t = (text or "").strip()
+    pfx = config.owner().lower() + ":"
+    return t[len(pfx):].lstrip() if t.lower().startswith(pfx) else t
+
+
 def note_text(ln: str) -> str:
     return ln.split("] ", 1)[-1] if ln.startswith("- [") else ln
 
@@ -90,7 +99,7 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
         lines.append(f"▶ {cur}  {status}" + (f"  [{' '.join(c['flags'])}]" if c and c.get("flags") else "") + iss)
         if st:
             lines.append(f"  goal: {trim(st.get('goal'), 70)}")
-            lines.append(f"  next: {trim(st.get('next'), 70)}   position: {trim(st.get('position'), 30)}")
+            lines.append(f"  next: {trim(mine(st.get('next')), 70)}   position: {trim(st.get('position'), 30)}")
             lines.extend(R(cur, [st.get("goal"), st.get("next"), st.get("position"), st.get("issue")], st.get("issue") or ""))
         s = sess.get(cur); cx = ""
         if sid and "/" not in sid:
@@ -180,7 +189,7 @@ def render(ctx: paths.Ctx, idx: dict, args: list[str], sid: str = "", now: float
     lines.append(f"  {'id':<34} {'status':<8} {'age':>4} {'next':<40} flags")
     shown, used = 0, 0
     for _, _, k, s, c in rows:
-        row = [f"  {trim(k, 34):<34} {s.get('status', ''):<8} {age(c.get('last_activity_ts') or 0, now):>4} {trim(s.get('next'), 40):<40} {' '.join(c.get('flags', []))}"]
+        row = [f"  {trim(k, 34):<34} {s.get('status', ''):<8} {age(c.get('last_activity_ts') or 0, now):>4} {trim(mine(s.get('next')), 40):<40} {' '.join(c.get('flags', []))}"]
         row.extend(R(k, [s.get("next"), s.get("issue")], s.get("issue") or ""))
         if "--all" not in args and shown >= 1 and used + len(row) > room:
             break

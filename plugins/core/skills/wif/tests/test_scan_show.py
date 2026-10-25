@@ -305,6 +305,24 @@ class ShowTests(WifCase):
         rc, out, _ = self.capture(show.main, ["--refs", "html"])
         self.assertEqual(rc, 2); self.assertIn("--refs must be md or plain", out)
 
+    def test_owner_prefix_dropped_from_next_on_display_only(self):
+        s1 = Stream.create(self.ledger / "streams" / "eng-1.md", "eng-1", "justgames", "herdr", str(self.c))
+        s1.set("next", "Robin: merge #1665 when S1 review closes"); s1.save()
+        c2 = self.container("eng-2"); s2 = Stream.create(self.ledger / "streams" / "eng-2.md", "eng-2", "justgames", "herdr", str(c2))
+        s2.set("next", "robin:  review first"); s2.save()
+        c3 = self.container("eng-3"); s3 = Stream.create(self.ledger / "streams" / "eng-3.md", "eng-3", "justgames", "herdr", str(c3))
+        s3.set("next", "owner: re-approve; Robin: then merge"); s3.save()
+        self.scan()
+        out = self.show()
+        self.assertIn("  next: merge #1665 when S1 review closes   position: -", out)              # header: prefix dropped
+        self.assertTrue(any(l.startswith("  eng-2 ") and " review first " in l and "robin" not in l for l in out), out)   # case-insensitive, extra space
+        self.assertTrue(any(l.startswith("  eng-3 ") and "owner: re-approve; Robin: then merge" in l for l in out), out)  # only a leading prefix
+        self.assertEqual(Stream.load(self.ledger / "streams" / "eng-1.md").get("next"), "Robin: merge #1665 when S1 review closes")   # Ledger untouched
+        with mock.patch.dict(os.environ, {"WIF_OWNER": "owner"}):
+            out = self.show()
+            self.assertTrue(any(l.startswith("  eng-3 ") and "re-approve; Robin: then merge" in l and "owner:" not in l for l in out), out)
+            self.assertIn("  next: Robin: merge #1665 when S1 review closes   position: -", out)
+
     def test_reference_lines_count_toward_the_budget(self):
         self.git(self.c / "repo-a", "remote", "add", "origin", "git@github.com:o/r.git")
         for i in range(30):
