@@ -71,6 +71,14 @@ listed so they can be changed deliberately rather than rediscovered.
   cross-container lookup. Issue URL: per-scope `LINEAR` table (justgames =
   `justgames`/ENG; forestrie workspace TBD) with `WIF_LINEAR_<SCOPE>` override;
   the team-key limit keeps `ARC-014` plain. Trim first, then link.
+  **Superseded on the dashboard by plan-2610-04 (same day):** inline links
+  made the 40-character `next` cell URL soup and a trimmed id linked wrongly
+  (`ENG-2671` → `ENG-2…`). Under `--refs md` item text now stays as written
+  and each resolved Reference is listed beneath the item as a four-space
+  **Reference line** (`[ref](url)` + PR `STATE · title` from the cache /
+  `this stream` / nothing), derived from the untrimmed text; unresolvable
+  references get no line; Reference lines count toward the budget. Hooks
+  keep inline links (with the ellipsis guard).
 - Intent ring length 10. Stream file cap 120 lines (over-cap is a dashboard flag).
 - Stale: no commit, session or stream update for 14 days and nothing dirty →
   flag `stale` (not a status).

@@ -144,11 +144,18 @@ _Avoid_: ticket, card, task (that is the Container)
 
 **Reference**:
 A PR number (`#1669`, `owner/repo#1669`) or Issue id (`ENG-2654`) written in a
-Stream's text. The Ledger always holds it as written; a surface renders it as
-a link only when the text is about to be rendered as markdown (the agent's
-dashboard output, the hook injections), never on a terminal or in the
-statusline.
+Stream's text. The Ledger always holds it as written. On the dashboard the
+text stays as written and each Reference that can be resolved is listed once
+beneath its item as a link with a short note (a PR's title and state); in the
+hook injections it is linked in place. Never linked on a terminal or in the
+statusline, and never when unresolvable.
 _Avoid_: link, mention, citation
+
+**Reference line**:
+The indented line beneath a dashboard item that carries one resolved
+Reference: its link, then its note. A Reference the dashboard cannot resolve
+has no Reference line and appears only as written in the item's text.
+_Avoid_: footnote, sub-row
 
 **Reminder**:
 A Note with a trigger — a date, or the event "this Stream lands" — that the

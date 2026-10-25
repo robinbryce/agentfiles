@@ -23,6 +23,7 @@ def rotate_pct() -> int: return _int("WIF_ROTATE_PCT", 60)
 def pr_ttl() -> int: return _int("WIF_PR_TTL", 6 * 3600)
 def session_keep_days() -> int: return _int("WIF_SESSION_KEEP_DAYS", 30)
 def budget_lines() -> int: return _int("WIF_BUDGET_LINES", 40)
+def owner() -> str: return os.environ.get("WIF_OWNER", "Robin")   # the reader; `<owner>:` is dropped from `next` on the dashboard
 
 
 # Linear per scope: (workspace url key, team keys). Issue ids are only
