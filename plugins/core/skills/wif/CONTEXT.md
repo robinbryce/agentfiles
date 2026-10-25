@@ -142,6 +142,14 @@ the conversation's context, the CLI only carries it (`--issue` on `tangent`,
 `adopt`, `mark`; the `issue:` frontmatter; the `[wif]` line).
 _Avoid_: ticket, card, task (that is the Container)
 
+**Reference**:
+A PR number (`#1669`, `owner/repo#1669`) or Issue id (`ENG-2654`) written in a
+Stream's text. The Ledger always holds it as written; a surface renders it as
+a link only when the text is about to be rendered as markdown (the agent's
+dashboard output, the hook injections), never on a terminal or in the
+statusline.
+_Avoid_: link, mention, citation
+
 **Reminder**:
 A Note with a trigger — a date, or the event "this Stream lands" — that the
 dashboard surfaces when the trigger is met.
