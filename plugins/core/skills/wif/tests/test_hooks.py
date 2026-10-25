@@ -23,8 +23,11 @@ class HookTests(WifCase):
     def test_prompt_creates_stream_session_ring_and_context(self):
         out = hooks.handle(self.ev("UserPromptSubmit", prompt="fix the drift test\nmore"))
         ctx = out["hookSpecificOutput"]["additionalContext"]
-        self.assertTrue(ctx.startswith("[wif] eng-1 · active"))
+        self.assertTrue(ctx.startswith("[wif] eng-1 · active · goal:"))             # no issue: no issue field
         self.assertIn("session goal unset", ctx)
+        st = Stream.load(self.ledger / "streams" / "eng-1.md"); st.set("issue", "ENG-42"); st.save()
+        ctx2 = hooks.handle(self.ev("UserPromptSubmit", prompt="again"))["hookSpecificOutput"]["additionalContext"]
+        self.assertTrue(ctx2.startswith("[wif] eng-1 · active · issue: ENG-42 · goal:"), ctx2)
         self.assertIn("--session s1", ctx)
         self.assertTrue((self.ledger / "streams" / "eng-1.md").exists())
         self.assertEqual(self.sess("s1")["ring"][0]["prompt"], "fix the drift test")

@@ -11,7 +11,7 @@ TASK_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")          # herdr-task's rule (
 ISSUE_RE = re.compile(r"\b([A-Z]{2,6})-(\d{2,6})\b")        # ENG-2486, ARC-014 → name prefix
 TANGENT_RE = re.compile(r"^- \[tangent(?: as=([^\]\s]+))?(?: issue=([^\]\s]+))?\] (?:(\d{4}-\d{2}-\d{2}) )?(.*)$")
 ISSUE_ID_RE = re.compile(r"^[A-Z]{2,6}-\d{1,6}$")             # ENG-2486, FOR-12
-ISSUE_URL_RE = re.compile(r"linear\.app/[^/]+/issue/([A-Z]{2,6}-\d{1,6})(?:/|$)")
+ISSUE_URL_RE = re.compile(r"linear\.app/[^/]+/issue/([A-Z]{2,6}-\d{1,6})(?:[/?#]|$)")
 STOP = set("""a an the to of for and or but in on at by with from into as is are be been was were it its this that
 these those we i you they our your my me us please could should would can will do does make let also then than
 there here own new just some any all more very so if not no yes which what who how when where why about over
@@ -37,8 +37,7 @@ def derive(text: str, issue: str = "") -> str:
     m = ISSUE_RE.search(raw)
     if issue:
         out.append(issue.lower())
-        if m and m.group(0) == issue:
-            raw = raw[: m.start()] + " " + raw[m.end():]
+        raw = re.sub(r"\b" + re.escape(issue) + r"\b", " ", raw, flags=re.IGNORECASE)   # never repeat the id in the words
     elif m:
         out.append(f"{m.group(1).lower()}-{m.group(2)}")
         raw = raw[: m.start()] + " " + raw[m.end():]

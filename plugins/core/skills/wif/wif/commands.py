@@ -363,7 +363,8 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
         ctx = _ctx_for_write()
         with stream_lock(ctx.stream_file):
             s = _stream_for_write(ctx)
-            hit = s.section_edit("Notes", for_, lambda ln: _retag_tangent(ln, task, issue))
+            hit = s.section_edit("Notes", for_, lambda ln: _retag_tangent(ln, task, issue),
+                                 only=lambda ln: tangents.parse(ln) is not None)    # followups/reminders never match
             if hit is None:
                 raise WifError(f"no tangent on {ctx.id} contains '{for_}'")
             s.set("updated", today()); s.save()

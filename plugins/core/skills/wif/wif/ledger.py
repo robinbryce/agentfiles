@@ -221,9 +221,10 @@ class Stream:
             self.body = "\n".join(out)
         return removed
 
-    def section_edit(self, name: str, needle: str, fn) -> tuple[str, str] | None:
+    def section_edit(self, name: str, needle: str, fn, only=None) -> tuple[str, str] | None:
         """Replace, in place, the first list item whose text contains <needle>
-        with fn(line). -> (old, new) or None when nothing matched."""
+        (and satisfies only(line), when given) with fn(line). -> (old, new) or
+        None when nothing matched."""
         lines = self.body.split("\n")
         insec, hit = False, None
         for i, ln in enumerate(lines):
@@ -232,7 +233,7 @@ class Stream:
                 continue
             if insec and ln.startswith("## "):
                 break
-            if insec and ln.startswith("- ") and needle in item_text(ln):
+            if insec and ln.startswith("- ") and needle in item_text(ln) and (only is None or only(ln)):
                 new = fn(ln)
                 lines[i] = new; hit = (ln, new)
                 break

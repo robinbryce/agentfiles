@@ -277,6 +277,15 @@ class CommandTests(WifCase):
         rc, out, _ = self.capture(commands.note, ["--issue", "ENG-10", "--for", "legacy bare"], "tangent")
         self.assertIn("[tangent as=eng-10-legacy-bare-note issue=ENG-10] ", out)                   # legacy line gets a name, issue first
         self.assertIn("  task: eng-10-legacy-bare-note\n", out)
+        # --for never re-tags a followup, even when it is the first note containing the substring
+        self.capture(commands.note, ["followup about legacy things"])
+        with self.assertRaises(WifError): commands.note(["--issue", "ENG-11", "--for", "followup about"], "tangent")
+        self.assertTrue(self.stream().notes()[-1].startswith("- [followup] "))
+        # ids: URL with query/fragment, lowercase rejected, short id never repeated in the derived words
+        self.assertEqual(tangents.issue_id("https://linear.app/sd/issue/ENG-7?x=1"), "ENG-7")
+        self.assertEqual(tangents.issue_id("https://linear.app/sd/issue/ENG-7#c"), "ENG-7")
+        self.assertEqual(tangents.issue_id("eng-7"), "")
+        self.assertEqual(tangents.derive("ENG-5 fix the eng-5 widget", "ENG-5"), "eng-5-fix-widget")
 
     def test_adopt_carries_issue_into_stream_and_handoff_and_mark_sets_it(self):
         self.capture(commands.adopt, ["."])
