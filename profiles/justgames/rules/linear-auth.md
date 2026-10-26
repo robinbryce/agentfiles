@@ -15,25 +15,35 @@ actually lives:
 direnv exec ~/Dev/justgames printenv LINEAR_API_KEY
 ```
 
-**Do not hardcode a path to a specific `.envrc`.** An earlier version of this
-guidance pinned `~/Dev/justgames/code/.envrc`; that directory no longer exists,
-and the stale pin silently produced "key missing" instead of a useful error.
-Resolving from the scope root has no such failure mode — if the layout moves,
-direnv follows it.
+**Do not hardcode a path to a specific `.envrc`** in commands; resolve through direnv
+from the scope root, then from `~/Dev/justgames/code`, then rely on the inherited
+environment inside a herdr container (next section). If the layout moves, direnv
+follows it.
 
-## When this scope defines no key
+## Where the key comes from (verified 2026-10-24)
 
-As of 2026-07-25 **`~/Dev/justgames` defines no `LINEAR_API_KEY`** — there is
-no `.envrc` under it at all.
+`~/Dev/justgames/code/.envrc` exists and exports `LINEAR_API_KEY`; herdr containers
+under `~/Dev/justgames/code/.worktrees-herdr/<task>/` inherit it through their own
+`.envrc` (`source_up_if_exists`), so inside a container the key is already in the
+environment and `direnv exec ~/Dev/justgames printenv LINEAR_API_KEY` may print nothing
+even though the key is available. Check in this order:
 
-When resolution fails:
+1. `[ -n "$LINEAR_API_KEY" ]` in the current environment.
+2. `direnv exec ~/Dev/justgames printenv LINEAR_API_KEY`.
+3. `direnv exec ~/Dev/justgames/code printenv LINEAR_API_KEY`.
+
+An earlier version of this rule said the scope defined no key and that the `code/.envrc`
+no longer existed; both were stale and produced false "no key" stops.
+
+## When no key resolves
+
+Only when all three checks fail:
 
 1. Say so plainly: this scope has no Linear key configured.
-2. **Stop.** Do not fall back to another scope's key. The key *is* the
-   identity, and reusing the forestrie key for JustGames work is precisely the
-   cross-scope leak the scope model exists to prevent.
-3. Do not prompt for a key until both the environment and the direnv lookup
-   have failed.
+2. **Stop.** Do not fall back to another scope's key. The key *is* the identity, and
+   reusing the forestrie key for JustGames work is precisely the cross-scope leak the
+   scope model exists to prevent.
+3. Do not prompt for a key until the environment and both direnv lookups have failed.
 
 To configure one, add `export LINEAR_API_KEY=…` to an `.envrc` at or under
 `~/Dev/justgames`, then `direnv allow` it. Rotating means editing that file and
