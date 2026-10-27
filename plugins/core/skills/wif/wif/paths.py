@@ -84,7 +84,7 @@ def scope_of(path: Path) -> str:
 
 
 def ledger_dir(scope: str, cfg: Path | None = None) -> Path:
-    return (cfg or config_dir()) / "wif" / scope
+    return (cfg or config_dir(scope)) / "wif" / scope
 
 
 def ledger_init(scope: str, cfg: Path | None = None) -> Path:

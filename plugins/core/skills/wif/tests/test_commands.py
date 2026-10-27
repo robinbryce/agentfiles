@@ -325,6 +325,13 @@ class CommandTests(WifCase):
         self.assertEqual(len(notes), 3); self.assertTrue(notes[0].startswith("- [followup] ") and notes[2].startswith("- [reminder due="))
         with self.assertRaises(WifError): commands.note(["x", "--scope", "justgames"])         # --scope needs --stream
         with self.assertRaises(WifError): commands.note(["x", "--stream", "nope", "--scope", "justgames"])
+        with self.assertRaises(WifError): commands.note(["x", "--stream"])                      # --stream needs an id
+        # a tangent recorded on eng-1 from inside ANOTHER container names eng-1's repos, not ours
+        other = self.container("other", repos=("repo-z",))
+        with contextlib.chdir(other), mock.patch.dict(os.environ, {"HERDR_REPOS_ONE": "repo-a"}):
+            rc, out, _ = self.capture(commands.note, ["--as", "from-afar", "--stream", "eng-1", "idea"], "tangent")
+        self.assertIn("    herdr-task from-afar one && wif adopt from-afar", out)                 # eng-1's set (repo-a), as the collection
+        self.assertNotIn("repo-z", out)
 
     def test_note_newline_flattened(self):
         self.capture(commands.note, ["line one\nline two"])

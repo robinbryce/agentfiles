@@ -40,7 +40,10 @@ def _ctx_for_stream(stream_id: str, scope: str = "") -> paths.Ctx:
         if ctx.archive_file.exists():
             raise WifError(f"stream {stream_id} is closed (archived)")
         raise WifError(f"no stream {stream_id} in scope {ctx.scope}")
-    return ctx
+    # The context's backing is the TARGET stream's, not the cwd's: a tangent
+    # recorded here must name the target container's repo set, not ours.
+    kind, _, bpath = (Stream.load(ctx.stream_file).get("backing") or "").partition(":")
+    return dataclasses.replace(ctx, kind=kind or "none", path=Path(bpath) if bpath else None)
 
 
 def _stream_for_write(ctx: paths.Ctx) -> Stream:
@@ -321,7 +324,10 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
     stream_id = scope = ""
     rest, it = [], iter(args)
     for a in it:
-        if a == "--stream": stream_id = next(it, "")
+        if a == "--stream":
+            stream_id = next(it, "")
+            if not stream_id or stream_id.startswith("-"):
+                raise WifError("--stream needs a stream id")
         elif a == "--scope": scope = next(it, "")
         else: rest.append(a)
     args = rest

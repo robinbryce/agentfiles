@@ -153,6 +153,7 @@ class ResolveTests(WifCase):
             c = paths.resolve(self.root)                                  # ~/.claude-justgames exists (the fixture's cfg)
             self.assertEqual((c.account, c.scope, c.served), ("justgames", "justgames", True))
             self.assertEqual(c.ledger, self.cfg / "wif" / "justgames")
+            self.assertEqual(paths.ledger_dir("justgames"), self.cfg / "wif" / "justgames")   # scope-aware fallback
             c = paths.resolve(self.home / "Dev/personal")                 # no ~/.claude-personal here -> unprofiled ~/.claude
             self.assertEqual((c.account, c.scope, c.served), ("personal", "personal", True))
             self.assertEqual(c.config_dir, self.home / ".claude")
