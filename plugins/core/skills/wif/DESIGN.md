@@ -14,7 +14,7 @@ listed so they can be changed deliberately rather than rediscovered.
 | 4 | Session state | one JSON file per session id; stream file holds only durable state; handoff folds session into stream | inline in stream file; no intent ring |
 | 5 | Intent capture | inferred by default: hooks record prompt/outcome first lines mechanically, the model records an `intent` when a prompt starts new work; `wif mark` is the override | explicit-only; prompt-type classifier hook (deferred) |
 | 6 | Hook install | permanent in every profile's `settings.json` via `wif install` (diff first); hooks no-op fast when no Backing resolves | skill-frontmatter hooks (session-only); per-task settings |
-| 7 | Account/scope mismatch | warn and record nothing; a Ledger write never crosses accounts | hard refuse; record anyway |
+| 7 | Account/scope mismatch | warn and record nothing; a Ledger write never crosses accounts. **Bare shell (2026-10-27):** with no `CLAUDE_CONFIG_DIR` the account is the profile that serves the directory's scope (`~/.claude-<scope>` when it exists), the launcher's own rule — so `wif adopt` from a herdr pane, and `herdr-task`'s child `wif adopt`, record into the right Ledger instead of refusing as "personal". An explicit `CLAUDE_CONFIG_DIR` is never overridden. | hard refuse; record anyway; treating an unset profile as personal (refused every justgames write from a pane) |
 | 8 | Dashboard surface | terminal (`wif show` as the skill's instructed first step) + statusline; artifact deferred to phase 4 | artifact first; dynamic `!` injection (aborts the skill when denied) |
 
 ## Routine defaults (changeable)

@@ -10,8 +10,10 @@ what was the last prompt for, and where does that sit in the stream".
 **Account**:
 One Claude Code config dir: an agentfiles profile `~/.claude-<profile>`
 (justgames, personal, forestrie, home), named after the profile; the
-unprofiled `~/.claude` counts as personal. An Account owns exactly one Ledger
-root.
+unprofiled `~/.claude` counts as personal. Inside a Claude session the
+profile is given; in a bare shell (a herdr pane) the Account is the profile
+that serves the directory's Scope, the way the `claude` launcher picks one.
+An Account owns exactly one Ledger root.
 _Avoid_: login, config; say profile only for the agentfiles config dir an Account is
 
 **Scope**:
