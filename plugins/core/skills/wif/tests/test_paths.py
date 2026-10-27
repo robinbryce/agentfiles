@@ -144,3 +144,21 @@ class ResolveTests(WifCase):
         self.assertEqual(j["id"], "eng-5")
         self.assertFalse(j["stream_exists"])
         self.assertIn("ledger", j)
+
+
+    def test_bare_shell_account_follows_the_directory_scope(self):
+        # no CLAUDE_CONFIG_DIR (a herdr pane): the profile that serves the scope is the account
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CONFIG_DIR"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            c = paths.resolve(self.root)                                  # ~/.claude-justgames exists (the fixture's cfg)
+            self.assertEqual((c.account, c.scope, c.served), ("justgames", "justgames", True))
+            self.assertEqual(c.ledger, self.cfg / "wif" / "justgames")
+            c = paths.resolve(self.home / "Dev/personal")                 # no ~/.claude-personal here -> unprofiled ~/.claude
+            self.assertEqual((c.account, c.scope, c.served), ("personal", "personal", True))
+            self.assertEqual(c.config_dir, self.home / ".claude")
+            import shutil; shutil.rmtree(self.cfg)                        # profile gone -> falls back, and justgames is then unserved
+            c = paths.resolve(self.root)
+            self.assertEqual((c.account, c.served), ("personal", False))
+        with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.home / ".claude-personal")}):
+            c = paths.resolve(self.root)                                  # an explicit profile is never overridden
+            self.assertEqual((c.account, c.served), ("personal", False))

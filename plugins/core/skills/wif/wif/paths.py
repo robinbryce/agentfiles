@@ -14,12 +14,22 @@ def home() -> Path:
     return Path(os.environ.get("HOME") or os.path.expanduser("~")).resolve()
 
 
-def config_dir() -> Path:
-    raw = os.environ.get("CLAUDE_CONFIG_DIR") or str(home() / ".claude")
-    p = Path(raw)
-    if not p.is_absolute():
-        p = Path.cwd() / p
-    return p
+def config_dir(scope: str | None = None) -> Path:
+    """The account's config dir. Inside a Claude session CLAUDE_CONFIG_DIR says
+    which profile this is. In a bare shell (a herdr pane, `herdr-task`'s child
+    `wif adopt`) it is unset; then the account is the profile that serves the
+    directory's <scope> — `~/.claude-<scope>` when it exists — the same rule
+    the `claude` launcher uses to pick a profile from the directory. Only when
+    no such profile exists does the unprofiled `~/.claude` (personal) apply."""
+    raw = os.environ.get("CLAUDE_CONFIG_DIR")
+    if raw:
+        p = Path(raw)
+        return p if p.is_absolute() else Path.cwd() / p
+    if scope:
+        prof = home() / f".claude-{scope}"
+        if prof.is_dir():
+            return prof
+    return home() / ".claude"
 
 
 def account(cfg: Path | None = None) -> str:
@@ -165,14 +175,14 @@ class Ctx:
 
 
 def resolve(cwd: str | Path | None = None, scope: str | None = None) -> Ctx:
-    cfg = config_dir()
-    acct = account(cfg)
     p = Path(cwd) if cwd else Path.cwd()
     try:
         phys = p.resolve()
     except OSError:
         phys = p
     sc = scope or scope_of(phys)
+    cfg = config_dir(sc)
+    acct = account(cfg)
     kind, sid, bpath = backing_of(p)
     led = ledger_dir(sc, cfg)
     return Ctx(account=acct, scope=sc, root=scope_root(sc), served=account_serves(acct, sc),

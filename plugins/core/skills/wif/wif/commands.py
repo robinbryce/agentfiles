@@ -317,19 +317,25 @@ def _due_from(when: str) -> str:
 def note(args: list[str], kind: str = "followup", out=None) -> int:
     out = out or sys.stdout
     args = list(args)
+    # --stream ID [--scope S]: address a stream from any directory (as `mark` does)
+    stream_id = scope = ""
+    rest, it = [], iter(args)
+    for a in it:
+        if a == "--stream": stream_id = next(it, "")
+        elif a == "--scope": scope = next(it, "")
+        else: rest.append(a)
+    args = rest
+    if scope and not stream_id:
+        raise WifError("--scope needs --stream")
+    def target():
+        return _ctx_for_stream(stream_id, scope) if stream_id else _ctx_for_write()
     if args[:1] == ["--done"]:
         needle = args[1] if len(args) > 1 else ""
         if not needle:
             raise WifError("--done needs a substring")
-        stream_id = scope = ""
-        it = iter(args[2:])
-        for a in it:
-            if a == "--stream": stream_id = next(it, "")
-            elif a == "--scope": scope = next(it, "")
-            else: raise WifError(f"unknown arg {a} (note --done \"<substring>\" [--stream ID [--scope S]])")
-        if scope and not stream_id:
-            raise WifError("--scope needs --stream")
-        ctx = _ctx_for_stream(stream_id, scope) if stream_id else _ctx_for_write()
+        if args[2:]:
+            raise WifError(f"unknown arg {args[2]} (note --done \"<substring>\" [--stream ID [--scope S]])")
+        ctx = target()
         with stream_lock(ctx.stream_file):
             s = _stream_for_write(ctx)
             removed = s.section_remove("Notes", needle)
@@ -360,7 +366,7 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
     if for_:                                   # re-pin the name / issue of a recorded tangent
         if text:
             raise WifError("--for takes no text; it re-tags the tangent containing <substring>")
-        ctx = _ctx_for_write()
+        ctx = target()
         with stream_lock(ctx.stream_file):
             s = _stream_for_write(ctx)
             hit = s.section_edit("Notes", for_, lambda ln: _retag_tangent(ln, task, issue),
@@ -374,7 +380,7 @@ def note(args: list[str], kind: str = "followup", out=None) -> int:
         return 0
     if not text:
         raise WifError("note text required")
-    ctx = _ctx_for_write()
+    ctx = target()
     if kind == "tangent":
         task = task or tangents.derive(text, issue)
     tag = f"[{kind}{' due=' + due if due else ''}{' as=' + task if task else ''}{' issue=' + issue if issue else ''}]"

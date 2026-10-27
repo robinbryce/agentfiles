@@ -16,7 +16,8 @@ HELP = """wif <command> [args]
                                     (clears the [tangent as=<task>] note on the stream it came from; inherits parent/goal/issue)
   mark [-g goal] [-i intent] [-p position] [-n next] [-s status] [--issue ID] [--done text] [--session ID]
                                     [--stream ID [--scope S]]   target a stream by id from anywhere
-  note "<text>"                     followup for this stream;  note --done "<substring>" [--stream ID [--scope S]] removes one
+  note "<text>"                     followup for this stream;  note --done "<substring>" removes one
+                                    (note / tangent / remind all take --stream ID [--scope S] to address a stream from anywhere)
   tangent [--as <task>] [--issue ENG-N|url] "<text>"   candidate for a new stream (discovered-from this one); --as pins the
                                     container/task name (lowercase kebab) it becomes, else one is derived
   tangent [--as <task>] [--issue ID] --for "<substring>"   re-pin the name and/or issue of a recorded tangent

@@ -312,6 +312,20 @@ class CommandTests(WifCase):
         self.assertIn("removed from eng-1", out)
         self.assertEqual(Stream.load(self.ledger / "streams" / "eng-1.md").notes(), [])
 
+    def test_note_tangent_remind_address_a_stream_from_anywhere(self):
+        self.capture(commands.adopt, ["."])
+        self.cd(self.home)
+        with self.assertRaises(WifError): commands.note(["far away"])                       # no backing at ~
+        self.capture(commands.note, ["far away", "--stream", "eng-1", "--scope", "justgames"])
+        self.capture(commands.note, ["--as", "kid", "--stream", "eng-1", "--scope", "justgames", "an idea"], "tangent")
+        rc, out, _ = self.capture(commands.note, ["--issue", "ENG-3", "--for", "an idea", "--stream", "eng-1", "--scope", "justgames"], "tangent")
+        self.assertIn("[tangent as=kid issue=ENG-3] ", out)
+        self.capture(commands.note, ["+1d", "ping", "--stream", "eng-1", "--scope", "justgames"], "reminder")
+        notes = Stream.load(self.ledger / "streams" / "eng-1.md").notes()
+        self.assertEqual(len(notes), 3); self.assertTrue(notes[0].startswith("- [followup] ") and notes[2].startswith("- [reminder due="))
+        with self.assertRaises(WifError): commands.note(["x", "--scope", "justgames"])         # --scope needs --stream
+        with self.assertRaises(WifError): commands.note(["x", "--stream", "nope", "--scope", "justgames"])
+
     def test_note_newline_flattened(self):
         self.capture(commands.note, ["line one\nline two"])
         self.assertEqual(self.stream().notes()[0].split(" ", 3)[-1], "line one line two")

@@ -118,9 +118,10 @@ The hooks inject one `[wif]` line per prompt. On seeing it:
      `--issue` and skip 1–2; to attach one later:
      `wif tangent --issue ENG-NNNN --for "<substring>"`.
 - A note has been acted on (followup became the intent, reminder fired,
-  tangent rejected) → `wif note --done "<substring>"`; from another
-  directory, `wif note --done "<substring>" --stream <id> [--scope S]`. A
-  tangent that was promoted needs nothing: `wif adopt` clears it.
+  tangent rejected) → `wif note --done "<substring>"`. `note`, `tangent`,
+  `remind` and `--done` all take `--stream <id> [--scope S]` to address a
+  stream from any directory. A tangent that was promoted needs nothing:
+  `wif adopt` clears it.
 - The stream's Linear issue becomes known (created, or named by Robin) →
   `wif mark --issue ENG-NNNN`; the `[wif]` line then carries it.
 
