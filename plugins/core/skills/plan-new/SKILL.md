@@ -26,7 +26,9 @@ user before allocating.
 1. Determine the plans root from the active scope's `plans_root` param (falls
    back to `docs/plans/`, then `plans/`, then `devdocs/plans/`).
 2. Run the helper — it scans only the **current YYMM cohort** and picks the
-   next 2-digit ordinal:
+   next 2-digit ordinal. In a git repo with an `origin` remote it first fetches
+   (best effort) and counts the cohort on origin's default branch too, so a
+   plan merged there but not yet pulled is not re-allocated:
 
    ```bash
    bash "${CLAUDE_SKILL_DIR}/scripts/new-plan.sh" <slug> [--dir] [--root <plans-dir>]
