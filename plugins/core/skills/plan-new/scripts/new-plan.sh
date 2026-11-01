@@ -14,6 +14,9 @@
 #
 # Allocation scans ONLY the current YYMM cohort, so it is safe under parallel
 # branches: the only race is same-month-same-instant, and the slug disambiguates.
+# Inside a git repo with an `origin` remote it fetches origin (best effort) and
+# also counts the cohort on origin's default branch, so a plan merged there but
+# not yet pulled is never re-allocated. Open-PR branches are not scanned.
 set -euo pipefail
 
 SLUG=""; MODE="file"; ROOT=""; DATE=""; PREFIX="plan"
@@ -50,9 +53,27 @@ mkdir -p "$ROOT"
 TODAY="${DATE:-$(date +%Y-%m-%d)}"
 YYMM="$(printf '%s' "$TODAY" | sed -E 's/^[0-9]{2}([0-9]{2})-([0-9]{2})-.*/\1\2/')"
 
-# highest ordinal in this month's cohort (files or dirs)
-LAST="$(ls -d "$ROOT"/"$PREFIX"-"$YYMM"-* 2>/dev/null \
-  | sed -nE "s#.*/$PREFIX-$YYMM-([0-9]+)(-.*|\.md)?\$#\1#p" | sort -n | tail -1 || true)"
+warn() { echo "new-plan.sh: warning: $*" >&2; }
+
+# Top-level names under ROOT on origin's default branch, one per line. Silent
+# (and empty) when ROOT is not in a git repo or the repo has no origin.
+remote_names() {
+  local head
+  git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  git -C "$ROOT" remote get-url origin >/dev/null 2>&1 || return 0
+  GIT_TERMINAL_PROMPT=0 git -C "$ROOT" fetch origin --quiet >/dev/null 2>&1 \
+    || warn "git fetch origin failed; using the last-fetched origin state"
+  head="$(git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  head="${head:-origin/main}"
+  git -C "$ROOT" rev-parse --verify --quiet "$head^{commit}" >/dev/null 2>&1 \
+    || { warn "no $head; allocating against the local tree only"; return 0; }
+  # Run from ROOT, ls-tree takes "." as ROOT and prints paths relative to it.
+  (cd "$ROOT" && git ls-tree -r --name-only "$head" -- .) 2>/dev/null | sed 's#/.*##' | sort -u
+}
+
+# highest ordinal in this month's cohort (files or dirs), local tree + origin
+LAST="$( { for p in "$ROOT"/"$PREFIX"-"$YYMM"-*; do [ -e "$p" ] && basename "$p"; done; remote_names; } \
+  | sed -nE "s#^$PREFIX-$YYMM-([0-9]+)(-.*|\.md)?\$#\1#p" | sort -n | tail -1 || true)"
 NEXT="$(printf '%02d' "$(( 10#${LAST:-0} + 1 ))")"
 ID="$YYMM-$NEXT"
 TITLE="$(printf '%s' "$SLUG" | tr '-' ' ')"
