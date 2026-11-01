@@ -63,8 +63,8 @@ Rules
   parent container's memory dir has a `MEMORY.md`), `re-invoke: /core:wif`.
   ≤ 12 lines. A stream with no parent stream but a goal (a fresh
   `herdr-task -g`) is seeded with `objective:`, `issue:`, `parent:` (a plain
-  label), `container:` with its repos, `first step:` (work toward `next`)
-  and `re-invoke: /core:wif`; no goal, no seed. A non-empty Handoff is never
+  label), `container:` with its repos (`worktree:` for a plain checkout), `first step:` (work toward `next`)
+  and `re-invoke: /core:wif`; no goal, no seed. Nothing is seeded when the adopt closes the stream. A non-empty Handoff is never
   overwritten.
 - The SessionStart hook injects `Handoff` (30 lines max) and `Now` (20 lines max).
 - Closing: `wif mark -s closed` moves the file to `../archive/`; hooks then

@@ -147,7 +147,7 @@ def adopt(args: list[str], out=None) -> int:
             s.set("status", status)
         elif not created and s.get("status") == "closed":
             s.set("status", "active")
-        if not s.section("Handoff"):
+        if not s.section("Handoff") and s.get("status") != "closed":    # closing: no first session to brief
             seed = _handoff_seed(ctx, s, origin, parent)
             if seed:
                 s.set_section("Handoff", seed)
@@ -252,12 +252,14 @@ def _lone_seed(ctx: paths.Ctx, s: Stream, parent: str) -> list[str]:
         lines.append(f"issue: {s.get('issue')}")
     if parent:
         lines.append(f"parent: {parent}")
-    if ctx.path:
+    if ctx.path and ctx.kind == "herdr":
         try:
-            repos = sorted(d.name for d in Path(ctx.path).iterdir() if (d / ".git").exists())
+            repos = sorted(d.name for d in ctx.path.iterdir() if (d / ".git").exists())
         except OSError:
             repos = []
         lines.append(f"container: {ctx.path}" + (f" (repos: {', '.join(repos)})" if repos else ""))
+    elif ctx.path:
+        lines.append(f"worktree: {ctx.path}")
     lines.append("first step: work toward the stream's `next` (shown above); if it is unset, "
                  "propose one and record it with `wif mark -n`")
     lines.append("re-invoke: /core:wif")

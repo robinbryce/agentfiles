@@ -222,6 +222,9 @@ class CommandTests(WifCase):
         self.assertEqual(h[:3], ["objective: g", "issue: ENG-3", "parent: ENG-3"])
         self.assertEqual(h[3], f"container: {lone} (repos: repo-a)")
         self.assertTrue(h[4].startswith("first step: "), h); self.assertEqual(h[-1], "re-invoke: /core:wif")
+        self.container("gone")
+        rc, out, _ = self.capture(commands.adopt, ["gone", "-g", "g", "-s", "closed"])   # closing: no seed
+        self.assertNotIn("seeded", out)
         self.capture(commands.adopt, [".", "-g", "pg"])
         self.container("under")
         rc, out, _ = self.capture(commands.adopt, ["under", "-p", "eng-1"])
