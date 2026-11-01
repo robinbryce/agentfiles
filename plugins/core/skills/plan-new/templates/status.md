@@ -1,14 +1,19 @@
 ---
 id: {{ID}}
+title: {{TITLE}}
 status: active
 created: {{DATE}}
+updated: {{DATE}}
+repos: []
+issues: []
+plans: []
 refs: []
 ---
 
-# Status {{ID}} — {{TITLE}}
+# {{TITLE}}
 
-<!-- Brief overview of the work in hand, with gitweb links (local relative if
-     same repo) to the plans, ADRs, and ARC docs of significance. -->
+<!-- Brief overview of the work in hand, with links to the plans, ADRs and
+     ARCs of significance. -->
 
 ## Status
 

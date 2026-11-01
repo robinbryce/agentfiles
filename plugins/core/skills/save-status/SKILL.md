@@ -26,7 +26,7 @@ Hints given on invocation: `$ARGUMENTS`
   condense the chat, and pick up references to Linear issues, active worktrees
   and branches, and relevant plan / ADR / ARC documents. Cross-check against
   recently changed or added plan docs in the shared and repo-specific plans
-  roots (`docs/plans/`, `plans/`, `devdocs/plans/`).
+  roots (the scope's `plans_root`, else `docs/plans/`, `plans/`).
 
 ## Steps
 
@@ -37,10 +37,9 @@ Hints given on invocation: `$ARGUMENTS`
    accident is not a disaster as long as lexical ordering stays sound, but
    each status doc is expected to track one currently active workstream
    across repeated `/save-status` calls.
-3. **Otherwise create** a new doc in the status root appropriate to the
-   context:
-   - shared: `devdocs/status/`
-   - repo-specific: `docs/status/`
+3. **Otherwise create** a new doc in the active scope's `status_root`
+   (default: the repo's `docs/status/`). When that root is another repo
+   (forestrie: `forestrie/work` `status/`), use a worktree of it on a branch.
 
    Run the shared allocation helper — it names the file with the plan
    date-cohort scheme (`status-<YYMM>-<NN>-<short-desc>.md`), scanning only
@@ -67,8 +66,9 @@ significance. Then:
 - **Next steps** — the logical next steps
 - **Blockers** — anything blocking, such as dependencies on other tasks
 
-Use plan-style frontmatter (`id`, `status`, `created`, `refs` — see
-[rules/planning](../planning/SKILL.md#frontmatter-all-plan-docs)), with
-`refs:` carrying the Linear issues and plan/ADR/ARC ids the workstream serves.
-On update, refresh the sections in place and keep `refs:` current rather than
-appending a log.
+Use plan-style frontmatter (`id`, `title`, `status`, `created`, `updated`,
+`repos`, `issues`, `plans`, `refs` — see
+[planning](../planning/SKILL.md#frontmatter-all-plan-docs)); the template
+the helper writes has them all. On update, refresh the sections in place,
+bump `updated:` and keep the link fields current rather than appending a
+log.

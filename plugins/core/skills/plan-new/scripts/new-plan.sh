@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # new-plan.sh — allocate and scaffold a date-cohort doc (plan, status, ...).
 # Scheme: <root>/<prefix>-YYMM-NN-<slug>.md  (see the core:planning skill)
+# The id written to frontmatter is the filename stem: <prefix>-YYMM-NN-<slug>.
 #
 # Usage:
-#   new-plan.sh <slug> [--prefix <type>] [--dir] [--root <dir>] [--date YYYY-MM-DD]
+#   new-plan.sh <slug> [--prefix <type>] [--dir] [--root <dir>] [--date YYYY-MM-DD] [--offline]
 #
 #   <slug>          kebab-case slug, e.g. checkpoint-publisher
 #   --prefix <type> doc type prefix: plan (default) or status
@@ -11,27 +12,29 @@
 #   --root <dir>    docs directory (default per prefix: plan -> ./docs/plans,
 #                   ./plans, devdocs/plans; status -> ./docs/status, devdocs/status)
 #   --date          override "today" (for tests/backfill); default = system date
+#   --offline       skip the remote scan (also NEW_PLAN_OFFLINE=1)
 #
-# Allocation scans ONLY the current YYMM cohort, so it is safe under parallel
-# branches: the only race is same-month-same-instant, and the slug disambiguates.
-# Inside a git repo with an `origin` remote it fetches origin (best effort) and
-# also counts the cohort on origin's default branch, so a plan merged there but
-# not yet pulled is never re-allocated. Open-PR branches are not scanned.
+# Allocation scans ONLY the current YYMM cohort, but everywhere an id of it
+# can already be taken: the whole working tree (so archive/<YYMM>/ counts),
+# and, when the root is in a git repo with an origin, origin's default branch
+# (after a fetch) and the files of open GitHub PRs. A stale clone therefore
+# cannot hand out an id that main or an open PR already holds.
 set -euo pipefail
 
-SLUG=""; MODE="file"; ROOT=""; DATE=""; PREFIX="plan"
+SLUG=""; MODE="file"; ROOT=""; DATE=""; PREFIX="plan"; OFFLINE="${NEW_PLAN_OFFLINE:-0}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --dir) MODE="dir"; shift ;;
     --prefix) PREFIX="$2"; shift 2 ;;
     --root) ROOT="$2"; shift 2 ;;
     --date) DATE="$2"; shift 2 ;;
+    --offline) OFFLINE=1; shift ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *) SLUG="$1"; shift ;;
   esac
 done
 
-[ -n "$SLUG" ] || { echo "usage: new-plan.sh <slug> [--prefix <type>] [--dir] [--root <dir>] [--date YYYY-MM-DD]" >&2; exit 2; }
+[ -n "$SLUG" ] || { echo "usage: new-plan.sh <slug> [--prefix <type>] [--dir] [--root <dir>] [--date YYYY-MM-DD] [--offline]" >&2; exit 2; }
 [ "$MODE" = "file" ] || [ "$PREFIX" = "plan" ] || { echo "--dir is only supported for --prefix plan" >&2; exit 2; }
 # normalise slug to kebab-case
 SLUG="$(printf '%s' "$SLUG" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-|-$//g')"
@@ -53,32 +56,32 @@ mkdir -p "$ROOT"
 TODAY="${DATE:-$(date +%Y-%m-%d)}"
 YYMM="$(printf '%s' "$TODAY" | sed -E 's/^[0-9]{2}([0-9]{2})-([0-9]{2})-.*/\1\2/')"
 
-warn() { echo "new-plan.sh: warning: $*" >&2; }
-
-# Top-level names under ROOT on origin's default branch, one per line. Silent
-# (and empty) when ROOT is not in a git repo or the repo has no origin.
-remote_names() {
-  local head
+# Print every path that may carry an id of this cohort. The output is noisy
+# on purpose; the grep below extracts the ids.
+taken_paths() {
+  ls -d "$ROOT"/"$PREFIX"-"$YYMM"-* 2>/dev/null || true
   git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
-  git -C "$ROOT" remote get-url origin >/dev/null 2>&1 || return 0
-  # Never prompt or hang: no credential prompts, and ssh fails fast offline.
-  GIT_TERMINAL_PROMPT=0 \
-    GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes -o ConnectTimeout=5" \
-    git -C "$ROOT" fetch origin --quiet >/dev/null 2>&1 \
-    || warn "git fetch origin failed; using the last-fetched origin state"
-  head="$(git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
-  head="${head:-origin/main}"
-  git -C "$ROOT" rev-parse --verify --quiet "$head^{commit}" >/dev/null 2>&1 \
-    || { warn "no $head; allocating against the local tree only"; return 0; }
-  # Run from ROOT, ls-tree takes "." as ROOT and prints paths relative to it.
-  (cd "$ROOT" && git ls-tree -r --name-only "$head" -- .) 2>/dev/null | sed 's#/.*##' | sort -u
+  git -C "$ROOT" ls-files --cached --others --exclude-standard --full-name -- ':/' 2>/dev/null || true
+  [ "$OFFLINE" = 1 ] && return 0
+  local url head slug
+  url="$(git -C "$ROOT" remote get-url origin 2>/dev/null)" || return 0
+  if git -C "$ROOT" fetch -q origin 2>/dev/null; then
+    head="$(git -C "$ROOT" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)"
+    git -C "$ROOT" ls-tree -r --name-only --full-tree "$head" 2>/dev/null || true
+  else
+    echo "new-plan.sh: warning: fetch from origin failed; scanning the local tree only" >&2
+  fi
+  case "$url" in *github.com[:/]*) ;; *) return 0 ;; esac
+  command -v gh >/dev/null 2>&1 || { echo "new-plan.sh: warning: gh not found; open PRs not scanned" >&2; return 0; }
+  slug="$(printf '%s' "$url" | sed -E 's#^(git@[^:]+:|https?://[^/]+/)##; s#\.git$##')"
+  gh pr list -R "$slug" --state open --limit 200 --json files --jq '.[].files[].path' 2>/dev/null \
+    || echo "new-plan.sh: warning: could not list open PRs for $slug" >&2
 }
 
-# highest ordinal in this month's cohort (files or dirs), local tree + origin
-LAST="$( { for p in "$ROOT"/"$PREFIX"-"$YYMM"-*; do [ -e "$p" ] && basename "$p"; done; remote_names; } \
-  | sed -nE "s#^$PREFIX-$YYMM-([0-9]+)(-.*|\.md)?\$#\1#p" | sort -n | tail -1 || true)"
+# highest ordinal in this month's cohort, wherever it was found
+LAST="$(taken_paths | grep -oE "(^|/)$PREFIX-$YYMM-[0-9]{2}" | grep -oE '[0-9]{2}$' | sort -n | tail -1 || true)"
 NEXT="$(printf '%02d' "$(( 10#${LAST:-0} + 1 ))")"
-ID="$YYMM-$NEXT"
+ID="$PREFIX-$YYMM-$NEXT-$SLUG"
 TITLE="$(printf '%s' "$SLUG" | tr '-' ' ')"
 
 # Locate the templates beside this skill (plan-new/templates/). The script may be
@@ -103,13 +106,14 @@ fi
 render() { sed -e "s/{{ID}}/$ID/g" -e "s/{{DATE}}/$TODAY/g" -e "s/{{TITLE}}/$TITLE/g" "$1"; }
 
 if [ "$MODE" = "dir" ]; then
-  DEST="$ROOT/plan-$ID-$SLUG"
+  DEST="$ROOT/$ID"
+  [ -e "$DEST" ] && { echo "refusing to overwrite $DEST" >&2; exit 1; }
   mkdir -p "$DEST"
   render "$TPL_DIR/plan-dir-README.md" > "$DEST/README.md"
-  printf '# Handoff — plan %s\n\n**Bootstrap order:**\n\n**Locked decisions:**\n\n**Next slice:**\n\n**Resume prompt:**\n' "$ID" > "$DEST/handoff.md"
+  printf '# Handoff — %s\n\n**Bootstrap order:**\n\n**Locked decisions:**\n\n**Next slice:**\n\n**Resume prompt:**\n' "$ID" > "$DEST/handoff.md"
   echo "$DEST/"
 else
-  DEST="$ROOT/$PREFIX-$ID-$SLUG.md"
+  DEST="$ROOT/$ID.md"
   [ -e "$DEST" ] && { echo "refusing to overwrite $DEST" >&2; exit 1; }
   render "$TPL_DIR/$PREFIX.md" > "$DEST"
   echo "$DEST"

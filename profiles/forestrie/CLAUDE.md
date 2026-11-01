@@ -14,14 +14,16 @@ when you start beneath it: repo roles, primary clones, where devdocs lives.
 
 | Param | Value |
 |-------|-------|
-| `plans_root` | repo `docs/plans/` for repo-local work; `devdocs/plans/` for cross-repo platform plans |
-| `decisions_home` | central: `devdocs/adr/`, `devdocs/arc/` (repos keep stub redirects only) |
-| `id_scheme.plans` | date-cohort `plan-YYMM-NN-<slug>` |
-| `id_scheme.decisions` | absolute `adr-NNNN` / `arc-NNNN` |
-| `issue_refs` | Linear `FOR-*` |
+| `plans_root` | `forestrie/work` `plans/`, in a worktree of `~/Dev/personal/forestrie/work` (the task container's `work/` if present) |
+| `status_root` | `forestrie/work` `status/`, same worktree |
+| `decisions_home` | repo `docs/adr/`, `docs/arc/`; devdocs when cross-repo; protocol when implementation independent |
+| `id_scheme.plans` | date-cohort `plan-YYMM-NN-<slug>`, allocated against origin |
+| `id_scheme.decisions` | absolute `adr-NNNN` / `arc-NNNN`, namespaced by home (`devdocs:ADR-0071`) |
+| `issue_refs` | Linear `FOR-*`, in `issues:` |
 
-Cross-repo vs repo-local split follows `devdocs/AGENTS.md` "Documentation
-ownership". Legacy `plan-NNNN` ids are frozen, forward-only.
+Layout, frontmatter and status values: `forestrie-core:docs-layout`
+(devdocs ADR-0071). No plans in code repos or devdocs. Forward-only does not
+apply: each repo gets one normalisation change.
 
 ## Linear
 

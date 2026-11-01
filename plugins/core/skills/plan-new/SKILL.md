@@ -24,7 +24,9 @@ user before allocating.
 ## Steps
 
 1. Determine the plans root from the active scope's `plans_root` param (falls
-   back to `docs/plans/`, then `plans/`, then `devdocs/plans/`).
+   back to `docs/plans/`, then `plans/`, then `devdocs/plans/`). When that
+   root is another repo (forestrie: `forestrie/work`), use a worktree of it
+   on a branch, never the primary clone's default branch.
 2. Run the helper — it scans only the **current YYMM cohort** and picks the
    next 2-digit ordinal. In a git repo with an `origin` remote it first fetches
    (best effort) and counts the cohort on origin's default branch too, so a
@@ -34,11 +36,14 @@ user before allocating.
    bash "${CLAUDE_SKILL_DIR}/scripts/new-plan.sh" <slug> [--dir] [--root <plans-dir>]
    ```
 
-3. Open the created path, fill `refs:` with the ADRs/ARCs/issues it serves, and
-   flip `status: draft → active` when work starts.
+3. Open the created path, fill `repos:`, `issues:` and `refs:`, write the
+   plan, and flip `status: draft → active` (bump `updated:`) when work
+   starts.
 
 The helper prints the created path on stdout. Never hand-pick the ordinal —
-let the scan allocate it so parallel branches don't collide.
+let the scan allocate it so parallel branches don't collide. It fetches
+origin and lists open PRs (`gh`), so it needs network; `--offline` scans the
+local tree only and is for tests.
 
 ## Notes
 

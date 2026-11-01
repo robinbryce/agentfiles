@@ -1,13 +1,15 @@
 ---
 id: {{ID}}
+title: {{TITLE}}
 status: draft
 created: {{DATE}}
+updated: {{DATE}}
+repos: []
+issues: []
 refs: []
 ---
 
-# Plan {{ID}} — {{TITLE}}
-
-**Status:** DRAFT · **Created:** {{DATE}}
+# {{TITLE}}
 
 ## Context
 
@@ -19,7 +21,12 @@ refs: []
 
 ## Approach
 
-<!-- Work breakdown. Keep it linkable — reference decisions, don't inline them. -->
+<!-- Work breakdown. Keep it linkable: reference decisions, don't inline them. -->
+
+## Rules check
+
+<!-- Each invariant / rule id the plan touches: honoured, or amendment
+     proposed (link). Delete if the scope keeps no rules file. -->
 
 ## Verification
 
