@@ -147,7 +147,7 @@ def adopt(args: list[str], out=None) -> int:
             s.set("status", status)
         elif not created and s.get("status") == "closed":
             s.set("status", "active")
-        if not s.section("Handoff"):
+        if not s.section("Handoff") and s.get("status") != "closed":    # closing: no first session to brief
             seed = _handoff_seed(ctx, s, origin, parent)
             if seed:
                 s.set_section("Handoff", seed)
@@ -205,16 +205,17 @@ MEMORY_BRIDGE = ("Read {md}/MEMORY.md and the memories it indexes, then re-save 
 
 
 def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -> list[str]:
-    """First-session kickoff for a stream born from a tangent or under a parent
-    stream: objective, where it came from, the parent's pointers and the
-    memory bridge. Empty when neither applies (nothing to say yet)."""
+    """First-session kickoff: objective, where it came from, the parent's
+    pointers and the memory bridge for a stream born from a tangent or under a
+    parent stream; objective, container and a first step for a lone stream
+    with a goal. Empty when there is no goal and no parent (nothing to say yet)."""
     # The stream whose pointers we carry: the one the tangent was found on, else
     # the -p value when it names a stream. `parent` may also be a plain label
     # (a Linear id); then it is recorded as such and carries no pointers.
     src = origin["parent"] if origin else parent
     pf = (ctx.ledger / "streams" / f"{src}.md") if src and safe_sid(src) else None
     if not origin and not (pf and pf.exists()):
-        return []
+        return _lone_seed(ctx, s, parent)
     lines = [f"objective: {origin['text'] if origin else (s.get('goal') or '-')}"]
     if s.get("issue"):
         lines.append(f"issue: {s.get('issue')}")
@@ -235,6 +236,32 @@ def _handoff_seed(ctx: paths.Ctx, s: Stream, origin: dict | None, parent: str) -
         lines.append(f"{label}: {src}")
     if parent and parent != src:
         lines.append(f"parent: {parent}")
+    lines.append("re-invoke: /core:wif")
+    return lines
+
+
+def _lone_seed(ctx: paths.Ctx, s: Stream, parent: str) -> list[str]:
+    """Kickoff for a stream with no parent stream (a fresh herdr-task -g): the
+    goal as the objective, the container and its repos, and a first step, so
+    the first session is told to start rather than only shown status. The first
+    /core:wif handoff replaces it."""
+    if not s.get("goal"):
+        return []
+    lines = [f"objective: {s.get('goal')}"]
+    if s.get("issue"):
+        lines.append(f"issue: {s.get('issue')}")
+    if parent:
+        lines.append(f"parent: {parent}")
+    if ctx.path and ctx.kind == "herdr":
+        try:
+            repos = sorted(d.name for d in ctx.path.iterdir() if (d / ".git").exists())
+        except OSError:
+            repos = []
+        lines.append(f"container: {ctx.path}" + (f" (repos: {', '.join(repos)})" if repos else ""))
+    elif ctx.path:
+        lines.append(f"worktree: {ctx.path}")
+    lines.append("first step: work toward the stream's `next` (shown above); if it is unset, "
+                 "propose one and record it with `wif mark -n`")
     lines.append("re-invoke: /core:wif")
     return lines
 

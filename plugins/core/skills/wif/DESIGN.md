@@ -50,6 +50,11 @@ listed so they can be changed deliberately rather than rediscovered.
   non-empty Handoff is never overwritten. The `&&` form (rather than
   herdr-task flags) keeps the printed command valid before plan-2610-02
   Slice A lands in dotfiles; Slice A may collapse it to flags.
+  Ruling 2026-11-01: a lone stream (no parent stream, not a tangent) with a
+  goal is seeded too — objective, issue, container and repos, a `first step:`
+  pointing at `next` — because the first session of a fresh `herdr-task -g`
+  otherwise saw only status and nothing telling it to start. The seed is a
+  draft; the first `/core:wif handoff` rewrites it.
 - Tangent → Linear issue (2026-10-25): the model creates the issue, the CLI
   carries it. Only the session has the context for a good title, description
   and acceptance criteria, so the skill drafts and creates it (per

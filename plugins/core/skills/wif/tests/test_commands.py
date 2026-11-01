@@ -210,11 +210,21 @@ class CommandTests(WifCase):
         self.assertEqual(self.stream().notes(), [])
         self.assertEqual(Stream.load(self.ledger / "streams" / "kid.md").section("Handoff"), before)
 
-    def test_adopt_without_tangent_seeds_only_under_a_parent_stream(self):
-        self.container("lone")
-        rc, out, _ = self.capture(commands.adopt, ["lone", "-g", "g"])
-        self.assertNotIn("seeded", out); self.assertNotIn("cleared", out)
-        self.assertEqual(Stream.load(self.ledger / "streams" / "lone.md").section("Handoff"), [])
+    def test_adopt_without_tangent_seeds_lone_goal_or_parent_stream(self):
+        self.container("bare")
+        rc, out, _ = self.capture(commands.adopt, ["bare"])                # no goal: nothing to say yet
+        self.assertNotIn("seeded", out)
+        self.assertEqual(Stream.load(self.ledger / "streams" / "bare.md").section("Handoff"), [])
+        lone = self.container("lone")
+        rc, out, _ = self.capture(commands.adopt, ["lone", "-g", "g", "-p", "ENG-3", "--issue", "ENG-3"])
+        self.assertIn("seeded", out); self.assertNotIn("cleared", out)
+        h = Stream.load(self.ledger / "streams" / "lone.md").section("Handoff")
+        self.assertEqual(h[:3], ["objective: g", "issue: ENG-3", "parent: ENG-3"])
+        self.assertEqual(h[3], f"container: {lone} (repos: repo-a)")
+        self.assertTrue(h[4].startswith("first step: "), h); self.assertEqual(h[-1], "re-invoke: /core:wif")
+        self.container("gone")
+        rc, out, _ = self.capture(commands.adopt, ["gone", "-g", "g", "-s", "closed"])   # closing: no seed
+        self.assertNotIn("seeded", out)
         self.capture(commands.adopt, [".", "-g", "pg"])
         self.container("under")
         rc, out, _ = self.capture(commands.adopt, ["under", "-p", "eng-1"])
