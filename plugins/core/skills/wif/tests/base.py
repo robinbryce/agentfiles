@@ -60,7 +60,9 @@ class WifCase(unittest.TestCase):
         return path
 
     def with_remote(self, repo: Path, push: bool = True) -> Path:
-        bare = self.base / "remotes" / (repo.name + ".git")
+        # One remote per repo path: containers all hold a `repo-a`, and a shared
+        # remote rejects the second root commit whenever the clock ticks between them.
+        bare = self.base / "remotes" / f"{repo.parent.name}-{repo.name}.git"
         bare.parent.mkdir(exist_ok=True)
         subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True, capture_output=True)
         self.git(repo, "remote", "add", "origin", str(bare))
