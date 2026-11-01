@@ -14,7 +14,7 @@ when you start beneath it: repo roles, primary clones, where devdocs lives.
 
 | Param | Value |
 |-------|-------|
-| `plans_root` | `forestrie/work` `plans/`, in a worktree of `~/Dev/personal/forestrie/work` (the task container's `work/` if present) |
+| `plans_root` | `forestrie/work` `plans/`, in a worktree of `~/Dev/personal/forestrie/work` (the task container's `work/` if present); always pass `--root` |
 | `status_root` | `forestrie/work` `status/`, same worktree |
 | `decisions_home` | repo `docs/adr/`, `docs/arc/`; devdocs when cross-repo; protocol when implementation independent |
 | `id_scheme.plans` | date-cohort `plan-YYMM-NN-<slug>`, allocated against origin |

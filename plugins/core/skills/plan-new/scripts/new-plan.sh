@@ -56,8 +56,11 @@ mkdir -p "$ROOT"
 TODAY="${DATE:-$(date +%Y-%m-%d)}"
 YYMM="$(printf '%s' "$TODAY" | sed -E 's/^[0-9]{2}([0-9]{2})-([0-9]{2})-.*/\1\2/')"
 
+warn() { echo "new-plan.sh: warning: $*" >&2; }
+
 # Print every path that may carry an id of this cohort. The output is noisy
-# on purpose; the grep below extracts the ids.
+# on purpose; the grep below extracts the ids. Paths cover the whole repo, so
+# a plan already moved to archive/<YYMM>/ still holds its id.
 taken_paths() {
   ls -d "$ROOT"/"$PREFIX"-"$YYMM"-* 2>/dev/null || true
   git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
@@ -65,17 +68,24 @@ taken_paths() {
   [ "$OFFLINE" = 1 ] && return 0
   local url head slug
   url="$(git -C "$ROOT" remote get-url origin 2>/dev/null)" || return 0
-  if git -C "$ROOT" fetch -q origin 2>/dev/null; then
-    head="$(git -C "$ROOT" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)"
+  # Never prompt or hang: no credential prompts, and ssh fails fast offline.
+  GIT_TERMINAL_PROMPT=0 \
+    GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes -o ConnectTimeout=5" \
+    git -C "$ROOT" fetch origin --quiet >/dev/null 2>&1 \
+    || warn "git fetch origin failed; using the last-fetched origin state"
+  head="$(git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  head="${head:-origin/main}"
+  if git -C "$ROOT" rev-parse --verify --quiet "$head^{commit}" >/dev/null 2>&1; then
     git -C "$ROOT" ls-tree -r --name-only --full-tree "$head" 2>/dev/null || true
   else
-    echo "new-plan.sh: warning: fetch from origin failed; scanning the local tree only" >&2
+    warn "no $head; allocating against the local tree only"
   fi
   case "$url" in *github.com[:/]*) ;; *) return 0 ;; esac
-  command -v gh >/dev/null 2>&1 || { echo "new-plan.sh: warning: gh not found; open PRs not scanned" >&2; return 0; }
+  command -v gh >/dev/null 2>&1 || { warn "gh not found; open PRs not scanned"; return 0; }
   slug="$(printf '%s' "$url" | sed -E 's#^(git@[^:]+:|https?://[^/]+/)##; s#\.git$##')"
-  gh pr list -R "$slug" --state open --limit 200 --json files --jq '.[].files[].path' 2>/dev/null \
-    || echo "new-plan.sh: warning: could not list open PRs for $slug" >&2
+  GH_PROMPT_DISABLED=1 gh pr list -R "$slug" --state open --limit 200 --json files \
+    --jq '.[].files[].path' 2>/dev/null \
+    || warn "could not list open PRs for $slug"
 }
 
 # highest ordinal in this month's cohort, wherever it was found
