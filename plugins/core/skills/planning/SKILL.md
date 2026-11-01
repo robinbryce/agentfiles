@@ -51,7 +51,10 @@ plans/plan-2607-01-checkpoint-publisher.md
 taken (the working tree including any `archive/`, origin's default branch
 after a fetch, and open GitHub PRs), next ordinal = highest + 1, else `01`.
 Only the current month's cohort counts, but it is checked against the
-remote, so a stale clone cannot reuse an id.
+remote, so a stale clone cannot reuse an id. A scope whose docs repo is
+governed by a dox schema repo (a `.dox.toml`, with `DOX_SCHEMA_REPO` set)
+allocates through `dox new` instead; `/plan-new` dispatches to it, and the
+schema, not this skill, then decides names, frontmatter and placement.
 
 ### Larger plans: a named directory
 
