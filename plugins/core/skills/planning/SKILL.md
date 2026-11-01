@@ -47,9 +47,11 @@ plans/plan-2607-01-checkpoint-publisher.md
        └ type prefix (keeps plans / reviews / handoffs greppable & co-located)
 ```
 
-**Allocation** (what `/plan-new` does): list `plans/plan-<YYMM>-*`, next
-ordinal = highest in that month + 1, else `01`. Only the current month is
-scanned — never the whole series.
+**Allocation** (what `/plan-new` does): find every `plan-<YYMM>-NN` already
+taken (the working tree including any `archive/`, origin's default branch
+after a fetch, and open GitHub PRs), next ordinal = highest + 1, else `01`.
+Only the current month's cohort counts, but it is checked against the
+remote, so a stale clone cannot reuse an id.
 
 ### Larger plans: a named directory
 
@@ -58,7 +60,7 @@ sub-docs, or spans more than one session:
 
 ```
 plans/plan-2607-03-release-promotion/
-  ├── README.md            # overview + index + status ("plan of plans")
+  ├── README.md            # the plan + slice index; the only file with frontmatter
   ├── 01-lane-b-gate.md    # phase / slice docs — local 2-digit, NOT date-based
   ├── 02-mandate-exemplar.md
   ├── handoff.md           # replaces ad-hoc *-agent-handoff.md siblings
@@ -88,23 +90,38 @@ git mv plans/plan-2607-03-x.md plans/plan-2607-03-x/README.md
 ## Frontmatter (all plan docs)
 
 Status lives in **frontmatter, never in the id** — renaming a file to change
-status breaks every reference to it.
+status breaks every reference to it. The `id` is the filename stem (the
+directory name for a directory plan). No bold `**Status:**` header in the
+body.
 
 ```yaml
 ---
-id: 2607-03
-status: active        # draft | active | blocked | superseded | complete
+id: plan-2607-03-release-promotion
+title: Release promotion
+status: active        # draft | active | blocked | complete | abandoned
 created: 2026-07-04
-refs: [ADR-0043, ARC-0024, FOR-314]   # decisions / issues this plan serves
-supersedes: 2606-07   # optional
+updated: 2026-07-09
+repos: [canopy, arbor]            # repos the work changes
+issues: [FOR-314]                 # tracker issues it serves
+refs: [ADR-0043, ARC-0024]        # decisions / docs it serves
+outcome: [ADR-0050]               # on complete: durable docs produced,
+                                  # or "none: <reason>"
 ---
 ```
 
-Keep an annotated `README.md` index in each `plans/`, `adr/`, `arc/` dir.
+Status snapshots (`status-YYMM-NN-<slug>`) use the same fields, the same
+status values, and `plans:` for the plans they track.
+
+This matches the forestrie `plan` and `status` schemas
+(forestrie-agents `schemas/`), so a doc scaffolded here validates there.
+Plans also carry a `## Rules check` section in scopes that keep rules files.
 
 ---
 
-## Migration policy — forward-only
+## Migration policy — forward-only (default)
+
+A scope may replace this with a one-time normalisation (forestrie does,
+under its ADR-0071).
 
 Existing `plan-NNNN` files are **frozen legacy**; do not renumber them
 (renumbering breaks cross-refs). New plans use the date cohort. Each `plans/`
@@ -125,6 +142,7 @@ The scheme above is the default. A scope's `AGENTS.md` sets only what differs:
 | Param | Meaning | Default |
 |-------|---------|---------|
 | `plans_root` | where plan docs live | repo `docs/plans/` |
+| `status_root` | where status snapshots live | repo `docs/status/` |
 | `decisions_home` | where ADR/ARC live | repo `docs/{adr,arc}/` |
 | `id_scheme.plans` | plan id scheme | date-cohort |
 | `id_scheme.decisions` | ADR/ARC id scheme | absolute |

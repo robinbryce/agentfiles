@@ -1,16 +1,18 @@
 ---
 id: {{ID}}
+title: {{TITLE}}
 status: draft
 created: {{DATE}}
+updated: {{DATE}}
+repos: []
+issues: []
 refs: []
 ---
 
-# Plan {{ID}} — {{TITLE}}
+# {{TITLE}}
 
-**Status:** DRAFT · **Created:** {{DATE}}
-
-Multi-part plan. This README is the overview and index; slice docs are numbered
-locally (`01-`, `02-`, …).
+Multi-part plan. This README is the plan and its index; slice docs are
+numbered locally (`01-`, `02-`, …) and carry no frontmatter.
 
 ## Context
 
@@ -25,6 +27,11 @@ locally (`01-`, `02-`, …).
 | Doc | Slice | Status |
 |-----|-------|--------|
 | [01-...](01-...) | ... | draft |
+
+## Rules check
+
+<!-- Each invariant / rule id the plan touches: honoured, or amendment
+     proposed (link). Delete if the scope keeps no rules file. -->
 
 ## Handoff
 
