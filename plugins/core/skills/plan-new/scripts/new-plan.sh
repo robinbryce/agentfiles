@@ -39,6 +39,50 @@ done
 # normalise slug to kebab-case
 SLUG="$(printf '%s' "$SLUG" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-|-$//g')"
 
+warn() { echo "new-plan.sh: warning: $*" >&2; }
+
+# dox dispatch. When dox (https://github.com/robinbryce/dox) is on PATH,
+# DOX_SCHEMA_REPO is set, and the git repo holding the docs root has a
+# .dox.toml whose `types` include this prefix, dox owns allocation: run
+# `dox new` there and print the path it prints. dox places the document by
+# its schema, so --root only selects the repo. NEW_PLAN_NO_DOX=1 opts out.
+# A dox config or remote error (exit 2 or 3) falls back to the scan below.
+dox_repo() {
+  [ "${NEW_PLAN_NO_DOX:-0}" = 1 ] && return 1
+  command -v dox >/dev/null 2>&1 || return 1
+  [ -n "${DOX_SCHEMA_REPO:-}" ] || return 1
+  local d="${ROOT:-.}" top
+  while [ ! -d "$d" ]; do d="$(dirname "$d")"; done
+  top="$(git -C "$d" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ -f "$top/.dox.toml" ] || return 1
+  python3 - "$top/.dox.toml" "$PREFIX" <<'PY' || return 1
+import sys
+try:
+    import tomllib
+    with open(sys.argv[1], "rb") as f:
+        types = tomllib.load(f).get("types", [])
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(types, list) and sys.argv[2] in types else 1)
+PY
+  printf '%s\n' "$top"
+}
+if DOX_TOP="$(dox_repo)"; then
+  DOX_ARGS=(new "$PREFIX" "$SLUG")
+  [ "$MODE" = "dir" ] && DOX_ARGS+=(--dir)
+  [ -n "$DATE" ] && DOX_ARGS+=(--date "$DATE")
+  [ "$OFFLINE" = 1 ] && DOX_ARGS+=(--offline)
+  set +e
+  DOX_OUT="$(cd "$DOX_TOP" && dox "${DOX_ARGS[@]}")"
+  DOX_RC=$?
+  set -e
+  case "$DOX_RC" in
+    0) printf '%s\n' "$DOX_OUT"; exit 0 ;;
+    2|3) warn "dox new failed (exit $DOX_RC); allocating with the built-in scan" ;;
+    *) exit "$DOX_RC" ;;
+  esac
+fi
+
 # resolve docs root: plans live in a pluralised dir, other types in a dir named
 # after the prefix (docs/status, devdocs/status, ...)
 if [ -z "$ROOT" ]; then
@@ -55,8 +99,6 @@ mkdir -p "$ROOT"
 
 TODAY="${DATE:-$(date +%Y-%m-%d)}"
 YYMM="$(printf '%s' "$TODAY" | sed -E 's/^[0-9]{2}([0-9]{2})-([0-9]{2})-.*/\1\2/')"
-
-warn() { echo "new-plan.sh: warning: $*" >&2; }
 
 # Print every path that may carry an id of this cohort. The output is noisy
 # on purpose; the grep below extracts the ids. Paths cover the whole repo, so

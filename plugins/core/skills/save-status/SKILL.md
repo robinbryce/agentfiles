@@ -50,6 +50,11 @@ Hints given on invocation: `$ARGUMENTS`
    bash "${CLAUDE_SKILL_DIR}/scripts/new-plan.sh" <short-desc> --prefix status [--root <status-dir>]
    ```
 
+   In a repo whose `.dox.toml` lists the `status` type (with dox on `PATH`
+   and `DOX_SCHEMA_REPO` set), the helper runs `dox new status
+   <short-desc>` there instead and prints dox's path; see
+   [plan-new](../plan-new/SKILL.md).
+
    Infer `<short-desc>` from the context; if the workstream is a specific
    Linear issue, put the issue id at the start, e.g.
    `status-2607-03-for-314-checkpoint-publisher.md`.

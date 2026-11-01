@@ -44,6 +44,16 @@ user before allocating.
    plan, and flip `status: draft → active` (bump `updated:`) when work
    starts.
 
+**dox repos.** When [dox](https://github.com/robinbryce/dox) is on `PATH`,
+`DOX_SCHEMA_REPO` is set, and the git repo holding `--root` (else the
+current directory) has a `.dox.toml` whose `types` include `plan`, the
+helper hands allocation to `dox new plan <slug> [--dir] [--date D]
+[--offline]`, run in that repo, and prints the path dox prints. dox places
+the document where its schema says, so `--root` only picks the repo, and the
+scaffold comes from the schema's templates rather than this skill's. A dox
+config or remote error (exit 2 or 3) warns and falls back to the built-in
+scan; `NEW_PLAN_NO_DOX=1` forces the built-in path.
+
 The helper prints the created path on stdout. Never hand-pick the ordinal —
 let the scan allocate it so parallel branches don't collide. Offline it
 warns and falls back to the last-fetched origin state; `--offline` (or
@@ -58,6 +68,13 @@ warns and falls back to the last-fetched origin state; `--offline` (or
   `plugins/core/skills/plan-new/scripts/`.
 - The helper resolves its own symlinks to find its `templates/` directory;
   override with `NEW_PLAN_TEMPLATES` if you relocate them.
-- The plan-doc `PreToolUse` guardrail
+- The plan-doc guardrail
   ([hooks/scripts/validate-plan.sh](../../hooks/scripts/validate-plan.sh))
-  is the backstop for direct writes that skip this skill.
+  is the backstop for direct writes that skip this skill. Without dox it
+  blocks a misnamed new file under `plans/` before the write. In a dox repo
+  it lets the write through and, after it, runs `dox lint --json` in the
+  repo and hands back the findings for that file that are not baselined;
+  if dox fails with a config or remote error it says so and falls back to
+  the name check.
+- Tests: `python3 -m unittest discover -s plugins/core/skills/plan-new/tests`
+  and `-s plugins/core/hooks/tests`.
