@@ -61,7 +61,10 @@ remote_names() {
   local head
   git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
   git -C "$ROOT" remote get-url origin >/dev/null 2>&1 || return 0
-  GIT_TERMINAL_PROMPT=0 git -C "$ROOT" fetch origin --quiet >/dev/null 2>&1 \
+  # Never prompt or hang: no credential prompts, and ssh fails fast offline.
+  GIT_TERMINAL_PROMPT=0 \
+    GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes -o ConnectTimeout=5" \
+    git -C "$ROOT" fetch origin --quiet >/dev/null 2>&1 \
     || warn "git fetch origin failed; using the last-fetched origin state"
   head="$(git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
   head="${head:-origin/main}"
