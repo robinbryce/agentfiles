@@ -43,7 +43,7 @@ profile.
 
 | Path | Purpose |
 |------|---------|
-| [plugins/core](./plugins/core/) | `/core:plan-new`, `/core:save-status`, `/core:wif` (work-in-flight tracker; hooks via `wif install --apply`), `/core:worktrees-closeout`; planning, PR-description, fan-out and Linear rules; plan-naming hook |
+| [plugins/core](./plugins/core/) | `/core:plan-new`, `/core:save-status`, `/core:wif` (work-in-flight tracker; hooks via `wif install --apply`), `/core:worktrees-closeout`, `/core:review-fix-cycle` (profile-adaptive review-and-fix cycles; workflows `review-fix-cycle-run` and `plan-wave-run`, which runs a plan in waves with one wif stream per slice); planning, PR-description, fan-out and Linear rules; plan-naming hook |
 | [plugins/research](./plugins/research/) | `/research:research-brief` |
 | [plugins/justgames](./plugins/justgames/) | `/justgames:review-pr-justgames`; enabled only in the justgames profile |
 | [rules/](./rules/) | always-on: clickable references; path-scoped: herdr handoff offers |
