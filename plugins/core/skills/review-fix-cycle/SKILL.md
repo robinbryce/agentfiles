@@ -91,3 +91,29 @@ or belongs to another slice is deferred, not fixed.
 Hand off to a fresh session between commits whenever that helps context or accuracy, never in the
 middle of a cycle. At every handoff, print a copy-paste kick-off prompt and record it under the
 plan's `handoff.md` **Resume prompt**.
+
+## Running a whole plan in waves
+
+[`plan-wave-run`](../../workflows/plan-wave-run.js) (`/core:plan-wave-run`) runs one wave of a plan
+directory and stops at the next human gate: merges, release tags and privileged steps.
+
+- **`wave: doc-review`**: this cycle in doc mode on every slice doc. It reports only.
+- **`wave: build`**: each slice whose dependencies are merged gets one implementer, then this cycle on each
+  of its PRs.
+
+Build its `args` from the same overlay: `review.args` takes `rules`, `escalators`, `commitRules`,
+`gates`, `tdd`, `clones` and `postComment`. The coordinator keeps the gate state (`merged`, `blocked`)
+between runs, and keeps it in the plan's `handoff.md` beside the slice graph.
+
+At most 5 agents are in flight at once, review runs included. An implementer holds one permit; a review
+run holds `reviewAgents` and is told to use no more.
+
+**wif keeps the perspective.** The plan's container is the parent stream.
+- Each build lane runs `herdr-task <slice task> <repos…> -p <parent stream> -g "<slice goal>"`. Every slice
+  gets its own container, branch and child stream.
+- A lane records `wif mark -p/-n` as it goes, and a design hold becomes a `wif note`.
+- `wif scan --prs` then follows each slice's PR review state.
+- `/core:wif` shows the whole plan at a glance: which slices are building, under review, awaiting merge
+  or held.
+- After each run the coordinator writes the wave summary and the next gates to the parent stream: a
+  `wif note` per gate, and `wif remind` for gates with a date.
