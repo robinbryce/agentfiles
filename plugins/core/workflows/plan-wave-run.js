@@ -17,8 +17,9 @@ export const meta = {
 //   wave         'doc-review' | 'build'
 //   profile      active profile name (for logs and the review workflow)
 //   plan         { id, readme, handoff, issue, parentStream }
-//   slices       [{ id, title, doc, repos: ['repo', ...], task, goal, deps: ['id', ...] }]
-//                task is the container and branch name (lowercase kebab-case); goal is the wif stream goal
+//   slices       [{ id, title, doc, repos: ['repo', ...], task, goal, deps: ['id', ...], scope }]
+//                task is the container and branch name (lowercase kebab-case); goal is the wif stream goal;
+//                scope narrows a lane to part of its slice doc (two lanes may share one doc)
 //   merged       slice ids whose PRs are merged (gate state, supplied by the coordinator)
 //   blocked      { <slice id>: 'reason' } for slices held at a human gate the coordinator knows about
 //   only         slice ids to limit this run to (optional)
@@ -174,7 +175,7 @@ function buildPrompt(s) {
     : `run \`herdr-task ${s.task} ${s.repos.join(' ')} --root ${CONTAINER.root}${PLAN.parentStream ? ` -p ${PLAN.parentStream}` : ''} -g ${JSON.stringify(s.goal || s.title)}\` from ${CONTAINER.root}. It creates ${CONTAINER.root}/.worktrees-herdr/${s.task}/<repo> on branch ${s.task}${CONTAINER.wif === false ? '' : ' and adopts the wif stream'}; a herdr workspace error is not fatal. Re-running it is safe`
   return `Implement slice ${s.id} (${s.title}) of plan ${PLAN.id || PLAN.readme}.
 
-Read first: the plan README ${PLAN.readme}, the slice doc ${s.doc}${PLAN.handoff ? `, and ${PLAN.handoff}` : ''}. The slice doc's Tests and "Done when" sections are the acceptance bar.
+Read first: the plan README ${PLAN.readme}, the slice doc ${s.doc}${PLAN.handoff ? `, and ${PLAN.handoff}` : ''}. The slice doc's Tests and "Done when" sections are the acceptance bar.${s.scope ? `\nThis lane covers only: ${s.scope}. Leave the rest of the slice doc to its other lane.` : ''}
 
 1. Container: ${make}. Work only inside that container.${CONTAINER.wif === false ? '' : ` From inside it, record progress with \`wif mark -p "<where the slice stands>" -n "<next step>"\` after each milestone.`}
 2. Implement the slice. For behaviour, write a test that fails first${REVIEW.args && REVIEW.args.tdd ? ` (${REVIEW.args.tdd})` : ''}. Commit following ${REVIEW.args && REVIEW.args.commitRules ? REVIEW.args.commitRules : "the repo's commit conventions"}. Never amend, rebase, force-push or push to the default branch.
