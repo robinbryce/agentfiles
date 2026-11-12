@@ -38,6 +38,7 @@ export const meta = {
 //   gates       how to run the quality gates (a skill name or commands)
 //   tdd         the test-first skill to use for behaviour fixes (optional)
 //   clones      where the primary clones live, for the doc feasibility check
+//   models      per-step model overrides (see MODELS below); 'main' or null means the session model
 //   selftest    true: validate args and return the run plan without spawning agents
 //
 // Design findings are never fixed here. A cycle that confirms one stops the
@@ -54,6 +55,23 @@ const RULES = A.rules || "the repo's AGENTS.md, its ADRs, and any rules-of-the-r
 const COMMIT_RULES = A.commitRules || "the repo's commit conventions (read its AGENTS.md and recent git log)"
 const GATES = A.gates || "the repo's documented test and lint commands for the touched packages"
 const ESCALATORS = Array.isArray(A.escalators) ? A.escalators : (A.escalators ? [A.escalators] : [])
+
+// Model routing, after /core:orchestrator-mode's tiers. Mechanical steps go to haiku. Steps that need
+// judgement but follow a decided design or a confirmed finding go to sonnet. Correctness and security
+// review, verifying a High or Design finding, and fixing a High stay on the session model ('main').
+const MODELS = {
+  check: 'haiku',
+  correctness: 'main',
+  design: 'sonnet',
+  feasibility: 'sonnet',
+  verify: 'sonnet',
+  verifyHigh: 'main',
+  fix: 'sonnet',
+  fixHigh: 'main',
+  post: 'haiku',
+  ...(A.models || {}),
+}
+const model = step => (MODELS[step] && MODELS[step] !== 'main' ? { model: MODELS[step] } : {})
 
 const problems = []
 if (!['pr', 'doc'].includes(KIND)) problems.push(`kind must be pr or doc, not ${KIND}`)
@@ -325,6 +343,7 @@ if (A.selftest) {
     commitRules: COMMIT_RULES,
     gates: GATES,
     escalators: ESCALATORS,
+    models: MODELS,
     sample: cycleMarkdown({ cycle: FIRST, refuted: 1, unverifiedLows: 1, checks: 'quality gates passed', findings: [
       { id: `${FIRST}.1`, severity: 'High', title: 'Example finding', detail: 'What goes wrong | and when', outcome: 'fixed', commit: 'abc1234', test: 'TestExample' },
       { id: `${FIRST}.2`, severity: 'Low', title: 'Example deferral', detail: 'Predates the PR', outcome: 'deferred', scope: 'preexisting' },
@@ -344,7 +363,7 @@ if (KIND === 'pr' && A.worktree) {
 3. git -C ${A.worktree} fetch origin <baseRefName>
 4. git -C ${A.worktree} rev-parse HEAD  (must equal headRefOid${MODE === 'fix' ? ', or descend from it when only local review fixes sit on top' : ''})
 ok is true only when the tree is clean, the PR is OPEN and HEAD matches. head is the short HEAD SHA; base is origin/<baseRefName>.`,
-    { label: 'check worktree', phase: 'Check', schema: PRECHECK, effort: 'low' })
+    { label: 'check worktree', phase: 'Check', schema: PRECHECK, effort: 'low', ...model('check') })
   if (!pre || !pre.ok) {
     return { target, stoppedBy: 'precheck', reason: pre ? pre.reason : 'precheck agent failed', cycles: [] }
   }
@@ -366,7 +385,7 @@ for (let i = 0; i < cycleLimit; i++) {
 
   phase('Review')
   const reviews = await parallel(REVIEWERS.map(r => () =>
-    run(reviewPrompt(r, cycle, base, prevFixes, handled), { label: `cycle ${cycle} ${r.key}`, phase: 'Review', schema: FINDINGS })))
+    run(reviewPrompt(r, cycle, base, prevFixes, handled), { label: `cycle ${cycle} ${r.key}`, phase: 'Review', schema: FINDINGS, ...model(r.key) })))
   const raw = reviews.flatMap((res, ri) => res ? res.findings.map(f => ({ ...f, reviewers: [REVIEWERS[ri].key] })) : [])
   const missing = reviews.map((res, ri) => res ? null : REVIEWERS[ri].key).filter(Boolean)
   if (missing.length) log(`cycle ${cycle}: reviewer(s) returned nothing: ${missing.join(', ')}`)
@@ -375,7 +394,7 @@ for (let i = 0; i < cycleLimit; i++) {
   phase('Verify')
   const needsVerify = f => f.severity !== 'Low'
   const judged = await parallel(found.map((f, k) => () => needsVerify(f)
-    ? run(verifyPrompt(f, base), { label: `cycle ${cycle} verify ${k + 1}`, phase: 'Verify', schema: VERDICT })
+    ? run(verifyPrompt(f, base), { label: `cycle ${cycle} verify ${k + 1}`, phase: 'Verify', schema: VERDICT, ...model(f.severity === 'High' || f.severity === 'Design' ? 'verifyHigh' : 'verify') })
         .then(v => v ? { ...f, verdict: v.verdict, severity: v.verdict === 'adjusted' && v.severity ? v.severity : f.severity, scope: v.verdict === 'adjusted' && v.scope ? v.scope : f.scope, why: v.reason } : { ...f, verdict: 'unverified' })
     : Promise.resolve({ ...f, verdict: 'unverified' })))
   const all = judged.filter(Boolean)
@@ -408,7 +427,7 @@ for (let i = 0; i < cycleLimit; i++) {
   }
 
   phase('Fix')
-  const fixed = await run(fixPrompt(toFix, head), { label: `cycle ${cycle} fix ${toFix.length}`, phase: 'Fix', schema: FIXES })
+  const fixed = await run(fixPrompt(toFix, head), { label: `cycle ${cycle} fix ${toFix.length}`, phase: 'Fix', schema: FIXES, ...model(toFix.some(f => f.severity === 'High') ? 'fixHigh' : 'fix') })
   if (!fixed) {
     toFix.forEach(f => { f.outcome = 'not-fixed'; f.note = 'fixer agent failed' })
     stoppedBy = 'fix-failed'
@@ -450,7 +469,7 @@ if (KIND === 'pr' && MODE === 'publish' && A.postComment !== false && cycles.len
 
 <<<COMMENT
 ${markdown}
-COMMENT>>>`, { label: 'post comment', phase: 'Report', schema: POSTED, effort: 'low' })
+COMMENT>>>`, { label: 'post comment', phase: 'Report', schema: POSTED, effort: 'low', ...model('post') })
   commentUrl = posted && posted.url
   if (!commentUrl) log(`comment not posted: ${posted ? posted.error : 'agent failed'}`)
 }

@@ -92,6 +92,21 @@ Hand off to a fresh session between commits whenever that helps context or accur
 middle of a cycle. At every handoff, print a copy-paste kick-off prompt and record it under the
 plan's `handoff.md` **Resume prompt**.
 
+## Model routing
+
+Both workflows route each agent along `/core:orchestrator-mode`'s tiers, so the expensive model is spent
+only where judgement matters:
+
+| Step | Model |
+|---|---|
+| precheck, posting the comment, wif tracking | haiku |
+| design-conformance and feasibility review, verifying a Medium, fixing a Medium or Low, building a slice from its spec | sonnet |
+| correctness and security review, verifying a High or Design finding, a fix batch that contains a High | the session model |
+
+Override with `models` (review) or `models` / `reviewModels` (waves); `'main'` means the session model. A
+plan slice whose code carries authority or payment risk sets `model: 'main'` for its build lane. A profile
+overlay may set different defaults.
+
 ## Running a whole plan in waves
 
 [`plan-wave-run`](../../workflows/plan-wave-run.js) (`/core:plan-wave-run`) runs one wave of a plan

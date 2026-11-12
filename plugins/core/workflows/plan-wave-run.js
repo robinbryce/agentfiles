@@ -30,6 +30,8 @@ export const meta = {
 //                  tdd, clones, postComment, design: [standing design sources]) }
 //   container    { root, command: 'herdr-task'|'git-worktree', wif: true }
 //   prRules      how to write PR descriptions (a rule or skill name), optional
+//   models       { build, track }: model per step ('main' or null = the session model); a slice's own
+//                `model` overrides build for that lane. reviewModels is passed to the review workflow.
 //   selftest     true: validate and return the run plan without spawning agents
 //
 // The coordinator owns everything outward-facing that the profile reserves for it: filing deferred
@@ -47,6 +49,12 @@ const REVIEW = A.review || {}
 const REVIEW_WF = REVIEW.workflow || 'core:review-fix-cycle-run'
 const CONTAINER = A.container || {}
 const PLAN = A.plan || {}
+
+// Model routing, after /core:orchestrator-mode's tiers. Building a slice from its reviewed spec goes to
+// sonnet by default. A slice whose code carries authority or payment risk sets model: 'main' and gets the
+// session model. Recording wif state is mechanical: haiku.
+const MODELS = { build: 'sonnet', track: 'haiku', ...(A.models || {}) }
+const pick = name => (name && name !== 'main' ? { model: name } : {})
 
 const problems = []
 if (!['doc-review', 'build'].includes(WAVE)) problems.push(`wave must be doc-review or build, not ${WAVE}`)
@@ -97,13 +105,13 @@ function plannedSlices() {
     action: WAVE === 'doc-review' ? 'doc review'
       : MERGED.has(s.id) ? 'skip: merged'
       : BLOCKED[s.id] ? `skip: ${BLOCKED[s.id]}`
-      : ready(s) ? `build in ${s.task} (${s.repos.join(', ')})`
+      : ready(s) ? `build in ${s.task} (${s.repos.join(', ')}) on ${s.model || MODELS.build}`
       : `wait: needs ${(s.deps || []).filter(d => !MERGED.has(d)).join(', ')} merged`,
   }))
 }
 
 if (A.selftest) {
-  return { ok: true, wave: WAVE, profile: A.profile || 'default', maxAgents: MAX, reviewAgents: REVIEW_AGENTS, reviewWorkflow: REVIEW_WF, slices: plannedSlices() }
+  return { ok: true, wave: WAVE, profile: A.profile || 'default', maxAgents: MAX, reviewAgents: REVIEW_AGENTS, reviewWorkflow: REVIEW_WF, models: MODELS, reviewModels: A.reviewModels || 'review workflow defaults', slices: plannedSlices() }
 }
 
 log(`plan-wave-run ${PLAN.id || ''}: wave ${WAVE}, ${SLICES.filter(inScope).length} slice(s), at most ${MAX} agents (review runs ${REVIEW_AGENTS})`)
@@ -111,7 +119,7 @@ log(`plan-wave-run ${PLAN.id || ''}: wave ${WAVE}, ${SLICES.filter(inScope).leng
 async function review(reviewArgs, label) {
   return holding(REVIEW_AGENTS, async () => {
     try {
-      return await workflow(REVIEW_WF, { ...(REVIEW.args || {}), profile: A.profile, maxAgents: REVIEW_AGENTS, ...reviewArgs })
+      return await workflow(REVIEW_WF, { ...(REVIEW.args || {}), profile: A.profile, maxAgents: REVIEW_AGENTS, ...(A.reviewModels ? { models: A.reviewModels } : {}), ...reviewArgs })
     } catch (e) {
       log(`${label}: review run failed: ${e && e.message ? e.message : e}`)
       return { stoppedBy: 'review-error', error: String(e && e.message ? e.message : e) }
@@ -202,7 +210,7 @@ const results = await Promise.all(work.map(async s => {
   if (BLOCKED[s.id]) return { slice: s.id, status: 'gated', reason: BLOCKED[s.id] }
   if (!ready(s)) return { slice: s.id, status: 'waiting', needs: (s.deps || []).filter(d => !MERGED.has(d)) }
 
-  const built = await call(buildPrompt(s), { label: `build ${s.id}`, phase: 'Build', schema: BUILT })
+  const built = await call(buildPrompt(s), { label: `build ${s.id}`, phase: 'Build', schema: BUILT, ...pick(s.model || MODELS.build) })
   if (!built) return { slice: s.id, status: 'build-failed', reason: 'implementer returned nothing' }
   if (built.blocked) return { slice: s.id, status: 'blocked', reason: built.blocked, container: built.container }
 
@@ -211,7 +219,7 @@ const results = await Promise.all(work.map(async s => {
       .then(result => ({ ...p, result }))))
 
   if (CONTAINER.wif !== false && built.container) {
-    await call(trackPrompt(s, built, reviews), { label: `track ${s.id}`, phase: 'Track', schema: TRACK, model: 'haiku', effort: 'low' })
+    await call(trackPrompt(s, built, reviews), { label: `track ${s.id}`, phase: 'Track', schema: TRACK, effort: 'low', ...pick(MODELS.track) })
   }
 
   const held = reviews.some(r => r.result && r.result.stoppedBy === 'design')
