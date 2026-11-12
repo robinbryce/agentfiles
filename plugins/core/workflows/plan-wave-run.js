@@ -19,7 +19,9 @@ export const meta = {
 //   plan         { id, readme, handoff, issue, parentStream }
 //   slices       [{ id, title, doc, repos: ['repo', ...], task, goal, deps: ['id', ...], scope }]
 //                task is the container and branch name (lowercase kebab-case); goal is the wif stream goal;
-//                scope narrows a lane to part of its slice doc (two lanes may share one doc)
+//                scope narrows a lane to part of its slice doc (two lanes may share one doc);
+//                existing: { container, prs: [{ repo, pr, worktree }], firstCycle } skips the build and
+//                continues review cycles on PRs a previous run opened
 //   merged       slice ids whose PRs are merged (gate state, supplied by the coordinator)
 //   blocked      { <slice id>: 'reason' } for slices held at a human gate the coordinator knows about
 //   only         slice ids to limit this run to (optional)
@@ -62,7 +64,8 @@ if (!SLICES.length) problems.push('slices is empty')
 if (!PLAN.readme) problems.push('plan.readme is required')
 SLICES.forEach(s => {
   if (!s.id || !s.doc) problems.push(`slice ${s.id || '?'} needs id and doc`)
-  if (WAVE === 'build' && !(s.repos && s.repos.length && s.task)) problems.push(`slice ${s.id} needs repos and task for a build wave`)
+  if (WAVE === 'build' && !s.existing && !(s.repos && s.repos.length && s.task)) problems.push(`slice ${s.id} needs repos and task for a build wave`)
+  if (s.existing && !(Array.isArray(s.existing.prs) && s.existing.prs.length && s.existing.prs.every(p => p.repo && p.pr && p.worktree))) problems.push(`slice ${s.id}: existing needs prs [{ repo, pr, worktree }]`)
   ;(s.deps || []).forEach(d => { if (!SLICES.some(x => x.id === d)) problems.push(`slice ${s.id} depends on unknown slice ${d}`) })
 })
 if (WAVE === 'build' && REVIEW_AGENTS >= MAX) problems.push('reviewAgents must be below maxAgents in a build wave, or an implementer can never start')
@@ -105,6 +108,7 @@ function plannedSlices() {
     action: WAVE === 'doc-review' ? 'doc review'
       : MERGED.has(s.id) ? 'skip: merged'
       : BLOCKED[s.id] ? `skip: ${BLOCKED[s.id]}`
+      : s.existing ? `review ${s.existing.prs.map(p => `${p.repo}#${p.pr}`).join(', ')} from cycle ${s.existing.firstCycle || 1}`
       : ready(s) ? `build in ${s.task} (${s.repos.join(', ')}) on ${s.model || MODELS.build}`
       : `wait: needs ${(s.deps || []).filter(d => !MERGED.has(d)).join(', ')} merged`,
   }))
@@ -210,12 +214,15 @@ const results = await Promise.all(work.map(async s => {
   if (BLOCKED[s.id]) return { slice: s.id, status: 'gated', reason: BLOCKED[s.id] }
   if (!ready(s)) return { slice: s.id, status: 'waiting', needs: (s.deps || []).filter(d => !MERGED.has(d)) }
 
-  const built = await call(buildPrompt(s), { label: `build ${s.id}`, phase: 'Build', schema: BUILT, ...pick(s.model || MODELS.build) })
+  // A lane whose PRs a previous run opened goes straight to further review cycles.
+  const built = s.existing
+    ? { container: s.existing.container, prs: s.existing.prs, checks: 'existing PR; see its review cycles' }
+    : await call(buildPrompt(s), { label: `build ${s.id}`, phase: 'Build', schema: BUILT, ...pick(s.model || MODELS.build) })
   if (!built) return { slice: s.id, status: 'build-failed', reason: 'implementer returned nothing' }
   if (built.blocked) return { slice: s.id, status: 'blocked', reason: built.blocked, container: built.container }
 
   const reviews = await Promise.all((built.prs || []).map(p =>
-    review({ kind: 'pr', repo: p.repo, pr: p.pr, worktree: p.worktree, slice: s.doc, design: designFor(s), mode: REVIEW.mode || 'publish' }, `${p.repo}#${p.pr}`)
+    review({ kind: 'pr', repo: p.repo, pr: p.pr, worktree: p.worktree, slice: s.doc, design: designFor(s), mode: REVIEW.mode || 'publish', ...(s.existing && s.existing.firstCycle ? { firstCycle: s.existing.firstCycle } : {}) }, `${p.repo}#${p.pr}`)
       .then(result => ({ ...p, result }))))
 
   if (CONTAINER.wif !== false && built.container) {
