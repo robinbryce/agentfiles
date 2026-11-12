@@ -41,8 +41,8 @@ export const meta = {
 //   models      per-step model overrides (see MODELS below); 'main' or null means the session model
 //   selftest    true: validate args and return the run plan without spawning agents
 //
-// Design findings are never fixed here. A cycle that confirms one stops the
-// run and returns it for the coordinator to decide.
+// Design findings are never fixed here. A cycle that confirms one still fixes the findings whose fix does not
+// depend on it, then stops the run and returns the Design findings for the coordinator to decide.
 
 const A = args || {}
 const KIND = A.kind || 'pr'
@@ -180,6 +180,15 @@ const FIXES = {
   required: ['results', 'checks'],
 }
 
+const DEPENDS = {
+  type: 'object',
+  properties: {
+    dependent: { type: 'array', items: { type: 'string' }, description: 'ids of findings whose fix depends on how a Design finding is decided' },
+    reason: { type: 'string' },
+  },
+  required: ['dependent'],
+}
+
 const POSTED = {
   type: 'object',
   properties: { url: { type: 'string' }, error: { type: 'string' } },
@@ -288,6 +297,20 @@ ${MODE === 'publish' ? 'Then push the branch with a plain git push (never force)
 Return head as the output of git rev-parse --short HEAD.`
 }
 
+function dependsPrompt(designF, items, base) {
+  return `Some review findings on ${target} wait on Design findings that a person must decide. Say which of the other findings cannot be fixed correctly until those are decided.
+
+${changeSource(base)}
+
+Design findings, held for a decision:
+${designF.map(f => `- ${f.title}\n  Design says: ${f.designSays || '-'}\n  Code needs: ${f.codeNeeds || '-'}`).join('\n')}
+
+Findings to classify:
+${items.map(f => `- id ${f.id} (${f.severity}): ${f.title}. ${f.file}${f.line ? ':' + f.line : ''}. ${f.detail}`).join('\n')}
+
+A finding is dependent when any reasonable decision on a Design finding would change its fix, or would make it moot. A finding is independent when its fix is the same however the Design findings are decided. When unsure, call it dependent. Return the dependent ids. Report only.`
+}
+
 function sameSpot(a, b) {
   return a.file === b.file && (a.line == null || b.line == null || Math.abs(a.line - b.line) <= 3)
 }
@@ -310,7 +333,7 @@ function outcomeText(f) {
   if (f.outcome === 'fixed') return `Fixed in \`${f.commit}\`${f.test ? ` (${f.test})` : ''}`
   if (f.outcome === 'deferred') return A.followup ? `Deferred to ${A.followup} (${f.scope})` : `Deferred (${f.scope}); follow-up pending [${f.id}]`
   if (f.outcome === 'design') return 'Held for a design decision'
-  if (f.outcome === 'held') return 'Not fixed: a Design finding stopped this cycle'
+  if (f.outcome === 'held') return 'Held: its fix depends on a Design finding in this cycle'
   if (f.outcome === 'reported') return 'Reported (report mode)'
   return `Not fixed: ${f.note || 'no reason given'}`
 }
@@ -414,10 +437,21 @@ for (let i = 0; i < cycleLimit; i++) {
   const count = s => toFix.filter(f => f.severity === s).length
   log(`cycle ${cycle}: ${live.length} live (${count('High')} High, ${count('Medium')} Medium, ${count('Low')} Low to fix; ${designF.length} Design; ${defer.length} deferred), ${refuted.length} refuted`)
 
+  // A Design finding stops the run, but first the cycle fixes the findings whose fix does not depend on it
+  // (Robin, 2026-11-12). The rest are held. If the classifier fails, everything is held.
+  let fixNow = toFix
   if (designF.length) {
-    toFix.forEach(f => { f.outcome = 'held' })
     stoppedBy = 'design'
-    break
+    if (!toFix.length || KIND === 'doc' || MODE === 'report') {
+      toFix.forEach(f => { f.outcome = KIND === 'doc' || MODE === 'report' ? 'reported' : 'held' })
+      break
+    }
+    const dep = await run(dependsPrompt(designF, toFix, base), { label: `cycle ${cycle} design dependence`, phase: 'Verify', schema: DEPENDS, ...model('verify') })
+    const dependent = new Set(dep ? dep.dependent : toFix.map(f => f.id))
+    toFix.filter(f => dependent.has(f.id)).forEach(f => { f.outcome = 'held' })
+    fixNow = toFix.filter(f => !dependent.has(f.id))
+    log(`cycle ${cycle}: ${fixNow.length} finding(s) fixed despite the Design hold, ${toFix.length - fixNow.length} held`)
+    if (!fixNow.length) break
   }
   if (!toFix.length) { stoppedBy = 'clean'; break }
   if (KIND === 'doc' || MODE === 'report') {
@@ -427,14 +461,14 @@ for (let i = 0; i < cycleLimit; i++) {
   }
 
   phase('Fix')
-  const fixed = await run(fixPrompt(toFix, head), { label: `cycle ${cycle} fix ${toFix.length}`, phase: 'Fix', schema: FIXES, ...model(toFix.some(f => f.severity === 'High') ? 'fixHigh' : 'fix') })
+  const fixed = await run(fixPrompt(fixNow, head), { label: `cycle ${cycle} fix ${fixNow.length}`, phase: 'Fix', schema: FIXES, ...model(fixNow.some(f => f.severity === 'High') ? 'fixHigh' : 'fix') })
   if (!fixed) {
-    toFix.forEach(f => { f.outcome = 'not-fixed'; f.note = 'fixer agent failed' })
+    fixNow.forEach(f => { f.outcome = 'not-fixed'; f.note = 'fixer agent failed' })
     stoppedBy = 'fix-failed'
     break
   }
   const byId = new Map(fixed.results.map(r => [r.id, r]))
-  for (const f of toFix) {
+  for (const f of fixNow) {
     const r = byId.get(f.id)
     f.outcome = r ? r.outcome : 'not-fixed'
     f.commit = r && r.commit
@@ -446,10 +480,10 @@ for (let i = 0; i < cycleLimit; i++) {
   entry.checks = fixed.checks
   lastChecks = fixed.checks
   if (fixed.head) head = fixed.head
-  prevFixes = toFix.filter(f => f.outcome === 'fixed')
+  prevFixes = fixNow.filter(f => f.outcome === 'fixed')
 
-  if (toFix.some(f => f.outcome === 'design')) { stoppedBy = 'design'; break }
-  if (toFix.some(f => f.outcome === 'not-fixed' && f.severity !== 'Low')) { stoppedBy = 'not-fixed'; break }
+  if (designF.length || fixNow.some(f => f.outcome === 'design')) { stoppedBy = 'design'; break }
+  if (fixNow.some(f => f.outcome === 'not-fixed' && f.severity !== 'Low')) { stoppedBy = 'not-fixed'; break }
   if (!toFix.some(f => f.severity === 'High' || f.severity === 'Medium')) { stoppedBy = 'clean'; break }
 }
 

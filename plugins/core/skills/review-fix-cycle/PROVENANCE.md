@@ -12,5 +12,10 @@
   - `maxAgents` is capped at 5.
   - The workflow is named `review-fix-cycle-run`, so it never shadows a profile's own
     `review-fix-cycle`.
-  - The review, verify and fix logic, the severities and the comment format are unchanged.
+  - **Design stop (Robin, 2026-11-12).** A cycle that confirms a Design finding first fixes the High and
+    Medium findings whose fix does not depend on it, then stops. A sonnet classifier decides dependence, and
+    if it fails everything is held. On flip-tools#125, two cycles in a row stopped on a new design question
+    with a verified High and eight Medium findings unfixed.
+  - **Model routing** follows /core:orchestrator-mode's tiers.
+  - Otherwise the review, verify and fix logic, the severities and the comment format are unchanged.
 - **Sync.** Upstream edits to the forestrie script are not synced automatically: re-diff when it changes.

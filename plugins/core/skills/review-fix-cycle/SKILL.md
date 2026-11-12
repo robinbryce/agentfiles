@@ -65,8 +65,10 @@ profile's checkouts live elsewhere and the target is not under its clones root, 
   replace each `follow-up pending [<id>]` in `commentMarkdown` with `deferred to <ISSUE>` and post
   the comment yourself (`gh pr comment <n> --body-file <file>`). A profile without a tracker records
   each with `wif tangent` and says so in the comment.
-- **Design holds** (`stoppedBy: design`): stop. Give Robin what the design says, what the code needs,
-  the options and a recommendation, from the returned `design` list. Do not fix around it.
+- **Design holds** (`stoppedBy: design`): the cycle has already fixed what did not depend on the hold. Give
+  Robin, or decide as coordinator when the question refines an existing ruling, what the design says, what the
+  code needs, the options and a recommendation, from the returned `design` list. Do not fix around it. Re-run
+  with the next `firstCycle` once it is decided.
 - **`not-fixed` or `fix-failed`**: report each with its note; do not retry blindly.
 - **`maxCycles`**: High or Medium remain after 4 cycles. Say so and offer a new run with the
   `firstCycle` the log names.
@@ -81,7 +83,7 @@ The workflow carries the definitions. In short:
 | High | ships wrong behaviour: a bypassable or wrongly failing authority, payment, signature or proof check; funds or data at risk; a contract, wire-format or API break | fixed when the fix stays inside the agreed design |
 | Medium | a real bug with limited reach, or a contradiction of an ADR, ARC, spec, rule of the road or locked decision; a missing test on an authority or payment path | fixed as High |
 | Low | misleading comments, dead code, small test gaps, naming, docs | fixed only when narrow, else deferred |
-| Design | the design sources are wrong, contradict each other, or are silent on something the change had to decide | never fixed in place; the run stops |
+| Design | the design sources are wrong, contradict each other, or are silent on something the change had to decide | never fixed in place. The cycle still fixes the High and Medium findings whose fix does not depend on it, holds the rest, then stops |
 
 Every finding needs `path:line` and the failing input or sequence. A finding that predates the PR
 or belongs to another slice is deferred, not fixed.
