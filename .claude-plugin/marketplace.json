@@ -13,7 +13,7 @@
     {
       "name": "core",
       "source": "core",
-      "description": "/core:plan-new, /core:save-status, /core:wif (work-in-flight tracker), /core:worktrees-closeout and /core:review-fix-cycle (with the review-fix-cycle-run and plan-wave-run workflows); planning, PR-description and multi-repo fan-out rules as background skills; Linear direct-API mechanism; plan-doc naming guardrail hook.",
+      "description": "/core:plan-new, /core:save-status, /core:wif (work-in-flight tracker), /core:worktrees-closeout, /core:review-fix-cycle and /core:decision-map (thematic decision log and graph canvas) (with the review-fix-cycle-run and plan-wave-run workflows); planning, PR-description and multi-repo fan-out rules as background skills; Linear direct-API mechanism; plan-doc naming guardrail hook.",
       "category": "workflow"
     },
     {
