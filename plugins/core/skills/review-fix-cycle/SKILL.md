@@ -1,6 +1,6 @@
 ---
 name: review-fix-cycle
-description: Run review-and-fix cycles on a slice PR, or a design and feasibility review on a slice doc before any code. Two independent reviewers (correctness and security, design conformance), one skeptic per High, Medium or Design finding, one commit per fixed finding with a test first, repeated until no High or Medium remain (at most 4 cycles, at most 5 agents at once), with one "Review cycle n" comment per cycle. Resolves the active profile's overlay (rules of the road, commit conventions, quality gates, tracker) and launches the /core:review-fix-cycle-run workflow with it. Use after every push to a slice PR without being asked, on a slice doc before implementation, or when Robin asks for a review cycle.
+description: Run review-and-fix cycles on a slice PR, or a design and feasibility review on a slice doc before any code. Two independent reviewers (correctness and security, design conformance), one skeptic per High, Medium or Design finding, one commit per fixed finding with a test first for behaviour (a new row in an existing table test where one fits), stopping after the first cycle with no High or Medium (at most 4 cycles, at most 5 agents at once), with one "Review cycle n" comment per cycle. Resolves the active profile's overlay (rules of the road, commit conventions, quality gates, tracker) and launches the /core:review-fix-cycle-run workflow with it. Use after every push to a slice PR without being asked, on a slice doc before implementation, or when Robin asks for a review cycle.
 argument-hint: "[<pr number|url> | --doc <slice.md>] [--mode report|fix|publish] [--first-cycle N] [--dry-run]"
 allowed-tools: Bash(wif *) Bash(gh *) Bash(git *) Bash(jq *) Bash(curl *) Bash(direnv *) Read Grep Glob Workflow
 ---
@@ -82,11 +82,16 @@ The workflow carries the definitions. In short:
 |---|---|---|
 | High | ships wrong behaviour: a bypassable or wrongly failing authority, payment, signature or proof check; funds or data at risk; a contract, wire-format or API break | fixed when the fix stays inside the agreed design |
 | Medium | a real bug with limited reach, or a contradiction of an ADR, ARC, spec, rule of the road or locked decision; a missing test on an authority or payment path | fixed as High |
-| Low | misleading comments, dead code, small test gaps, naming, docs | fixed only when narrow, else deferred |
-| Design | the design sources are wrong, contradict each other, or are silent on something the change had to decide | never fixed in place. The cycle still fixes the High and Medium findings whose fix does not depend on it, holds the rest, then stops |
+| Low | misleading comments, dead code, small test gaps, naming, docs; also a design question whose answer only touches one of these | fixed only when narrow, on the reading the design sources support best, else deferred. Never holds the run |
+| Design | the design sources are wrong, contradict each other, or are silent on something the change had to decide, and the answer changes High or Medium behaviour | never fixed in place. The cycle still fixes the High and Medium findings whose fix does not depend on it, holds the rest, then stops |
 
 Every finding needs `path:line` and the failing input or sequence. A finding that predates the PR
 or belongs to another slice is deferred, not fixed.
+
+A cycle with no High or Medium is the last: its Lows are fixed or deferred and nothing re-reviews
+them. A behaviour fix adds a row to an existing table test, or changes an existing assertion, before
+it adds a new test. No test for a comment, doc, naming or dead-code fix, and never a test that copies
+a table or constant from the code or exercises a test double (Robin, 2026-11-14).
 
 ## Handoffs
 
