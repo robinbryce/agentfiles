@@ -201,7 +201,7 @@ const SEVERITY_RULES = `Severity:
 - High: ships wrong behaviour. An authority, payment, signature or proof check that can be bypassed or wrongly fails; funds or data at risk; a contract, wire-format or API break.
 - Medium: a real bug with limited reach, or behaviour that contradicts what an ADR, ARC, protocol spec, the rules of the road or the plan's locked decisions state. A Low that a design source states is Medium. A missing test for changed behaviour on an authority or payment path.
 - Low: misleading comments, dead code, small test gaps, naming, docs.
-- Design: the design sources are wrong, contradict each other, or are silent on something this change had to decide. A code change alone cannot settle it. Fill designSays, codeNeeds, options and recommendation.
+- Design: the design sources are wrong, contradict each other, or are silent on something this change had to decide, a code change alone cannot settle it, and the answer changes High or Medium behaviour. Fill designSays, codeNeeds, options and recommendation. A design question whose answer only touches a Low (a comment, a doc line, a name, the shape of a test) is a Low: take the reading the design sources support best and say which in detail.
 ${ESCALATORS.length ? `This profile also rates:\n${ESCALATORS.map(e => `- ${e}`).join('\n')}\n` : ''}Scope: pr (introduced or touched by this change), preexisting (predates it), out-of-slice (belongs to other planned work).
 Each finding needs concrete evidence: path:line and the input or sequence that fails. No style nits. A few real findings beat many weak ones. An empty list is a valid answer.`
 
@@ -283,10 +283,10 @@ Fix them in this order, one commit per finding:
 ${items.map(f => `- id ${f.id} (${f.severity}): ${f.title}\n  ${f.file}${f.line ? ':' + f.line : ''}. ${f.detail}\n  Suggested: ${f.fix || '-'}`).join('\n')}
 
 For each finding:
-- When it is about behaviour, first add or change a test that fails without the fix${A.tdd ? ` (${A.tdd})` : ''}, then fix it.
+- When it is about behaviour, first add or change a test that fails without the fix${A.tdd ? ` (${A.tdd})` : ''}, then fix it. Prefer a new row in an existing table-driven test, or a changed assertion in an existing test, over a new test. Add no test for a comment, doc, naming or dead-code fix. Never add a test whose expected value copies a table, constant or literal list from the code, or that exercises a test double instead of the code.
 - Keep the change to that finding. No refactoring around it.
 - Commit following ${COMMIT_RULES}. Never amend, rebase or force-push.
-- If the fix needs a design decision (the design sources are silent, or the fix would contradict them), make no change for it: outcome design, and say why in note.
+- If a High or Medium fix needs a design decision (the design sources are silent, or the fix would contradict them), make no change for it: outcome design, and say why in note. A Low never waits on a design decision: fix it on the reading the design sources support best, or leave it as not-fixed with the open question in note.
 - If you cannot fix it, outcome not-fixed with the reason.
 
 Design sources, for checking a fix stays inside the design:
@@ -474,6 +474,8 @@ for (let i = 0; i < cycleLimit; i++) {
     f.commit = r && r.commit
     f.test = r && r.test
     f.note = r ? r.note : 'the fixer did not report it'
+    // A Low never holds the run for a design decision (Robin, 2026-11-14).
+    if (f.outcome === 'design' && f.severity === 'Low') f.outcome = 'not-fixed'
     if (f.outcome === 'design') design.push(f)
     handled.push(f)
   }
@@ -484,6 +486,7 @@ for (let i = 0; i < cycleLimit; i++) {
 
   if (designF.length || fixNow.some(f => f.outcome === 'design')) { stoppedBy = 'design'; break }
   if (fixNow.some(f => f.outcome === 'not-fixed' && f.severity !== 'Low')) { stoppedBy = 'not-fixed'; break }
+  // A cycle with no High or Medium is the last one: its Lows are fixed or deferred, never re-reviewed.
   if (!toFix.some(f => f.severity === 'High' || f.severity === 'Medium')) { stoppedBy = 'clean'; break }
 }
 
