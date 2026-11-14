@@ -8,7 +8,7 @@
 - **Ids**: the session's own ids, plus Linear `ENG-NNNN` issues where they exist.
 - **Link**: from the plan README.
 - **Commit**: the repo's conventional-commit title as its log shows (`type(scope): summary (ENG-NNNN)`),
-  a body that says why, and the session's `Co-Authored-By` line. On a branch in a worktree; never push
-  without asking.
+  a body that says why, and the session's `Co-Authored-By` line. On a branch in a worktree. Push without asking
+  unless the branch's PR is currently approved; then confirm first, because a push dismisses the approval.
 - **Canvas**: a private Artifact. It holds JustGames design detail, so do not share or embed the link
   anywhere unless Robin asks.
