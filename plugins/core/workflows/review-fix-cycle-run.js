@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'Launched by /core:review-fix-cycle, which resolves the active profile overlay into args. After each push to a slice PR (kind pr), or on a slice doc before any code (kind doc).',
   phases: [
     { title: 'Check', detail: 'the worktree is clean and at the PR head' },
-    { title: 'Review', detail: 'correctness and design reviewers, in parallel' },
+    { title: 'Review', detail: 'correctness and design reviewers, in parallel; findings go to verification as each returns' },
     { title: 'Verify', detail: 'one skeptic per High, Medium or Design finding' },
     { title: 'Fix', detail: 'one commit per finding, in the PR worktree' },
     { title: 'Report', detail: 'the review-cycle comment, posted when publishing' },
@@ -406,21 +406,32 @@ const cycleLimit = KIND === 'doc' ? 1 : MAX_CYCLES
 for (let i = 0; i < cycleLimit; i++) {
   const cycle = FIRST + i
 
+  // Each reviewer's findings are verified as soon as that reviewer returns, so a fast reviewer's
+  // findings do not wait on a slow one (Robin, 2026-11-15). A later finding at the same spot joins
+  // the earlier one unless it is more severe; then it replaces it and is verified at its own severity.
   phase('Review')
-  const reviews = await parallel(REVIEWERS.map(r => () =>
-    run(reviewPrompt(r, cycle, base, prevFixes, handled), { label: `cycle ${cycle} ${r.key}`, phase: 'Review', schema: FINDINGS, ...model(r.key) })))
-  const raw = reviews.flatMap((res, ri) => res ? res.findings.map(f => ({ ...f, reviewers: [REVIEWERS[ri].key] })) : [])
-  const missing = reviews.map((res, ri) => res ? null : REVIEWERS[ri].key).filter(Boolean)
+  const needsVerify = f => f.severity !== 'Low'
+  const verify = (f, k) => needsVerify(f)
+    ? run(verifyPrompt(f, base), { label: `cycle ${cycle} verify ${k}`, phase: 'Verify', schema: VERDICT, ...model(f.severity === 'High' || f.severity === 'Design' ? 'verifyHigh' : 'verify') })
+        .then(v => v ? { ...f, verdict: v.verdict, severity: v.verdict === 'adjusted' && v.severity ? v.severity : f.severity, scope: v.verdict === 'adjusted' && v.scope ? v.scope : f.scope, why: v.reason } : { ...f, verdict: 'unverified' })
+    : Promise.resolve({ ...f, verdict: 'unverified' })
+  const accepted = []
+  const missing = []
+  await parallel(REVIEWERS.map(r => async () => {
+    const res = await run(reviewPrompt(r, cycle, base, prevFixes, handled), { label: `cycle ${cycle} ${r.key}`, phase: 'Review', schema: FINDINGS, ...model(r.key) })
+    if (!res) { missing.push(r.key); return }
+    for (const f of dedupe(res.findings.map(x => ({ ...x, reviewers: [r.key] })))) {
+      const twin = accepted.find(a => !a.dropped && sameSpot(a.f, f) && a.f.severity !== 'Design' && f.severity !== 'Design')
+      if (twin && RANK[twin.f.severity] <= RANK[f.severity]) { twin.f.reviewers.push(...f.reviewers); continue }
+      if (twin) { twin.dropped = true; f.reviewers.push(...twin.f.reviewers) }
+      accepted.push({ f, p: verify(f, accepted.length + 1) })
+    }
+  }))
   if (missing.length) log(`cycle ${cycle}: reviewer(s) returned nothing: ${missing.join(', ')}`)
-  const found = dedupe(raw)
 
   phase('Verify')
-  const needsVerify = f => f.severity !== 'Low'
-  const judged = await parallel(found.map((f, k) => () => needsVerify(f)
-    ? run(verifyPrompt(f, base), { label: `cycle ${cycle} verify ${k + 1}`, phase: 'Verify', schema: VERDICT, ...model(f.severity === 'High' || f.severity === 'Design' ? 'verifyHigh' : 'verify') })
-        .then(v => v ? { ...f, verdict: v.verdict, severity: v.verdict === 'adjusted' && v.severity ? v.severity : f.severity, scope: v.verdict === 'adjusted' && v.scope ? v.scope : f.scope, why: v.reason } : { ...f, verdict: 'unverified' })
-    : Promise.resolve({ ...f, verdict: 'unverified' })))
-  const all = judged.filter(Boolean)
+  const settled = await Promise.all(accepted.map(a => a.p))
+  const all = settled.map((j, k) => accepted[k].dropped || !j ? null : { ...j, reviewers: accepted[k].f.reviewers }).filter(Boolean)
   const refuted = all.filter(f => f.verdict === 'refuted')
   const live = all.filter(f => f.verdict !== 'refuted').sort((a, b) => RANK[a.severity] - RANK[b.severity])
   live.forEach((f, k) => { f.id = `${cycle}.${k + 1}` })
