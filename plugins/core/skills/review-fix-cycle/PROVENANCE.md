@@ -17,5 +17,9 @@
     if it fails everything is held. On flip-tools#125, two cycles in a row stopped on a new design question
     with a verified High and eight Medium findings unfixed.
   - **Model routing** follows /core:orchestrator-mode's tiers.
+  - **Early verification (Robin, 2026-11-15).** Each reviewer's findings go to verification as soon as that
+    reviewer returns, not after both. A later finding at the same spot joins the earlier one, unless it is
+    more severe; then it replaces the earlier one and is verified at its own severity. On flip-oracle#1835,
+    cycle 1's design findings waited about 18 minutes for the Opus correctness reviewer.
   - Otherwise the review, verify and fix logic, the severities and the comment format are unchanged.
 - **Sync.** Upstream edits to the forestrie script are not synced automatically: re-diff when it changes.
