@@ -19,6 +19,19 @@ them; Robin: "the context is impossible to follow otherwise."
   fits (a slice table, a status table); otherwise add it, at the top of a
   short response or the bottom of a long one.
 - Prose may use the short form once the table is present.
+- **Every CI or workflow run the response mentions gets a row with its
+  link** (Robin, 2026-11-16). This covers runs named by id ("run 43864919162"),
+  by job or purpose ("the v0.20.24 dev_qa run", "the stage apply") or only
+  implied ("its release run"). It covers runs this session started, runs
+  another person started, and runs that are still queued.
+  - **Reference:** the short name the prose uses (`v0.20.24 dev_qa run`).
+  - **What it is:** the run's URL as a link (GitHub Actions:
+    `https://github.com/<owner>/<repo>/actions/runs/<id>`), plus one sentence on
+    what it does and its state as last read (running, passed, failed at a
+    named job).
+  - When a run's id is not known yet, look it up before sending
+    (`gh run list -R <repo> --workflow <file> --branch <ref> --limit 1`). Never
+    describe a run without its link.
 - The table also carries **one row per active worktree with changes**, so
   Robin can point external diff tooling at the work while it is in progress
   (Robin, 2026-11-15). These rows are supplementary: every expansion row
