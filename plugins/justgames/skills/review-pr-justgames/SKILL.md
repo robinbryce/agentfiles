@@ -94,6 +94,12 @@ If Robin passes `--single` or `--adversarial`, that overrides the gate; say so.
   integration". Use review-changes.md §1 (context) and §3 (dimensions:
   Security, Liveness, Testability, Test coverage, Best practice, Modern
   standards).
+- **Lint-grade checks (Robin, 2026-11-27):** a check that pattern-matches
+  workflow, config or script text is lint, not protection; a way past it is
+  Low. Never ask for tests that prove a check's coverage, pin wording or
+  workflow shape, or read shipped config, nor for runtime checks keyed to
+  secret or value names: one refused and one admitted row per rule, and
+  guards that fail on empty or malformed values only.
 - **Repo overlays:** the repo's own `AGENTS.md` / rules-of-the-road and ADRs.
   ADRs are binding: flag drift between code and docs, and between documents
   inside the PR. For curator / market-queue changes also apply the
