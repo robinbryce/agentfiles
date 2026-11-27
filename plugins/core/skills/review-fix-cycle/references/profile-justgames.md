@@ -16,7 +16,17 @@
   - an ME-* violation on extras that are immutable after the CRE create is High;
   - a step that has an agent mint, sign, apply or approve, or that prints a secret, is High;
   - a hard-coded contract address, chain, token or Safe value that the pinned release supplies is Medium
-    (Robin, 2026-11-12).
+    (Robin, 2026-11-12);
+  - a way past a lint-grade check, one that pattern-matches workflow, config or script text, is Low: such a
+    check only catches the well-meant mistake, and the fix is never a bigger parser (Robin, 2026-11-27).
+- **Lint-grade checks and tests** (Robin, 2026-11-27, flip-deploy plan-2611-02 SD-24). Reviewers never ask for,
+  and fixes never add:
+  - a test that proves a check's coverage: rows per regex anchor, per spelling or per mutation;
+  - a test that pins message wording or workflow or action shape, or reads the shipped config;
+  - a runtime check keyed to particular secret or value names, or a second API call made only to word an error.
+
+  A rule gets one refused and one admitted row. A runtime guard fails on an empty or malformed required value and
+  nothing more. A finding that asks for any of these is refuted, not fixed.
 - **`commitRules`**: the repo's conventional-commit title as its log shows (`type(scope): summary
   (ENG-NNNN)`); a body that says why; end with the `Co-Authored-By` attribution line the session gives.
 - **`gates`**: just-agents `workflow/commands/pre-commit-checks.md` where the checkout has it, else the
